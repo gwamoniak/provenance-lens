@@ -42,7 +42,7 @@ All eight proposed agents exist (`lens-rust-core`, `lens-wasm`, `lens-extension`
 ## Next actions
 
 1. **Maintainer: submit to the Chrome Web Store** — everything needed is in `docs/STORE_LISTING.md` (copy, permission justifications, privacy policy, pre-submission checklist); the zip is `dist/provenance-lens-0.1.0.zip` (rebuild anytime: `sh scripts/package_extension.sh`).
-2. **Optional next**: publish the repo to GitHub (`gh repo create`), take items off the hardening backlog (cargo-fuzz, cert-policy tests), or open a gated milestone when its gate opens (`lens-research` tracks detector and registry availability).
+2. **Optional next**: take items off the hardening backlog (cargo-fuzz, cert-policy tests), make the GitHub repo public when ready (https://github.com/gwamoniak/provenance-lens, currently private), or open a gated milestone when its gate opens (`lens-research` tracks detector and registry availability).
 
 ## Risks being tracked
 
