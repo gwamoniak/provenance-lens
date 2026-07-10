@@ -1,6 +1,6 @@
 # Development status — Provenance Lens
 
-**TL;DR (2026-07-10): M0 and M1 closed — Layer 1 does real C2PA validation, signed off by the maintainer and merged to `main`. 18/18 tests green, CLI acceptance exact (Verified/0, Tampered/30, Inconclusive/20), self-verifying vector corpus, wasm32 already type-checks. Next: M2 (WASM artifact + parity + size budget).**
+**TL;DR (2026-07-10): M0–M2 closed. Layer 1 does real C2PA validation (signed off, merged); the WASM engine builds reproducibly, verifies the whole corpus running as a real artifact in Node, and is budgeted at ≤ 7 MB raw / ≤ 2.5 MB gzipped (measured 6.41 / 2.15). 19/19 tests green. Next: M3, extension end-to-end.**
 
 Snapshot dashboard, last updated **2026-07-10, post-M0** (M0 closed; M1 is next). This file is a *derived view* for humans skimming the repo: the authoritative, always-current record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
 
@@ -41,9 +41,8 @@ All eight proposed agents exist (`lens-rust-core`, `lens-wasm`, `lens-extension`
 
 ## Next actions
 
-1. **M2** — wasm-pack artifact + native/WASM parity suite over the vector corpus + measured size budget (wasm32 type-check already passes).
-2. **M3** — extension end-to-end (context-menu verify against the bundled engine).
-3. **M4** — ship the wedge (owned by `lens-release`; maintainer presses publish); includes the production trust-list distribution question and the M1 review follow-ups (cargo-fuzz, cert-policy tests).
+1. **M3** — extension end-to-end: bundle the engine + a trust-anchor PEM, wire the context-menu flow to `verify_bytes`, honest failure states, manual smoke script.
+2. **M4** — ship the wedge (owned by `lens-release`; maintainer presses publish); includes the production trust-list distribution question and the M1 review follow-ups (cargo-fuzz, cert-policy tests).
 
 ## Risks being tracked
 

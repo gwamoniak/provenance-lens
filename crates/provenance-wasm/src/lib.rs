@@ -1,30 +1,42 @@
 //! WASM boundary. One exported function: bytes in, JSON report out. The
-//! extension owns fetching the asset; this crate owns nothing but the call
-//! into `provenance-core`.
+//! extension owns fetching the asset and bundling its trust-anchor list;
+//! this crate owns nothing but the call into `provenance-core`.
 //!
 //! JSON is hand-rolled for now to keep the artifact small; if the report
 //! shape grows past this flat structure, switch to serde + serde-wasm-bindgen
-//! (Milestone 2 decision point — record it in the ExecPlan Decision Log).
+//! (Milestone 2 decision point — recorded in the ExecPlan Decision Log).
 
 use provenance_core::{Asset, LayerFinding, Pipeline};
 use wasm_bindgen::prelude::*;
 
-/// Examine `bytes` and return the report as a JSON string:
+/// Examine `bytes` and return the report as a JSON string.
+///
+/// `trust_anchors_pem` is a PEM bundle of root certificates that signature
+/// chains may validate against; without it no chain can reach "trusted", so
+/// signed assets report as unverifiable provenance (tampered tier).
 ///
 /// ```text
 /// {
 ///   "verdict": "inconclusive",
 ///   "phrase": "Inconclusive: ...",
-///   "findings": [ { "layer": "c2pa", "status": "not_evaluated", "detail": "..." }, ... ]
+///   "findings": [ { "layer": "c2pa", "status": "no_signal", "detail": "" }, ... ]
 /// }
 /// ```
 #[wasm_bindgen]
-pub fn verify_bytes(bytes: &[u8], media_type: Option<String>) -> String {
+pub fn verify_bytes(
+    bytes: &[u8],
+    media_type: Option<String>,
+    trust_anchors_pem: Option<String>,
+) -> String {
     let asset = Asset {
         bytes,
         media_type: media_type.as_deref(),
     };
-    let report = Pipeline::standard().examine(&asset);
+    let pipeline = match trust_anchors_pem {
+        Some(pem) => Pipeline::with_trust_anchors(pem),
+        None => Pipeline::standard(),
+    };
+    let report = pipeline.examine(&asset);
 
     let findings = report
         .findings
@@ -80,7 +92,7 @@ mod tests {
 
     #[test]
     fn report_json_is_wellformed_for_empty_asset() {
-        let json = verify_bytes(&[], None);
+        let json = verify_bytes(&[], None, None);
         assert!(json.starts_with('{') && json.ends_with('}'));
         assert!(json.contains(r#""verdict":"inconclusive""#));
         assert!(json.contains(r#""layer":"c2pa""#));

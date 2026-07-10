@@ -5,20 +5,26 @@ description: The WASM build pipeline, size discipline, and JS interop patterns f
 
 # WASM packaging
 
-## Build
+## Build (three steps, all from the repo root)
 
     wasm-pack build crates/provenance-wasm --target web --out-dir ../../extension/pkg
+    wasm-opt extension/pkg/provenance_wasm_bg.wasm -Os \
+        --enable-bulk-memory --enable-bulk-memory-opt --enable-sign-ext \
+        --enable-mutable-globals --enable-nontrapping-float-to-int --enable-reference-types \
+        -o extension/pkg/provenance_wasm_bg.wasm
+    node scripts/wasm_smoke.mjs        # runs the vector corpus through the REAL artifact
 
 `--target web` produces an ES module the MV3 extension imports directly; `extension/pkg/` is build output, gitignored, never committed. The workspace `[profile.release]` already sets `opt-level = "s"`, `lto = true`, `strip = true`.
 
+wasm-pack's **bundled** wasm-opt predates bulk-memory operations (which Rust emits by default) and fails — it is disabled via `[package.metadata.wasm-pack.profile.release] wasm-opt = false` in `crates/provenance-wasm/Cargo.toml`; the explicit system-binaryen step above (Homebrew `binaryen`, needs the feature flags shown) replaces it. The smoke script is the acceptance check: every committed vector must produce its recorded verdict through the compiled artifact.
+
 ## Size discipline
 
-The artifact ships inside a browser extension; measure gzipped size after every dependency change and record it in the ExecPlan (M2 sets the budget from evidence; placeholder ≤ 4 MB gzipped).
+Measured at M2 (c2pa 0.89.2, rust_native_crypto): **6.41 MB raw / ~2.15 MB gzipped** after wasm-opt. Budget: **≤ 7 MB raw, ≤ 2.5 MB gzipped** — measure after every dependency change and record in the ExecPlan; exceeding the budget is a Decision Log event, not a silent bump.
 
 - Check what's inside before optimizing blind: `twiggy top extension/pkg/*.wasm`.
-- The `c2pa` crate is the big rock: build it with default features off and enable only what Layer 1 validation needs; crypto backends matter for wasm32 (pure-Rust backends link; native/OpenSSL ones don't). Record the exact feature set in the Decision Log.
-- `wasm-opt -Os` (bundled with wasm-pack) stays enabled.
-- No `serde` until the JSON shape outgrows the hand-rolled encoder (Decision Log gate).
+- The `c2pa` crate is the big rock: default features off (no OpenSSL, no HTTP clients — also the sans-IO rule). Record any feature change in the Decision Log.
+- No `serde` in the wrapper until the JSON shape outgrows the hand-rolled encoder (Decision Log gate).
 
 ## Interop patterns
 
