@@ -12,7 +12,11 @@ const USAGE: &str = "\
 lens — honest provenance verdicts for media files
 
 USAGE:
-    lens verify <FILE>    examine a file and print a verdict report
+    lens verify [--trust-anchors <PEM>] <FILE>
+                          examine a file and print a verdict report;
+                          --trust-anchors loads a PEM bundle of root
+                          certificates that signatures may chain to
+                          (without it, no chain can validate as trusted)
     lens tiers            print the four verdict tiers and their meaning
 
 EXIT CODES:
@@ -21,9 +25,15 @@ EXIT CODES:
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
-    match (args.get(1).map(String::as_str), args.get(2)) {
-        (Some("verify"), Some(path)) => verify(path),
-        (Some("tiers"), None) => {
+    match args.get(1).map(String::as_str) {
+        Some("verify") => match parse_verify_args(&args[2..]) {
+            Some((anchors_path, file)) => verify(file, anchors_path),
+            None => {
+                eprint!("{USAGE}");
+                ExitCode::from(2)
+            }
+        },
+        Some("tiers") if args.len() == 2 => {
             tiers();
             ExitCode::SUCCESS
         }
@@ -34,7 +44,16 @@ fn main() -> ExitCode {
     }
 }
 
-fn verify(path: &str) -> ExitCode {
+/// `verify` accepts exactly: [--trust-anchors <PEM>] <FILE>.
+fn parse_verify_args(rest: &[String]) -> Option<(Option<&String>, &String)> {
+    match rest {
+        [file] => Some((None, file)),
+        [flag, pem, file] if flag == "--trust-anchors" => Some((Some(pem), file)),
+        _ => None,
+    }
+}
+
+fn verify(path: &str, anchors_path: Option<&String>) -> ExitCode {
     let bytes = match std::fs::read(path) {
         Ok(bytes) => bytes,
         Err(err) => {
@@ -43,11 +62,22 @@ fn verify(path: &str) -> ExitCode {
         }
     };
 
+    let pipeline = match anchors_path {
+        Some(anchors_path) => match std::fs::read_to_string(anchors_path) {
+            Ok(pem) => Pipeline::with_trust_anchors(pem),
+            Err(err) => {
+                eprintln!("lens: cannot read trust anchors {anchors_path}: {err}");
+                return ExitCode::from(2);
+            }
+        },
+        None => Pipeline::standard(),
+    };
+
     let asset = Asset {
         bytes: &bytes,
         media_type: guess_media_type(path),
     };
-    let report = Pipeline::standard().examine(&asset);
+    let report = pipeline.examine(&asset);
 
     println!("{path}");
     println!("  verdict: {}", report.verdict);
