@@ -4,6 +4,19 @@ Open-source verification engine (Rust → WASM) with a browser extension as the 
 
 ---
 
+> ## Document status (updated 2026-07-10)
+>
+> This proposal was operationalized on 2026-07-10 as this repository. It is preserved as the **origin document**; the living, authoritative plan is **`PROVENANCE_LENS_EXECPLAN.md`** (milestones M0–M7, Decision Log, Progress), and the human-readable snapshot is **`development_status.md`**. Where the implementation deviates, the ExecPlan's Decision Log has the entry — the notable ones:
+>
+> - Names finalized: one repo (`provenance-lens`), crates `provenance-core`/`provenance-cli`/`provenance-wasm`, CLI binary `lens`. The proposal's `verify-*` working names and multi-repo split were folded into this single repo for the wedge; `verify-registry` and the npm package remain post-wedge deliverables.
+> - The wedge extension (M3) ships the context-menu flow under `contextMenus`+`activeTab`; this document's content-script badge UI is the post-wedge flagship UX, gated on the host-permissions decision it requires.
+> - All 8 agents and all 8 skills below exist under `.claude/agents/` (`lens-*`) and `.claude/skills/`, plus two additions found necessary: a `lens-release` agent (owns M4 shipping, which no proposed agent owned) and a `test-vectors` skill (c2patool corpus generation for the QA corpus).
+> - Current state: scaffold complete, **nothing compiled yet** (no Rust toolchain on the dev machine at scaffold time); Layer 1 implementation (M1) is next. See `development_status.md`.
+>
+> Inline `> Status:` notes below mark each part's state as of 2026-07-10; the original 2026 proposal text is otherwise untouched.
+
+---
+
 ## 1. System Architecture
 
 ```
@@ -73,6 +86,8 @@ The gray tier's honest wording is a product decision as important as any code.
 4. `verify-registry` — transparency-log service (self-hostable)
 5. CLI tool — `verify image.png` for journalists/CI pipelines
 
+> Status (2026-07-10): 1 → `crates/provenance-core` (scaffold; C API post-wedge). 2 → `crates/provenance-wasm` (scaffold; npm post-wedge). 3 → `extension/` (skeleton; functional at M3). 4 → not started, gated (M6; design captured in the `provenance-registry` skill). 5 → `crates/provenance-cli`, binary `lens` (scaffold). Verdict model + tier wording: implemented with pinning tests.
+
 ---
 
 ## 2. Skills & Agents Proposition
@@ -115,5 +130,7 @@ Structure for building this with AI coding agents (e.g., Claude Code) plus a sma
 2. **Weeks 4–6:** WASM build + minimal extension showing Verified/Inconclusive badges
 3. **Weeks 7–10:** Layer 2 detectors + verdict tiers + test corpus
 4. **Then:** registry (Layer 3), heuristics behind a flag, store launches, community RFC process
+
+> Status (2026-07-10): mapped to ExecPlan milestones — phase 1 ≈ M1 (next, after M0 toolchain bring-up closes), phase 2 ≈ M2+M3, wedge ships at M4 (`lens-release` owns it), phase 3 ≈ M5 (gated on a runnable licensed detector), phase 4 ≈ M6 (gated) / M7 (optional). Open human item: the cryptography reviewer who signs off on M1's validation code is not yet named.
 
 The Layer-1-only extension is the smallest thing worth shipping — it's honest, provable, and creates the platform pressure that makes everything else matter.

@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **provenance-lens** is an honest AI-content provenance verifier: a four-layer Rust pipeline (C2PA cryptographic proof → watermark detection → transparency-log registry lookup → optional heuristics) compiled natively for a CLI (`lens`) and to WASM for a Manifest V3 browser extension. Verdicts come in four honest tiers — Verified, Indicated, Inconclusive, Tampered — with the founding rule baked into the types and the wording: **no provenance data ≠ authentic**. The authoritative design is **`PROVENANCE_LENS_EXECPLAN.md`** at the repo root — read it before any work; it is fully self-contained per the ExecPlan discipline (`PLANS.md` in `../../cpp/solid-broccoli`). The origin document is `ai-content-verifier-proposal.md` (the maintainer's saved proposal); the plan operationalizes it and its Decision Log explains any deviation.
 
-## Current status (2026-07-10)
+## Current status (2026-07-10 — skimmable snapshot in `development_status.md`; the ExecPlan's Progress section is authoritative)
 
-M0 scaffold authored **compiler-blind** (no Rust toolchain on this machine yet — install per the plan's Concrete Steps). M0 closes when `cargo test --workspace` first runs green; treat that first compile as a review of the scaffold. Then M1 (real C2PA validation) begins. **Gated milestones:** M5 watermark (needs a runnable licensed vendor detector), M6 registry (needs a deployed transparency log), M7 heuristics (optional, may never ship) — do not start a gated milestone without its gate satisfied.
+M0 scaffold authored **compiler-blind** (no Rust toolchain on this machine yet — install per the plan's Concrete Steps). M0 closes when `cargo test --workspace` first runs green; treat that first compile as a review of the scaffold. Then M1 (real C2PA validation) begins — note M1 cannot *merge* until the maintainer names the human cryptography reviewer. **Gated milestones:** M5 watermark (needs a runnable licensed vendor detector), M6 registry (needs a deployed transparency log), M7 heuristics (optional, may never ship) — do not start a gated milestone without its gate satisfied.
 
 ## Build
 
@@ -46,7 +46,7 @@ M0 scaffold authored **compiler-blind** (no Rust toolchain on this machine yet �
 
 ## Agents & skills
 
-Eight agents in `.claude/agents/`: `lens-rust-core`, `lens-wasm`, `lens-extension` (implementers), `lens-security-reviewer` (read-only; prepares the human sign-off packet), `lens-registry` (gated Layer 3), `lens-qa`, `lens-research`, `lens-docs`. All defer to `PROVENANCE_LENS_EXECPLAN.md` as the single source of truth. Eight skill packs in `.claude/skills/`: `c2pa-spec` (before touching Layer 1), `verdict-language` (before writing ANY user-facing string), `rust-quality` (before writing any Rust), `security-checklist` (every trust-decision review), `watermark-detection`, `provenance-registry`, `wasm-packaging`, `webextension-mv3`.
+Nine agents in `.claude/agents/`: `lens-rust-core`, `lens-wasm`, `lens-extension` (implementers), `lens-security-reviewer` (read-only; prepares the human sign-off packet), `lens-registry` (gated Layer 3), `lens-qa`, `lens-research`, `lens-docs`, `lens-release` (M4 shipping; prepares but never publishes without the maintainer's go). All defer to `PROVENANCE_LENS_EXECPLAN.md` as the single source of truth. Nine skill packs in `.claude/skills/`: `c2pa-spec` (before touching Layer 1), `verdict-language` (before writing ANY user-facing string), `rust-quality` (before writing any Rust), `security-checklist` (every trust-decision review), `test-vectors` (before adding corpus assets), `watermark-detection`, `provenance-registry`, `wasm-packaging`, `webextension-mv3`.
 
 ## Sibling projects (same sandbox, same maintainer)
 

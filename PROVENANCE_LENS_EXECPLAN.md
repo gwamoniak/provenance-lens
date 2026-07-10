@@ -16,6 +16,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
 
 - [x] (2026-07-10) M0 scaffold: Cargo workspace (`provenance-core`, `provenance-cli`, `provenance-wasm`), four stub layers returning honest `NotEvaluated`, verdict tiers with approved phrases, combination rule with unit tests, std-only CLI (`lens verify`, `lens tiers`), wasm-bindgen wrapper with hand-rolled JSON, MV3 extension skeleton, 8 project agents, 2 skills, CLAUDE.md, README, git repo initialized.
 - [x] (2026-07-10) M0 reconciliation with the full proposal document (`ai-content-verifier-proposal.md`, found pre-existing in the target directory at commit time — see Surprises): authored the remaining 6 skills (watermark-detection, rust-quality, wasm-packaging, webextension-mv3, security-checklist, provenance-registry), switched Layer 3 to perceptual hashing (PDQ/pHash) per the proposal, recorded the `WatermarkDetector` trait plan, adopted the proposal's privacy rules, and logged the naming/UX deviations below.
+- [x] (2026-07-10) Reflection pass on the origin proposal: `development_status.md` created (derived snapshot dashboard; this plan stays authoritative), status preamble and inline `> Status:` notes added to `ai-content-verifier-proposal.md`, and two gaps filled — `lens-release` agent (M4/shipping had no owner) and `test-vectors` skill (c2patool corpus generation for M1).
+- [ ] Name the human cryptography reviewer (maintainer decision) — required before M1 can merge.
 - [ ] M0 remaining: install the Rust toolchain on this machine (`rustup`, stable, `wasm32-unknown-unknown` target — see Concrete Steps), then run `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` and fix anything the scaffold got wrong (it was written without a compiler present; expect small breakage, not design breakage).
 - [ ] M1: integrate the `c2pa` crate in `layers/c2pa.rs`; collect test vectors into `tests/vectors/`; CLI acceptance transcript recorded below; human cryptography-reviewer sign-off recorded in the Decision Log before merge.
 - [ ] M2: wasm-pack build green; native/WASM parity test over the full vector set; artifact size measured and budgeted.
@@ -64,6 +66,12 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - Decision: Layer 3 lookup uses perceptual hashing (PDQ preferred, pHash acceptable), computed locally; only hashes ever leave the device, with user consent — adopted from the proposal along with the general privacy rule that image bytes are never uploaded by any layer.
   Rationale: cryptographic hashes break on the platform re-encodes that are exactly the case Layer 3 exists for; the privacy rule is the proposal's trust model and part of the product's honesty brand.
   Date/Author: 2026-07-10 / from the proposal, reconciliation pass.
+- Decision: Added a ninth agent, `lens-release` (M4 shipping and every later release: versioning, CHANGELOG, reproducible builds, store checklists; prepares but never publishes without the maintainer's explicit go), and a ninth skill, `test-vectors` (c2patool corpus generation, the trust-anchor policy for test certificates, the vector manifest format).
+  Rationale: gap analysis against the proposal — store submission sat inside its Extension Agent and community inside Docs, leaving shipping mechanics unowned; and the QA corpus was named but no skill carried the know-how to generate it. Both gaps sit directly on the wedge's critical path (M1 and M4).
+  Date/Author: 2026-07-10 / reflection pass.
+- Decision: `development_status.md` exists as a derived, human-readable snapshot (deliverable mapping, blockers, risks), updated at milestone boundaries. This plan's living sections remain the single source of truth; on disagreement the plan wins.
+  Rationale: the maintainer wants a skimmable current-state view without reading the full plan; making its derived status explicit prevents a second-source-of-truth drift.
+  Date/Author: 2026-07-10 / maintainer request (goal directive), reflection pass.
 
 ## Outcomes & Retrospective
 
@@ -79,7 +87,8 @@ The layout:
 - `crates/provenance-cli/` — the `lens` binary (std-only): `lens verify <file>` prints a report and exits with the verdict's code; `lens tiers` prints the four tiers.
 - `crates/provenance-wasm/` — a thin wasm-bindgen wrapper exporting `verify_bytes(bytes, media_type) -> String` (flat JSON: verdict id, approved phrase, per-layer findings).
 - `extension/` — a Manifest V3 browser extension skeleton (plain JS, no framework): a context-menu entry on images, a popup listing the tiers, and honest "engine not bundled" messaging until M3 wires in the wasm-pack output at `extension/pkg/` (gitignored build product).
-- `.claude/agents/` — eight scoped agents (`lens-rust-core`, `lens-wasm`, `lens-extension`, `lens-security-reviewer`, `lens-registry`, `lens-qa`, `lens-research`, `lens-docs`); `.claude/skills/` — eight skill packs (`c2pa-spec`, `watermark-detection`, `rust-quality`, `wasm-packaging`, `webextension-mv3`, `verdict-language`, `security-checklist`, `provenance-registry`).
+- `.claude/agents/` — nine scoped agents (`lens-rust-core`, `lens-wasm`, `lens-extension`, `lens-security-reviewer`, `lens-registry`, `lens-qa`, `lens-research`, `lens-docs`, `lens-release`); `.claude/skills/` — nine skill packs (`c2pa-spec`, `watermark-detection`, `rust-quality`, `wasm-packaging`, `webextension-mv3`, `verdict-language`, `security-checklist`, `provenance-registry`, `test-vectors`).
+- `development_status.md` — derived snapshot dashboard for humans; this plan stays authoritative.
 - `ai-content-verifier-proposal.md` — the origin document (the maintainer's saved proposal from the pinned conversation); this plan operationalizes it, and where they differ the Decision Log entry explains why.
 
 ## Plan of Work
