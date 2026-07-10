@@ -1,6 +1,8 @@
 # Provenance Lens — browser extension (MV3)
 
-Skeleton for the Manifest V3 extension. It loads unpacked today (chrome://extensions → Developer mode → Load unpacked → this directory) and shows the four verdict tiers; actual verification activates in Milestone 3 once the WASM engine is bundled.
+The Manifest V3 extension (functional as of Milestone 3). Right-click any image → "Verify provenance with Provenance Lens": the service worker fetches the image bytes (the only network request the extension ever makes on the user's behalf), runs the bundled WASM engine with the trust anchors from `trust/anchors.pem` (a data file — empty placeholder until M4 settles trust-list distribution), stores the report, reflects the verdict on the action badge (VER/IND/INC/TAM), and opens the popup where the report renders with the engine's verbatim phrases. Errors (engine missing, fetch failed, HTTP error) are shown as errors, never as a verdict tier.
+
+Load unpacked: chrome://extensions → Developer mode → Load unpacked → this directory. Full manual smoke script in `PROVENANCE_LENS_EXECPLAN.md` (M3): build the engine, copy the test CA into `trust/anchors.pem`, `node scripts/serve_testpage.mjs`, verify the five images at http://localhost:8917, restore the placeholder.
 
 Build the engine into `pkg/` (gitignored, never committed) — full steps and wasm-opt flags in `.claude/skills/wasm-packaging/SKILL.md`:
 

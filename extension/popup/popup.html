@@ -7,9 +7,25 @@
 </head>
 <body>
   <h1>Provenance Lens</h1>
+
+  <!-- Last verification result; filled by popup.js (textContent only). -->
+  <section id="report" hidden>
+    <h2>Last verification</h2>
+    <p id="report-url" class="url"></p>
+    <p id="report-phrase" class="phrase"></p>
+    <ul id="report-findings" class="findings"></ul>
+    <p id="report-anchors" class="anchors-note"></p>
+  </section>
+
+  <!-- Error state: an error is an error, never a verdict tier. -->
+  <section id="error" hidden>
+    <h2>Last verification</h2>
+    <p id="error-url" class="url"></p>
+    <p id="error-message" class="error-message"></p>
+  </section>
+
   <p class="status" id="engine-status">
-    Verification engine not bundled yet — right-click verification activates in
-    Milestone&nbsp;3.
+    Verification engine not bundled yet — see extension/README.md.
   </p>
 
   <!-- The four tiers, worded exactly as in provenance-core/src/verdict.rs.

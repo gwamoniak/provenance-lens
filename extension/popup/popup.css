@@ -13,6 +13,65 @@ h1 {
   margin: 0 0 8px;
 }
 
+h2 {
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+
+#report,
+#error {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.url {
+  color: #6b6b6b;
+  font-size: 11px;
+  word-break: break-all;
+  margin: 0 0 6px;
+}
+
+.phrase {
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  border-left: 3px solid #c4c4c4;
+  border-radius: 2px;
+  background: #f6f6f6;
+}
+
+.phrase.verified    { border-left-color: #2e7d32; }
+.phrase.indicated   { border-left-color: #e09b00; }
+.phrase.inconclusive { border-left-color: #757575; }
+.phrase.tampered    { border-left-color: #c62828; }
+
+.findings {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  color: #444444;
+  font-size: 11px;
+}
+
+.findings li {
+  margin-bottom: 2px;
+}
+
+.anchors-note {
+  color: #6b6b6b;
+  font-size: 11px;
+  margin: 0;
+}
+
+/* Errors are errors — plain, no tier colors, no reassurance. */
+.error-message {
+  margin: 0;
+  padding: 6px 8px;
+  border-left: 3px solid #1a1a1a;
+  background: #f6f6f6;
+  border-radius: 2px;
+}
+
 .status {
   color: #6b6b6b;
   font-style: italic;

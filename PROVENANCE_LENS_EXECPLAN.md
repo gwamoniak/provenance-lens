@@ -22,7 +22,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - [x] (2026-07-10) M1 implemented on branch `m1-c2pa-validation`: real C2PA validation in `layers/c2pa.rs` (c2pa 0.89.2, default features off + `rust_native_crypto`), `Pipeline::with_trust_anchors`, CLI `--trust-anchors` flag, self-verifying vector generator (`cargo run -p provenance-core --example gen_vectors`) with a committed 5-vector corpus + `manifest.tsv` + `test_ca.pem` in `crates/provenance-core/tests/vectors/`, 6 integration tests (trusted→Verified with issuer, unanchored-valid→Tampered, unsigned→Inconclusive, content-edit→Tampered, wrong-anchor→never-Verified, hostile-bytes robustness) + corpus test + sniffing tests. 18/18 tests green, clippy `-D warnings` clean, acceptance transcript in Artifacts. Bonus: the c2pa-backed core already type-checks on wasm32 (M2's main risk retired).
 - [x] (2026-07-10) **M1 merge gate satisfied and M1 complete**: maintainer (gwamoniak) reviewed the packet and signed off ("approved, merge it"); sign-off recorded in the Decision Log; branch `m1-c2pa-validation` merged to `main`.
 - [x] (2026-07-10) **M2 complete.** `verify_bytes` extended with a `trust_anchors_pem` parameter (the extension bundles its trust list and passes it in). Parity suite (`crates/provenance-wasm/tests/parity.rs`): every corpus vector, with and without anchors, produces identical verdict + phrase + per-layer findings through the wrapper and the native pipeline — 19/19 tests green. wasm-pack build is reproducible (bundled wasm-opt disabled — it predates bulk-memory ops; explicit system-binaryen step documented in the wasm-packaging skill). Beyond the plan: `scripts/wasm_smoke.mjs` executes the ACTUAL compiled artifact in Node and all 5 vectors match their recorded verdicts, Verified included. Size measured: 6.41 MB raw / ~2.15 MB gzipped; budget set at ≤ 7 MB raw / ≤ 2.5 MB gzipped.
-- [ ] M3: extension verifies images end-to-end via the bundled engine; honest failure states; manual smoke script written down.
+- [x] (2026-07-10) M3 implemented: module service worker wires context menu → fetch image bytes → `verify_bytes(bytes, contentTypeHint, anchorsPem)` → report in `chrome.storage.session` → action badge (VER/IND/INC/TAM in tier colors, ERR black) → `chrome.action.openPopup()` with badge fallback; popup renders the engine's verbatim phrases (textContent only) plus per-layer findings and an explicit trust-anchor status line; errors render as errors, never as tiers. Trust anchors ship as a data file (`extension/trust/anchors.pem`, deliberately empty placeholder until M4). Smoke harness: `scripts/serve_testpage.mjs` serves the corpus with CORS headers. Automated evidence green: page renders in a browser, and the worker's exact data path (HTTP fetch → content-type hint → engine with anchors) passes all 5 vectors in Node.
+- [ ] **M3 acceptance remaining: the human-run browser smoke** (chrome.* glue — context menu, badge, popup, storage — cannot be exercised outside a real Chrome with the unpacked extension). Script is in the M3 milestone section below; on a pass, check this box and record the observation here.
 - [ ] M4: ship the wedge — package the extension, audit every user-facing string against the `verdict-language` skill, write the store listing, record the final human sign-off.
 - [ ] Post-wedge (each gated, see Milestones): M5 watermark layer, M6 registry layer, M7 heuristics layer.
 
@@ -97,6 +98,12 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - Decision: M2 — wasm-pack's bundled wasm-opt is disabled (`wasm-opt = false` in provenance-wasm's package metadata); optimization is an explicit post-build step using system binaryen (`brew install binaryen`) with bulk-memory/sign-ext/reference-types feature flags (exact command in the wasm-packaging skill), followed by `node scripts/wasm_smoke.mjs` as the true-artifact acceptance check. Size budget set from evidence: ≤ 7 MB raw / ≤ 2.5 MB gzipped (measured 6.41 MB / 2.15 MB).
   Rationale: the bundled binaryen fails on bulk-memory ops that Rust emits by default; an explicit, flag-pinned step is reproducible and the smoke script proves the optimized artifact still verifies the corpus.
   Date/Author: 2026-07-10 / M2 implementation.
+- Decision: M3 — the verdict renders in the popup (opened via `chrome.action.openPopup()` after verification, with the action badge as fallback), NOT as an injected page panel; results persist in `chrome.storage.session`. Permissions grew by exactly one: `storage`. `activeTab` is kept because it grants temporary host access to the page's origin on the context-menu gesture, letting the worker fetch same-origin images CORS-free; cross-origin images without `Access-Control-Allow-Origin` fail with an honest error (the alternative — standing host permissions — is rejected; revisit only as an explicit user-facing "grant site access" choice post-wedge).
+  Rationale: a popup keeps the extension out of the page's DOM entirely (no injected-panel XSS surface, no page-style conflicts) and keeps the permission story minimal for store review.
+  Date/Author: 2026-07-10 / M3 implementation.
+- Decision: M3 — trust anchors ship as a data file (`extension/trust/anchors.pem`), read at verification time and passed to `verify_bytes`; the committed file is a deliberately EMPTY commented placeholder until M4 settles production trust-list distribution. An empty file behaves as "no anchors": nothing verifies as trusted, which is the honest default.
+  Rationale: the trust list must be updatable without rebuilding the engine, and shipping the ephemeral test CA in a real package would be a trust-model bug.
+  Date/Author: 2026-07-10 / M3 implementation.
 - Decision: **Cryptography sign-off, M1** — the maintainer (gwamoniak) reviewed the M1 packet (Layer 1 validation code, finding mapping, vector corpus, disclosed gaps: no cargo-fuzz target yet, cert-expiry/algorithm policy inherited from the c2pa crate, depth limits delegated, cargo-audit not run, production trust-list distribution open) and approved the merge of `m1-c2pa-validation` to `main`.
   Rationale: per the standing human-sign-off rule; the disclosed gaps are accepted as recorded follow-ups, not blockers.
   Date/Author: 2026-07-10 / maintainer (gwamoniak): "approved, merge it".
@@ -164,7 +171,26 @@ Build the WASM engine and load the extension (M2/M3):
 
 **M2 — WASM parity (no gate; ~1 week).** Scope: make the workspace build for `wasm32-unknown-unknown` (the `c2pa` crate has WASM support; whatever feature flags this needs, record them in the Decision Log — this is the milestone's main known risk), produce the artifact with wasm-pack, and add a parity test: every vector in `tests/vectors/` produces the identical verdict and findings through `verify_bytes` as through the native pipeline. Measure the gzipped artifact size and set the budget here once known (placeholder target: ≤ 4 MB gzipped; revise with evidence). Acceptance: wasm-pack build succeeds; parity suite green; size recorded in Artifacts and Notes.
 
-**M3 — Extension end-to-end (no gate; ~2 weeks).** Scope: background worker fetches the bytes of the right-clicked image (the only network request the extension ever makes on the user's behalf — image bytes never leave the device), calls the engine, renders the report in the popup or an injected panel — approved phrases verbatim, badge colors per the proposal (green Verified / yellow Indicated / gray Inconclusive / red Tampered), and no visual language of safety anywhere near Inconclusive. The proposal's automatic page-scanning badge UI is post-wedge (Decision Log). Honest failure states for engine-missing, fetch-failed, unsupported-format. Write the manual smoke script into this plan. Acceptance: on a page with a Content-Credentials image (e.g. a c2patool-signed test image served locally), the flow shows Verified; on a stripped copy of the same image, Inconclusive; on a corrupted-manifest copy, Tampered.
+**M3 — Extension end-to-end (no gate; ~2 weeks).** Scope: background worker fetches the bytes of the right-clicked image (the only network request the extension ever makes on the user's behalf — image bytes never leave the device), calls the engine, renders the report in the popup or an injected panel — approved phrases verbatim, badge colors per the proposal (green Verified / yellow Indicated / gray Inconclusive / red Tampered), and no visual language of safety anywhere near Inconclusive. The proposal's automatic page-scanning badge UI is post-wedge (Decision Log). Honest failure states for engine-missing, fetch-failed, unsupported-format. Acceptance: on a page with a Content-Credentials image, the flow shows Verified; on a stripped copy, Inconclusive; on a corrupted-manifest copy, Tampered.
+
+The manual smoke script (run from the repo root; ~5 minutes):
+
+    1. Build the engine (three steps in .claude/skills/wasm-packaging/SKILL.md):
+       wasm-pack build crates/provenance-wasm --target web --out-dir ../../extension/pkg
+       wasm-opt extension/pkg/provenance_wasm_bg.wasm -Os --enable-bulk-memory --enable-bulk-memory-opt \
+           --enable-sign-ext --enable-mutable-globals --enable-nontrapping-float-to-int \
+           --enable-reference-types -o extension/pkg/provenance_wasm_bg.wasm
+       node scripts/wasm_smoke.mjs                      # must print "all vectors match"
+    2. cp crates/provenance-core/tests/vectors/test_ca.pem extension/trust/anchors.pem   # smoke only
+    3. node scripts/serve_testpage.mjs                  # http://localhost:8917
+    4. chrome://extensions → Developer mode → Load unpacked → extension/
+    5. Open http://localhost:8917; right-click each image → "Verify provenance with Provenance Lens".
+       Expect: valid_signed → Verified (green badge VER), stripped → Inconclusive (gray INC),
+       manifest_corrupted → Tampered (red TAM), plain → Inconclusive, content_tampered → Tampered.
+       The popup shows the verbatim phrase, per-layer findings, and "Trust anchors: loaded".
+    6. Failure states: stop the server and verify again → plain error, no tier, badge ERR.
+       Delete extension/pkg/, reload the extension, verify → "engine is not bundled" error.
+    7. git checkout extension/trust/anchors.pem         # restore the empty placeholder
 
 **M4 — Ship the wedge (no gate; ~1 week).** Scope: packaging for the Chrome Web Store (and the store listing text, which obeys the verdict-language skill — understatement is the brand), a final audit of every user-facing string in all four wording locations, README claims verified against actual behavior, the human sign-off recorded. Acceptance: an installable zip; a dated Outcomes & Retrospective entry; the wedge is shippable.
 
@@ -221,6 +247,12 @@ M1 acceptance transcript (2026-07-10, branch `m1-c2pa-validation`; `V=crates/pro
       verdict: Inconclusive: no provenance data was found. This does NOT mean the asset is authentic.
       [c2pa] ran, no signal
       → exit 20
+
+M3 automated evidence (2026-07-10): the smoke page (scripts/serve_testpage.mjs, CORS headers verified with curl) renders all five vectors in a browser; the worker's exact data path simulated in Node (HTTP fetch → content-type hint → verify_bytes with the test CA):
+
+    PASS valid_signed.jpg → verified          PASS stripped.jpg → inconclusive
+    PASS manifest_corrupted.jpg → tampered    PASS plain.jpg → inconclusive
+    PASS content_tampered.jpg → tampered
 
 M2 artifact + true-WASM smoke (2026-07-10): raw 6,412,435 bytes, gzipped 2,256,194 bytes (~2.15 MB) after system wasm-opt; corpus through the compiled artifact in Node:
 
