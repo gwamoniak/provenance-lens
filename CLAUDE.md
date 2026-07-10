@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current status (2026-07-10 — skimmable snapshot in `development_status.md`; the ExecPlan's Progress section is authoritative)
 
-M0 scaffold authored **compiler-blind** (no Rust toolchain on this machine yet — install per the plan's Concrete Steps). M0 closes when `cargo test --workspace` first runs green; treat that first compile as a review of the scaffold. Then M1 (real C2PA validation) begins — note M1 cannot *merge* until the maintainer names the human cryptography reviewer. **Gated milestones:** M5 watermark (needs a runnable licensed vendor detector), M6 registry (needs a deployed transparency log), M7 heuristics (optional, may never ship) — do not start a gated milestone without its gate satisfied.
+**M0 closed and green** (toolchain installed: rustup stable + wasm32 target + wasm-pack; 9/9 tests, clippy `-D warnings` clean, CLI acceptance transcript in the ExecPlan). **M1 (real C2PA validation) is next**: vector corpus per the `test-vectors` skill, then the `c2pa` crate integration. M1 merges only with the crypto sign-off of the named human reviewer — the maintainer, gwamoniak (ExecPlan Decision Log, 2026-07-10). No GitHub remote yet (`gh` not installed). **Gated milestones:** M5 watermark (needs a runnable licensed vendor detector), M6 registry (needs a deployed transparency log), M7 heuristics (optional, may never ship) — do not start a gated milestone without its gate satisfied.
 
 ## Build
 

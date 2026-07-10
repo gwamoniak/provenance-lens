@@ -11,11 +11,13 @@ use wasm_bindgen::prelude::*;
 
 /// Examine `bytes` and return the report as a JSON string:
 ///
-///     {
-///       "verdict": "inconclusive",
-///       "phrase": "Inconclusive: ...",
-///       "findings": [ { "layer": "c2pa", "status": "not_evaluated", "detail": "..." }, ... ]
-///     }
+/// ```text
+/// {
+///   "verdict": "inconclusive",
+///   "phrase": "Inconclusive: ...",
+///   "findings": [ { "layer": "c2pa", "status": "not_evaluated", "detail": "..." }, ... ]
+/// }
+/// ```
 #[wasm_bindgen]
 pub fn verify_bytes(bytes: &[u8], media_type: Option<String>) -> String {
     let asset = Asset {

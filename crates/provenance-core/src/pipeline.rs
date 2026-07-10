@@ -122,7 +122,9 @@ mod tests {
     fn no_findings_is_inconclusive_not_authentic() {
         assert_eq!(combine(&[]), Verdict::Inconclusive);
         assert_eq!(
-            combine(&[f(LayerFinding::NotEvaluated { reason: "gated".into() })]),
+            combine(&[f(LayerFinding::NotEvaluated {
+                reason: "gated".into()
+            })]),
             Verdict::Inconclusive
         );
         assert_eq!(combine(&[f(LayerFinding::NoSignal)]), Verdict::Inconclusive);
@@ -131,8 +133,12 @@ mod tests {
     #[test]
     fn tamper_outranks_proof() {
         let findings = [
-            f(LayerFinding::Proof { issuer: "Example CA".into() }),
-            f(LayerFinding::TamperEvidence { detail: "hash mismatch".into() }),
+            f(LayerFinding::Proof {
+                issuer: "Example CA".into(),
+            }),
+            f(LayerFinding::TamperEvidence {
+                detail: "hash mismatch".into(),
+            }),
         ];
         assert_eq!(combine(&findings), Verdict::Tampered);
     }
@@ -140,8 +146,12 @@ mod tests {
     #[test]
     fn proof_outranks_indication() {
         let findings = [
-            f(LayerFinding::Indication { source: "watermark".into() }),
-            f(LayerFinding::Proof { issuer: "Example CA".into() }),
+            f(LayerFinding::Indication {
+                source: "watermark".into(),
+            }),
+            f(LayerFinding::Proof {
+                issuer: "Example CA".into(),
+            }),
         ];
         assert_eq!(combine(&findings), Verdict::Verified);
     }
@@ -150,7 +160,9 @@ mod tests {
     fn indication_alone_is_indicated() {
         let findings = [
             f(LayerFinding::NoSignal),
-            f(LayerFinding::Indication { source: "registry".into() }),
+            f(LayerFinding::Indication {
+                source: "registry".into(),
+            }),
         ];
         assert_eq!(combine(&findings), Verdict::Indicated);
     }
@@ -160,7 +172,10 @@ mod tests {
         // With every layer still gated/stubbed, an empty asset must come back
         // Inconclusive and the report must show all four layers.
         let pipeline = Pipeline::standard();
-        let report = pipeline.examine(&Asset { bytes: &[], media_type: None });
+        let report = pipeline.examine(&Asset {
+            bytes: &[],
+            media_type: None,
+        });
         assert_eq!(report.verdict, Verdict::Inconclusive);
         let names: Vec<&str> = report.findings.iter().map(|(n, _)| n.as_str()).collect();
         assert_eq!(names, ["c2pa", "watermark", "registry", "heuristics"]);
