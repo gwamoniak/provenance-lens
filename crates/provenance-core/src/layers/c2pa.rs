@@ -47,10 +47,11 @@ impl C2paLayer {
         }
     }
 
-    /// Build the per-call validation context. `verify_trust` is on by the
-    /// crate's default; user anchors are the caller's PEM bundle.
+    /// Build the per-call validation context. `verify_trust` is pinned
+    /// explicitly (not left to the crate default, which a future version
+    /// could flip); user anchors are the caller's PEM bundle.
     fn context(&self) -> Result<Context, C2paError> {
-        let mut settings = Settings::new();
+        let mut settings = Settings::new().with_json(r#"{"verify": {"verify_trust": true}}"#)?;
         settings.trust.user_anchors = self.trust_anchors_pem.clone();
         Context::new().with_settings(settings)
     }
