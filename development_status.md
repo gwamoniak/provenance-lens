@@ -1,6 +1,6 @@
 # Development status — Provenance Lens
 
-**TL;DR (2026-07-10): M0–M2 closed; M3 implemented and awaiting only the human-run browser smoke (scripted in the ExecPlan). Layer 1 does real C2PA validation (signed off, merged); the WASM engine builds reproducibly and verifies the corpus as a real artifact; the extension wires context menu → fetch → engine → badge + popup with honest failure states. 19/19 tests green.**
+**TL;DR (2026-07-10): the wedge is DONE — M0–M4 all closed. Layer 1 verifies real Content Credentials (maintainer-signed-off crypto); the extension passed the maintainer's browser smoke; the official C2PA trust list ships as data; the installable zip is built (`dist/provenance-lens-0.1.0.zip`, sha256 in the ExecPlan). 20/20 tests green. Remaining: maintainer submits to the store; post-wedge hardening backlog; gated M5–M7.**
 
 Snapshot dashboard, last updated **2026-07-10, post-M0** (M0 closed; M1 is next). This file is a *derived view* for humans skimming the repo: the authoritative, always-current record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
 
@@ -41,8 +41,8 @@ All eight proposed agents exist (`lens-rust-core`, `lens-wasm`, `lens-extension`
 
 ## Next actions
 
-1. **Close M3** — maintainer runs the ~5-minute browser smoke scripted in the ExecPlan's M3 section (load unpacked, verify the five images at localhost:8917, check the two failure states), then the box gets checked.
-2. **M4** — ship the wedge (owned by `lens-release`; maintainer presses publish); includes production trust-list distribution (the `trust/anchors.pem` placeholder), store checklist, and the M1 review follow-ups (cargo-fuzz, cert-policy tests).
+1. **Maintainer: submit to the Chrome Web Store** — everything needed is in `docs/STORE_LISTING.md` (copy, permission justifications, privacy policy, pre-submission checklist); the zip is `dist/provenance-lens-0.1.0.zip` (rebuild anytime: `sh scripts/package_extension.sh`).
+2. **Optional next**: publish the repo to GitHub (`gh repo create`), take items off the hardening backlog (cargo-fuzz, cert-policy tests), or open a gated milestone when its gate opens (`lens-research` tracks detector and registry availability).
 
 ## Risks being tracked
 

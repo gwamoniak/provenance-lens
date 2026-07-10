@@ -4,6 +4,9 @@ Cargo.lock
 # wasm-pack output consumed by the extension (built, never committed)
 /extension/pkg/
 
+# packaged release zips (built by scripts/package_extension.sh)
+/dist/
+
 # editor / OS noise
 .DS_Store
 *.swp

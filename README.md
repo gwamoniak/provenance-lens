@@ -25,7 +25,7 @@ Everything is one Rust workspace: `provenance-core` (the pipeline, sans-IO), `pr
 
 ## Status
 
-Scaffold stage (M0, 2026-07-10). The build order is deliberate: ship a **Layer-1-only** CLI + extension first — small but provable — because surfacing "Tampered / credentials stripped" at scale is the wedge that pressures platforms to stop stripping Content Credentials. Watermark and registry layers are gated behind real detectors and a real transparency log; until then they honestly report themselves as not evaluated. The full plan lives in `PROVENANCE_LENS_EXECPLAN.md`.
+The Layer-1 wedge works end to end (M0–M3 complete, 2026-07-10; M4 packaging in progress): the `lens` CLI and the browser extension verify C2PA Content Credentials for real — cryptographically valid chains report Verified with the issuer named, stripped credentials report Inconclusive, broken ones report Tampered with the validator's status codes. The extension ships the official C2PA conformance trust list as an updatable data file (`extension/trust/anchors.pem`). The build order is deliberate: a **Layer-1-only** tool first — small but provable — because surfacing "Tampered / credentials stripped" at scale is the wedge that pressures platforms to stop stripping Content Credentials. Watermark and registry layers are gated behind real detectors and a real transparency log; until then they honestly report themselves as not evaluated. The full plan lives in `PROVENANCE_LENS_EXECPLAN.md`.
 
 ## Build and run
 
