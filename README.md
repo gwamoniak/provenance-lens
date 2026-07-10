@@ -21,7 +21,7 @@ One asset flows through four layers, ordered by evidentiary strength; findings c
               4. Heuristics        statistical signals                 → can indicate   [optional]
                                                           ──▶ Verified / Indicated / Inconclusive / Tampered
 
-Everything is one Rust workspace: `provenance-core` (the pipeline, sans-IO), `provenance-cli` (the `lens` binary), `provenance-wasm` (the WASM wrapper the extension embeds). Blockchain appears only as optional anchoring for the registry's transparency log — never as a dependency.
+Everything is one Rust workspace: `provenance-core` (the pipeline, sans-IO), `provenance-cli` (the `lens` binary), `provenance-wasm` (the WASM wrapper the extension embeds). Blockchain appears only as optional anchoring for the registry's transparency log — never as a dependency. Privacy first: image bytes never leave your device; verification is local, and future registry lookups send perceptual hashes only, with consent.
 
 ## Status
 

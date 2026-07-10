@@ -15,6 +15,7 @@ The strategic bet (the "wedge"): shipping a small tool that is *provably correct
 Granular state; every stopping point must be recorded here, splitting partially-done items into done/remaining.
 
 - [x] (2026-07-10) M0 scaffold: Cargo workspace (`provenance-core`, `provenance-cli`, `provenance-wasm`), four stub layers returning honest `NotEvaluated`, verdict tiers with approved phrases, combination rule with unit tests, std-only CLI (`lens verify`, `lens tiers`), wasm-bindgen wrapper with hand-rolled JSON, MV3 extension skeleton, 8 project agents, 2 skills, CLAUDE.md, README, git repo initialized.
+- [x] (2026-07-10) M0 reconciliation with the full proposal document (`ai-content-verifier-proposal.md`, found pre-existing in the target directory at commit time — see Surprises): authored the remaining 6 skills (watermark-detection, rust-quality, wasm-packaging, webextension-mv3, security-checklist, provenance-registry), switched Layer 3 to perceptual hashing (PDQ/pHash) per the proposal, recorded the `WatermarkDetector` trait plan, adopted the proposal's privacy rules, and logged the naming/UX deviations below.
 - [ ] M0 remaining: install the Rust toolchain on this machine (`rustup`, stable, `wasm32-unknown-unknown` target — see Concrete Steps), then run `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` and fix anything the scaffold got wrong (it was written without a compiler present; expect small breakage, not design breakage).
 - [ ] M1: integrate the `c2pa` crate in `layers/c2pa.rs`; collect test vectors into `tests/vectors/`; CLI acceptance transcript recorded below; human cryptography-reviewer sign-off recorded in the Decision Log before merge.
 - [ ] M2: wasm-pack build green; native/WASM parity test over the full vector set; artifact size measured and budgeted.
@@ -27,6 +28,9 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - Observation: The development machine has no Rust toolchain and no GitHub CLI (2026-07-10; `cargo`, `rustc`, `gh` all absent from PATH, `~/.cargo` absent). The M0 scaffold was therefore authored compiler-blind.
   Evidence: `(eval):1: command not found: cargo` for all probed tools.
   Consequence: the first action of any implementer is the toolchain install in Concrete Steps, then treating the first `cargo test` run as a review of the scaffold.
+- Observation: The full proposal document `ai-content-verifier-proposal.md` was already sitting in the target directory before scaffolding began (the maintainer had saved the pinned conversation there), and was discovered only when `git add -A` swept it into the M0 commit. It contains detail beyond the summary the scaffold was built from: the 8-skill list, the `WatermarkDetector` trait, PDQ/pHash for Layer 3, the content-script badge UI as flagship UX, the images-never-leave-the-device privacy rule, and the weeks 1–10 build order.
+  Evidence: `git commit` output listed `create mode 100644 ai-content-verifier-proposal.md` among the committed files.
+  Consequence: same-day reconciliation pass (see Progress); the proposal file stays in the repo as the origin document. Lesson: list the target directory before scaffolding into it.
 
 ## Decision Log
 
@@ -51,6 +55,15 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - Decision: CLI exit codes are 0 verified / 10 indicated / 20 inconclusive / 30 tampered / 2 usage-or-IO-error.
   Rationale: scripts need to branch on verdicts; spacing by 10 leaves room for sub-codes if ever needed.
   Date/Author: 2026-07-10 / scaffold session.
+- Decision: Crate names are `provenance-*` and everything lives in this single repository, deviating from the proposal's working names (`verify-core`, `verify-wasm`, separate `provenance-lens` and `verify-registry` repos). The CLI binary is `lens`, not `verify`.
+  Rationale: the proposal itself labels those "working names"; one repo keeps the wedge reviewable as a unit and matches the sandbox's one-repo-per-project layout; `verify` is too generic a binary name to put on a PATH. Splitting out `verify-registry` (and an npm `verify-wasm` package) remains open for post-wedge when they exist.
+  Date/Author: 2026-07-10 / reconciliation pass.
+- Decision: The wedge extension (M3) uses a context-menu verify flow under `contextMenus` + `activeTab`; the proposal's flagship UX — a content script that scans `<img>`/`<video>` and overlays verdict badges — is post-wedge, gated on the host-permissions decision it requires.
+  Rationale: `activeTab` needs a user gesture and no host permissions, which keeps the store-review and privacy surface minimal for the first ship; automatic page-wide scanning needs `<all_urls>`-class permissions and its own performance/consent design (see the webextension-mv3 skill).
+  Date/Author: 2026-07-10 / reconciliation pass.
+- Decision: Layer 3 lookup uses perceptual hashing (PDQ preferred, pHash acceptable), computed locally; only hashes ever leave the device, with user consent — adopted from the proposal along with the general privacy rule that image bytes are never uploaded by any layer.
+  Rationale: cryptographic hashes break on the platform re-encodes that are exactly the case Layer 3 exists for; the privacy rule is the proposal's trust model and part of the product's honesty brand.
+  Date/Author: 2026-07-10 / from the proposal, reconciliation pass.
 
 ## Outcomes & Retrospective
 
@@ -66,7 +79,8 @@ The layout:
 - `crates/provenance-cli/` — the `lens` binary (std-only): `lens verify <file>` prints a report and exits with the verdict's code; `lens tiers` prints the four tiers.
 - `crates/provenance-wasm/` — a thin wasm-bindgen wrapper exporting `verify_bytes(bytes, media_type) -> String` (flat JSON: verdict id, approved phrase, per-layer findings).
 - `extension/` — a Manifest V3 browser extension skeleton (plain JS, no framework): a context-menu entry on images, a popup listing the tiers, and honest "engine not bundled" messaging until M3 wires in the wasm-pack output at `extension/pkg/` (gitignored build product).
-- `.claude/agents/` — eight scoped agents (`lens-rust-core`, `lens-wasm`, `lens-extension`, `lens-security-reviewer`, `lens-registry`, `lens-qa`, `lens-research`, `lens-docs`); `.claude/skills/` — `c2pa-spec` and `verdict-language`.
+- `.claude/agents/` — eight scoped agents (`lens-rust-core`, `lens-wasm`, `lens-extension`, `lens-security-reviewer`, `lens-registry`, `lens-qa`, `lens-research`, `lens-docs`); `.claude/skills/` — eight skill packs (`c2pa-spec`, `watermark-detection`, `rust-quality`, `wasm-packaging`, `webextension-mv3`, `verdict-language`, `security-checklist`, `provenance-registry`).
+- `ai-content-verifier-proposal.md` — the origin document (the maintainer's saved proposal from the pinned conversation); this plan operationalizes it, and where they differ the Decision Log entry explains why.
 
 ## Plan of Work
 
@@ -111,11 +125,11 @@ Build the WASM engine and load the extension (M2/M3):
 
 **M2 — WASM parity (no gate; ~1 week).** Scope: make the workspace build for `wasm32-unknown-unknown` (the `c2pa` crate has WASM support; whatever feature flags this needs, record them in the Decision Log — this is the milestone's main known risk), produce the artifact with wasm-pack, and add a parity test: every vector in `tests/vectors/` produces the identical verdict and findings through `verify_bytes` as through the native pipeline. Measure the gzipped artifact size and set the budget here once known (placeholder target: ≤ 4 MB gzipped; revise with evidence). Acceptance: wasm-pack build succeeds; parity suite green; size recorded in Artifacts and Notes.
 
-**M3 — Extension end-to-end (no gate; ~2 weeks).** Scope: background worker fetches the bytes of the right-clicked image (the only network request the extension ever makes on the user's behalf), calls the engine, renders the report in the popup or an injected panel — approved phrases verbatim, neutral styling for Inconclusive, no green anywhere near it. Honest failure states for engine-missing, fetch-failed, unsupported-format. Write the manual smoke script into this plan. Acceptance: on a page with a Content-Credentials image (e.g. a c2patool-signed test image served locally), the flow shows Verified; on a stripped copy of the same image, Inconclusive; on a corrupted-manifest copy, Tampered.
+**M3 — Extension end-to-end (no gate; ~2 weeks).** Scope: background worker fetches the bytes of the right-clicked image (the only network request the extension ever makes on the user's behalf — image bytes never leave the device), calls the engine, renders the report in the popup or an injected panel — approved phrases verbatim, badge colors per the proposal (green Verified / yellow Indicated / gray Inconclusive / red Tampered), and no visual language of safety anywhere near Inconclusive. The proposal's automatic page-scanning badge UI is post-wedge (Decision Log). Honest failure states for engine-missing, fetch-failed, unsupported-format. Write the manual smoke script into this plan. Acceptance: on a page with a Content-Credentials image (e.g. a c2patool-signed test image served locally), the flow shows Verified; on a stripped copy of the same image, Inconclusive; on a corrupted-manifest copy, Tampered.
 
 **M4 — Ship the wedge (no gate; ~1 week).** Scope: packaging for the Chrome Web Store (and the store listing text, which obeys the verdict-language skill — understatement is the brand), a final audit of every user-facing string in all four wording locations, README claims verified against actual behavior, the human sign-off recorded. Acceptance: an installable zip; a dated Outcomes & Retrospective entry; the wedge is shippable.
 
-**M5 — Watermark layer (GATED: a runnable, licensed vendor detector — e.g. a published SynthID detector — on disk or under an API license).** Statistical detection; ceiling `Indication`. Do not start, and do not fake with a lookalike classifier, until the gate is satisfied; `lens-research` tracks when it opens.
+**M5 — Watermark layer (GATED: a runnable, licensed vendor detector — e.g. a published SynthID detector — on disk or under an API license).** Statistical detection; ceiling `Indication`. Introduces the `WatermarkDetector` trait (vendor name + probe; the layer holds a pluggable detector list, per the watermark-detection skill) so vendors plug in without core changes; every detector's false-positive rate is measured on the clean corpus before it may contribute to verdicts. Do not start, and do not fake with a lookalike classifier, until the gate is satisfied; `lens-research` tracks when it opens.
 
 **M6 — Registry layer (GATED: a deployed transparency-log endpoint, or an explicit plan revision scoping standing one up).** Design work (log schema, inclusion proofs, lookup privacy) may proceed in the plan; implementation waits for the gate. Anchoring stays optional per the Decision Log.
 

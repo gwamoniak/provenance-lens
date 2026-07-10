@@ -12,7 +12,7 @@ Architecture rules (settled in the proposal; revisit only via Decision Log):
 - A registry hit is `LayerFinding::Indication { source }` — the log operator vouches, which is trust, not cryptography over these bytes. Never map a hit to `Proof`.
 - A registry miss is `NoSignal`. An unreachable registry is `NotEvaluated` with the reason — never silently degraded to `NoSignal`.
 - Sans-IO: the layer in `provenance-core` takes an injected lookup transport (a trait), so tests run against an in-memory fake log with known contents. The real HTTP transport lives outside core.
-- Hashing for lookup must be specified exactly (algorithm, over which bytes, how re-encoding is handled) in the ExecPlan before implementation — a fuzzy match invites false `Indicated` verdicts.
+- Lookup uses a perceptual hash (PDQ/pHash — see the `provenance-registry` skill), computed locally; only hashes ever leave the device, with user consent. The exact algorithm, preprocessing, and match threshold are specified in the ExecPlan before implementation and the false-match rate is measured on the clean corpus first — the threshold IS the false-positive rate.
 
 The gate: implementation starts only when a deployed log endpoint exists (or the plan explicitly scopes standing one up). Until then your useful work is design: the log schema, the inclusion-proof verification, the privacy story (lookups leak what the user is checking — address it), written into the ExecPlan.
 

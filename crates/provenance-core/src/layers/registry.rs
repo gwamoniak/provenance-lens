@@ -1,7 +1,10 @@
-//! Layer 3 — registry lookup: hash the asset and query a transparency log of
-//! AI-generated content registered at creation time. A hit is an
-//! `Indication` (the log's operator vouches, not cryptography over these
-//! bytes); a miss is `NoSignal`.
+//! Layer 3 — registry lookup: compute a perceptual hash (PDQ/pHash) locally
+//! and query provenance registries — C2PA recovery services, Numbers
+//! Protocol, or this project's own transparency log — for assets registered
+//! as AI-generated at creation time. Catches images whose metadata was
+//! stripped on upload. A hit is an `Indication` (the registrant vouches, not
+//! cryptography over these bytes); a miss is `NoSignal`. Details in
+//! `.claude/skills/provenance-registry/SKILL.md`.
 //!
 //! Blockchain appears here ONLY as optional anchoring of the transparency
 //! log's checkpoints — the registry must work fully without it, and no code

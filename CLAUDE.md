@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**provenance-lens** is an honest AI-content provenance verifier: a four-layer Rust pipeline (C2PA cryptographic proof → watermark detection → transparency-log registry lookup → optional heuristics) compiled natively for a CLI (`lens`) and to WASM for a Manifest V3 browser extension. Verdicts come in four honest tiers — Verified, Indicated, Inconclusive, Tampered — with the founding rule baked into the types and the wording: **no provenance data ≠ authentic**. The authoritative design is **`PROVENANCE_LENS_EXECPLAN.md`** at the repo root — read it before any work; it is fully self-contained per the ExecPlan discipline (`PLANS.md` in `../../cpp/solid-broccoli`).
+**provenance-lens** is an honest AI-content provenance verifier: a four-layer Rust pipeline (C2PA cryptographic proof → watermark detection → transparency-log registry lookup → optional heuristics) compiled natively for a CLI (`lens`) and to WASM for a Manifest V3 browser extension. Verdicts come in four honest tiers — Verified, Indicated, Inconclusive, Tampered — with the founding rule baked into the types and the wording: **no provenance data ≠ authentic**. The authoritative design is **`PROVENANCE_LENS_EXECPLAN.md`** at the repo root — read it before any work; it is fully self-contained per the ExecPlan discipline (`PLANS.md` in `../../cpp/solid-broccoli`). The origin document is `ai-content-verifier-proposal.md` (the maintainer's saved proposal); the plan operationalizes it and its Decision Log explains any deviation.
 
 ## Current status (2026-07-10)
 
@@ -36,6 +36,7 @@ M0 scaffold authored **compiler-blind** (no Rust toolchain on this machine yet �
 - **Sans-IO core:** `provenance-core` never opens files/sockets; transports are injected; CLI and WASM wrappers own I/O.
 - **Human sign-off rule:** signature-validation code (C2PA validation path, trust lists, inclusion proofs) merges only with a human cryptography reviewer's sign-off recorded in the ExecPlan Decision Log. Agents prepare; humans approve.
 - **Extension surface:** permissions stay `contextMenus` + `activeTab`; no host permissions, no remote code, no analytics; the extension never renders a verdict it didn't compute.
+- **Privacy:** image bytes never leave the device — parsing and hashing happen locally; post-wedge network layers (2–3) may send perceptual hashes only, with explicit user consent.
 - **Blockchain:** optional anchoring of registry checkpoints only, default off; no verdict path may require it.
 - **ExecPlan discipline:** living sections updated at every stopping point; commit at milestone boundaries with the milestone name in the message.
 
@@ -45,7 +46,7 @@ M0 scaffold authored **compiler-blind** (no Rust toolchain on this machine yet �
 
 ## Agents & skills
 
-Eight agents in `.claude/agents/`: `lens-rust-core`, `lens-wasm`, `lens-extension` (implementers), `lens-security-reviewer` (read-only; prepares the human sign-off packet), `lens-registry` (gated Layer 3), `lens-qa`, `lens-research`, `lens-docs`. All defer to `PROVENANCE_LENS_EXECPLAN.md` as the single source of truth. Skills in `.claude/skills/`: `c2pa-spec` (load before touching Layer 1) and `verdict-language` (load before writing any user-facing string).
+Eight agents in `.claude/agents/`: `lens-rust-core`, `lens-wasm`, `lens-extension` (implementers), `lens-security-reviewer` (read-only; prepares the human sign-off packet), `lens-registry` (gated Layer 3), `lens-qa`, `lens-research`, `lens-docs`. All defer to `PROVENANCE_LENS_EXECPLAN.md` as the single source of truth. Eight skill packs in `.claude/skills/`: `c2pa-spec` (before touching Layer 1), `verdict-language` (before writing ANY user-facing string), `rust-quality` (before writing any Rust), `security-checklist` (every trust-decision review), `watermark-detection`, `provenance-registry`, `wasm-packaging`, `webextension-mv3`.
 
 ## Sibling projects (same sandbox, same maintainer)
 
