@@ -1,6 +1,6 @@
 # Development status — Provenance Lens
 
-**TL;DR (2026-07-10): M0 closed. M1 (real C2PA validation) implemented on branch `m1-c2pa-validation` — 18/18 tests green, CLI acceptance exact (Verified/0, Tampered/30, Inconclusive/20), self-verifying vector corpus, wasm32 already type-checks. Blocker: awaiting the maintainer's cryptography sign-off to merge.**
+**TL;DR (2026-07-10): M0 and M1 closed — Layer 1 does real C2PA validation, signed off by the maintainer and merged to `main`. 18/18 tests green, CLI acceptance exact (Verified/0, Tampered/30, Inconclusive/20), self-verifying vector corpus, wasm32 already type-checks. Next: M2 (WASM artifact + parity + size budget).**
 
 Snapshot dashboard, last updated **2026-07-10, post-M0** (M0 closed; M1 is next). This file is a *derived view* for humans skimming the repo: the authoritative, always-current record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
 
@@ -22,7 +22,7 @@ Snapshot dashboard, last updated **2026-07-10, post-M0** (M0 closed; M1 is next)
 
 | Layer | State | Gate |
 |---|---|---|
-| 1 — C2PA proof | **Implemented** (branch `m1-c2pa-validation`): c2pa 0.89.2 validation, Trusted→Proof / unanchored-or-invalid→TamperEvidence / absent→NoSignal / unparseable→NotEvaluated; vector corpus + 6 integration tests. | Awaiting maintainer crypto sign-off to merge. |
+| 1 — C2PA proof | **Done (M1, signed off & merged)**: c2pa 0.89.2 validation, Trusted→Proof / unanchored-or-invalid→TamperEvidence / absent→NoSignal / unparseable→NotEvaluated; vector corpus + 6 integration tests. | None. Follow-ups recorded: cargo-fuzz target, cert-policy tests, production trust list (M4). |
 | 2 — Watermark | Honest stub. `WatermarkDetector` trait specified (skill + M5). | GATED: a runnable, licensed vendor detector. |
 | 3 — Registry | Honest stub. PDQ/pHash + transparency-log design captured in skill. | GATED: a deployed log endpoint. |
 | 4 — Heuristics | Honest stub. | OPTIONAL; may never ship (needs published false-positive rates). |
@@ -41,10 +41,9 @@ All eight proposed agents exist (`lens-rust-core`, `lens-wasm`, `lens-extension`
 
 ## Next actions
 
-1. **M1** — generate the vector corpus per the `test-vectors` skill (c2patool; mind the test-certificate trust-anchor policy), integrate the `c2pa` crate, implement real Layer 1 validation; merge only with the maintainer's crypto sign-off.
-2. **M2** — wasm-pack artifact + native/WASM parity suite + measured size budget.
-3. **M3** — extension end-to-end (context-menu verify against the bundled engine).
-4. **M4** — ship the wedge (owned by `lens-release`; maintainer presses publish).
+1. **M2** — wasm-pack artifact + native/WASM parity suite over the vector corpus + measured size budget (wasm32 type-check already passes).
+2. **M3** — extension end-to-end (context-menu verify against the bundled engine).
+3. **M4** — ship the wedge (owned by `lens-release`; maintainer presses publish); includes the production trust-list distribution question and the M1 review follow-ups (cargo-fuzz, cert-policy tests).
 
 ## Risks being tracked
 
