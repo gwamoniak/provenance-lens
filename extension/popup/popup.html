@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Provenance Lens</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <h1>Provenance Lens</h1>
+  <p class="status" id="engine-status">
+    Verification engine not bundled yet — right-click verification activates in
+    Milestone&nbsp;3.
+  </p>
+
+  <!-- The four tiers, worded exactly as in provenance-core/src/verdict.rs.
+       Do not paraphrase; the verdict-language skill is normative. -->
+  <ul class="tiers">
+    <li class="verified"><strong>Verified</strong> — this asset carries a valid, cryptographically signed provenance chain.</li>
+    <li class="indicated"><strong>Indicated</strong> — signals suggest AI involvement, but no cryptographic proof chain is present.</li>
+    <li class="inconclusive"><strong>Inconclusive</strong> — no provenance data was found. This does NOT mean the asset is authentic.</li>
+    <li class="tampered"><strong>Tampered</strong> — provenance data is present but fails validation. Treat this asset with suspicion.</li>
+  </ul>
+
+  <script src="popup.js"></script>
+</body>
+</html>

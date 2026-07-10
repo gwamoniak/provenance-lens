@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/provenance-core",
+    "crates/provenance-cli",
+    "crates/provenance-wasm",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/gwamoniak/provenance-lens"
+
+[profile.release]
+# The WASM artifact ships inside a browser extension; size matters more than
+# the last percent of speed.
+opt-level = "s"
+lto = true
+strip = true

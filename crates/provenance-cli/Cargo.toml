@@ -1,0 +1,16 @@
+[package]
+name = "provenance-cli"
+description = "lens — command-line front end for the provenance pipeline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "lens"
+path = "src/main.rs"
+
+# std-only argument handling for now; a real CLI framework is not worth a
+# dependency until the subcommand surface grows past two verbs.
+[dependencies]
+provenance-core = { path = "../provenance-core" }

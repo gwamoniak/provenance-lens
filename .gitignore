@@ -1,0 +1,11 @@
+/target
+Cargo.lock
+
+# wasm-pack output consumed by the extension (built, never committed)
+/extension/pkg/
+
+# editor / OS noise
+.DS_Store
+*.swp
+.idea/
+.vscode/

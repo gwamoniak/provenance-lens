@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Provenance Lens",
+  "version": "0.1.0",
+  "description": "Honest provenance verdicts for images: Verified, Indicated, Inconclusive, or Tampered. No provenance data does NOT mean authentic.",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Provenance Lens"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["contextMenus", "activeTab"],
+  "host_permissions": []
+}

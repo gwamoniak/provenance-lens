@@ -1,0 +1,12 @@
+[package]
+name = "provenance-core"
+description = "Four-layer AI-content provenance pipeline: C2PA proof, watermark detection, registry lookup, optional heuristics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# The core stays dependency-free until Milestone 1 wires in the `c2pa` crate.
+# Anything heavier (watermark detectors, registry clients) lives behind the
+# Layer trait and enters only through its gated milestone.
+[dependencies]
