@@ -1,6 +1,6 @@
 # Development status — Provenance Lens
 
-**TL;DR (2026-07-10): M0 closed — builds, 9/9 tests green, CLI works and is honest. Next: M1, real C2PA validation. Blockers: none; crypto sign-off = maintainer.**
+**TL;DR (2026-07-10): M0 closed. M1 (real C2PA validation) implemented on branch `m1-c2pa-validation` — 18/18 tests green, CLI acceptance exact (Verified/0, Tampered/30, Inconclusive/20), self-verifying vector corpus, wasm32 already type-checks. Blocker: awaiting the maintainer's cryptography sign-off to merge.**
 
 Snapshot dashboard, last updated **2026-07-10, post-M0** (M0 closed; M1 is next). This file is a *derived view* for humans skimming the repo: the authoritative, always-current record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
 
@@ -22,7 +22,7 @@ Snapshot dashboard, last updated **2026-07-10, post-M0** (M0 closed; M1 is next)
 
 | Layer | State | Gate |
 |---|---|---|
-| 1 — C2PA proof | Honest stub (`NotEvaluated`). **M1 is next**: real validation via the `c2pa` crate. | None — needs test vectors + the maintainer's crypto sign-off at merge. |
+| 1 — C2PA proof | **Implemented** (branch `m1-c2pa-validation`): c2pa 0.89.2 validation, Trusted→Proof / unanchored-or-invalid→TamperEvidence / absent→NoSignal / unparseable→NotEvaluated; vector corpus + 6 integration tests. | Awaiting maintainer crypto sign-off to merge. |
 | 2 — Watermark | Honest stub. `WatermarkDetector` trait specified (skill + M5). | GATED: a runnable, licensed vendor detector. |
 | 3 — Registry | Honest stub. PDQ/pHash + transparency-log design captured in skill. | GATED: a deployed log endpoint. |
 | 4 — Heuristics | Honest stub. | OPTIONAL; may never ship (needs published false-positive rates). |

@@ -19,7 +19,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - [x] (2026-07-10) Reflection pass on the origin proposal: `development_status.md` created (derived snapshot dashboard; this plan stays authoritative), status preamble and inline `> Status:` notes added to `ai-content-verifier-proposal.md`, and two gaps filled — `lens-release` agent (M4/shipping had no owner) and `test-vectors` skill (c2patool corpus generation for M1).
 - [x] (2026-07-10) Human cryptography reviewer named: the maintainer (gwamoniak) — see Decision Log.
 - [x] (2026-07-10) **M0 complete.** Toolchain installed (rustup, stable via `rust-toolchain.toml`, wasm32 target, wasm-pack 0.15.0 via Homebrew). First compile of the compiler-blind scaffold surfaced exactly two things: an indented doc-comment JSON example that rustdoc parsed as a failing doctest (fixed with a `text` fence) and rustfmt struct-literal layout diffs (applied). After that: clippy clean at `-D warnings`, 9/9 tests green (7 core + 2 wasm), `cargo check --target wasm32-unknown-unknown` clean, and the CLI acceptance transcript recorded in Artifacts and Notes (`tiers` prints the four approved phrases; `verify README.md` → Inconclusive, all four layers not-evaluated, exit 20).
-- [ ] M1: integrate the `c2pa` crate in `layers/c2pa.rs`; collect test vectors into `tests/vectors/`; CLI acceptance transcript recorded below; human cryptography-reviewer sign-off recorded in the Decision Log before merge.
+- [x] (2026-07-10) M1 implemented on branch `m1-c2pa-validation`: real C2PA validation in `layers/c2pa.rs` (c2pa 0.89.2, default features off + `rust_native_crypto`), `Pipeline::with_trust_anchors`, CLI `--trust-anchors` flag, self-verifying vector generator (`cargo run -p provenance-core --example gen_vectors`) with a committed 5-vector corpus + `manifest.tsv` + `test_ca.pem` in `crates/provenance-core/tests/vectors/`, 6 integration tests (trusted→Verified with issuer, unanchored-valid→Tampered, unsigned→Inconclusive, content-edit→Tampered, wrong-anchor→never-Verified, hostile-bytes robustness) + corpus test + sniffing tests. 18/18 tests green, clippy `-D warnings` clean, acceptance transcript in Artifacts. Bonus: the c2pa-backed core already type-checks on wasm32 (M2's main risk retired).
+- [ ] **M1 merge gate: maintainer (gwamoniak) cryptography sign-off on the `m1-c2pa-validation` branch diff** — the review packet is prepared; on sign-off, record it here and in the Decision Log, merge to `main`, and check this box.
 - [ ] M2: wasm-pack build green; native/WASM parity test over the full vector set; artifact size measured and budgeted.
 - [ ] M3: extension verifies images end-to-end via the bundled engine; honest failure states; manual smoke script written down.
 - [ ] M4: ship the wedge — package the extension, audit every user-facing string against the `verdict-language` skill, write the store listing, record the final human sign-off.
@@ -33,6 +34,9 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - Observation: The full proposal document `ai-content-verifier-proposal.md` was already sitting in the target directory before scaffolding began (the maintainer had saved the pinned conversation there), and was discovered only when `git add -A` swept it into the M0 commit. It contains detail beyond the summary the scaffold was built from: the 8-skill list, the `WatermarkDetector` trait, PDQ/pHash for Layer 3, the content-script badge UI as flagship UX, the images-never-leave-the-device privacy rule, and the weeks 1–10 build order.
   Evidence: `git commit` output listed `create mode 100644 ai-content-verifier-proposal.md` among the committed files.
   Consequence: same-day reconciliation pass (see Progress); the proposal file stays in the repo as the origin document. Lesson: list the target directory before scaffolding into it.
+- Observation: The `c2pa` crate (0.89.2) publicly exports `EphemeralSigner`, which mints a fresh CA + end-entity chain per call — so the vector corpus needs NO committed private keys and NO c2patool install: the generator signs with an ephemeral chain, persists only the public CA root (`test_ca.pem`), and self-verifies every vector through the real pipeline before writing it. Also: with default features off + `rust_native_crypto`, the whole stack (no OpenSSL, no HTTP clients) already type-checks on `wasm32-unknown-unknown`.
+  Evidence: `cargo run -p provenance-core --example gen_vectors` → "wrote 5 vectors"; `cargo check -p provenance-wasm --target wasm32-unknown-unknown` → Finished.
+  Consequence: the test-vectors skill was rewritten around the generator; M2's main known risk (c2pa on wasm32) is largely retired; c2patool remains only as an optional cross-check.
 - Observation: The compiler-blind scaffold survived first contact with the toolchain almost intact — the only compile error was rustdoc treating a 4-space-indented JSON example in a `///` comment as a Rust doctest; the fix is fencing non-Rust doc examples with ```` ```text ````.
   Evidence: `error: expected one of ... found ':' --> crates/provenance-wasm/src/lib.rs:16:12` from `cargo test`; after the fence + `cargo fmt`, `test result: ok. 7 passed` (core) and `ok. 2 passed` (wasm), clippy clean at `-D warnings`.
   Consequence: house rule for this repo — indented code blocks in doc comments are forbidden; always use fenced blocks with an explicit language (`text` for non-Rust).
@@ -78,6 +82,15 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - Decision: The human cryptography reviewer for signature-validation sign-offs is the maintainer, gwamoniak. M1 (and any later trust-decision code) merges only with their dated sign-off entry in this log; `lens-security-reviewer` prepares each packet.
   Rationale: maintainer's explicit choice when asked (2026-07-10); matches the proposal's "maintainer/architect reviews security-critical merges", with the option to recruit a dedicated community reviewer later if load grows.
   Date/Author: 2026-07-10 / maintainer (gwamoniak).
+- Decision: M1 dependency pinned: `c2pa = { version = "0.89.2", default-features = false, features = ["rust_native_crypto"] }` (+ dev-only `base64` for PEM encoding). Default features were rejected because they pull OpenSSL and four HTTP client stacks; with no HTTP feature compiled in, remote-manifest fetching is impossible by construction, which is the sans-IO rule enforced at the linker rather than by a runtime flag.
+  Rationale: bare-machine builds (no Homebrew OpenSSL), wasm32 compatibility, and a smaller audit surface.
+  Date/Author: 2026-07-10 / M1 implementation.
+- Decision: Layer 1 finding mapping — `Trusted` → `Proof`; `Valid` (cryptographically sound but no chain to a configured anchor, e.g. self-signed) → `TamperEvidence` per the standing conservative rule; `Invalid` → `TamperEvidence` with the validator's status codes; no manifest → `NoSignal`; parse errors → `NotEvaluated`, never `TamperEvidence`. The last point is deliberate: a corrupt plain image has no provenance to have tampered with, and an attacker who could truncate a manifest into a parse error could equally strip it entirely — both roads honestly end at Inconclusive, so mapping parse errors to Tampered would only create false alarms on innocently mangled files.
+  Rationale: TamperEvidence must come from validation results over an actually-located manifest, not from failures to parse.
+  Date/Author: 2026-07-10 / M1 implementation (mapping mirrored in the c2pa-spec skill and the layer's module docs).
+- Decision: Test vectors are generated by a self-verifying generator (`examples/gen_vectors.rs`) using `EphemeralSigner` — fresh keys per run, never persisted; only the public CA root is committed alongside the corpus. The generator asserts every vector's expected verdict through the real pipeline before writing `manifest.tsv`, so a lying corpus cannot be committed. This replaces the original c2patool-based plan.
+  Rationale: no committed private keys (nothing for a secret scanner to flag, nothing to rotate), no external tool install, and machine-checked corpus truth.
+  Date/Author: 2026-07-10 / M1 implementation.
 
 ## Outcomes & Retrospective
 
@@ -183,7 +196,22 @@ M0 acceptance transcript (2026-07-10, after toolchain install):
     $ echo $?
     20
 
-(WASM artifact sizes, M1 acceptance transcripts, and extension screenshots get appended here as milestones land.)
+M1 acceptance transcript (2026-07-10, branch `m1-c2pa-validation`; `V=crates/provenance-core/tests/vectors`):
+
+    $ lens verify --trust-anchors $V/test_ca.pem $V/valid_signed.jpg
+      verdict: Verified: this asset carries a valid, cryptographically signed provenance chain.
+      [c2pa] valid provenance chain, issuer: Self-signed ephemeral certificate (Content Authenticity SDK) -- LOCAL USE ONLY
+      → exit 0
+    $ lens verify --trust-anchors $V/test_ca.pem $V/manifest_corrupted.jpg
+      verdict: Tampered: provenance data is present but fails validation. Treat this asset with suspicion.
+      [c2pa] tamper evidence — manifest validation failed: assertion.hashedURI.mismatch
+      → exit 30
+    $ lens verify $V/plain.jpg
+      verdict: Inconclusive: no provenance data was found. This does NOT mean the asset is authentic.
+      [c2pa] ran, no signal
+      → exit 20
+
+(WASM artifact sizes, and extension screenshots get appended here as milestones land.)
 
 ## Interfaces and Dependencies
 

@@ -12,25 +12,20 @@ Layer 1 is validated against assets whose correct verdict is known *by construct
 1. **C2PA public test files** — the spec consortium publishes conformance assets (valid manifests, deliberately malformed ones). Check their license before vendoring; record origin + upstream commit/URL in the manifest file described below.
 2. **Self-generated via c2patool** — the CAI's CLI (`cargo install c2patool` or a release binary). This is the workhorse because we control exactly what's wrong with each file.
 
-## Generating the M1 set
+## Generating the corpus (implemented in M1)
 
-Signed/valid (c2patool signs with its bundled test certificates when given a manifest definition):
+The corpus is produced by a **self-verifying generator** — from the repo root:
 
-    c2patool source.jpg -m manifest.json -o valid_signed.jpg
+    cargo run -p provenance-core --example gen_vectors
 
-Stripped (the platform-laundering case — remove metadata by re-encoding or explicit strip; verify afterwards that c2patool no longer finds a manifest):
+It signs `tests/fixtures/plain.jpg` with a fresh `c2pa::EphemeralSigner` chain (keys exist only in memory, never persisted), derives the variants (APP11-stripped, manifest byte-flip, post-signing content byte-flip), **runs every vector through the real pipeline and aborts on any expected-verdict mismatch**, then writes the vectors, `manifest.tsv`, and the public CA root `test_ca.pem` to `crates/provenance-core/tests/vectors/`. Commit all outputs together (signatures are fresh per run — the corpus and CA must match). A lying corpus cannot be committed: the generator refuses to write one, and `tests/vectors.rs` re-asserts every row on every test run.
 
-    # any re-encode that drops APP11/JUMBF works; document the exact tool+flags used
-    c2patool valid_signed.jpg          # → should now report no manifest on the stripped copy
+c2patool remains useful only as an independent cross-check of our vectors (`c2patool valid_signed.jpg` should report the manifest; the stripped copy should report none). Never hand-craft a vector: every byte change is scripted and recorded in the `notes` column.
 
-Tampered (corrupt the manifest store, not the whole file): locate the JUMBF segment and flip bytes *inside it* so the file still parses as an image but validation fails. Script the corruption (offset + original/new byte recorded in the vector manifest) so it is reproducible, not a binary blob of unknown provenance. Also keep one *content*-tampered vector: re-save pixels after signing so the hard binding mismatches.
+## The trust-anchor trap (still the #1 pitfall)
 
-Plain (no provenance ever): an ordinary camera JPEG → expected `inconclusive`.
-
-## The trust-anchor trap (M1's known pitfall)
-
-c2patool's test certificates are NOT on the production C2PA trust list. If tests validate against production anchors, the "valid" vectors come back untrusted and the suite lies to you. Policy: tests inject the test-CA anchor explicitly (the `c2pa` crate accepts configured trust anchors); production builds never include it. Assert both directions — the valid vector is `verified` with the test anchor loaded AND degrades to tamper/untrusted without it. Record the chosen mechanism in the ExecPlan Decision Log at M1.
+The ephemeral CA is NOT on any production trust list. Tests and CLI acceptance must inject it explicitly (`Pipeline::with_trust_anchors` / `lens verify --trust-anchors tests/vectors/test_ca.pem`); production configurations never include it. Assert both directions — the valid vector is `verified` with the anchor loaded AND degrades to `tampered` (unverifiable provenance) without it; `wrong_anchor_does_not_verify` in `tests/c2pa_layer.rs` pins the cross-anchor case.
 
 ## Catalogue format
 
-`tests/vectors/manifest.tsv` — one row per vector: filename, sha256, origin (upstream URL/commit or generation command), expected verdict id (`verified`/`indicated`/`inconclusive`/`tampered`), notes. A test iterates the manifest and asserts every row; a vector on disk but absent from the manifest (or vice versa) fails the suite. Keep vectors small (tiny source images); the corpus is committed, so no file over ~200 KB without a recorded reason.
+`tests/vectors/manifest.tsv` — one row per vector: filename, expected verdict id (`verified`/`indicated`/`inconclusive`/`tampered`), notes (for derived vectors: the exact byte offset and XOR applied). `tests/vectors.rs` iterates the catalogue and asserts every row, and fails on any `.jpg` on disk that the catalogue doesn't list (and vice versa). Keep vectors small (the source fixture is a 945-byte JPEG; signed vectors ≈ 14 KB); no file over ~200 KB without a recorded reason.

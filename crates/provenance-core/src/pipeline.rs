@@ -57,11 +57,24 @@ pub struct Pipeline {
 
 impl Pipeline {
     /// The standard four-layer pipeline in canonical order:
-    /// C2PA → watermark → registry → heuristics.
+    /// C2PA → watermark → registry → heuristics. No trust anchors are
+    /// configured, so no signature chain can validate as trusted.
     pub fn standard() -> Self {
+        Self::build(crate::layers::c2pa::C2paLayer::new())
+    }
+
+    /// The standard pipeline with Layer 1 trusting the given PEM bundle of
+    /// anchor root certificates (CLI: `lens verify --trust-anchors <file>`).
+    pub fn with_trust_anchors(anchors_pem: impl Into<String>) -> Self {
+        Self::build(crate::layers::c2pa::C2paLayer::with_trust_anchors(
+            anchors_pem,
+        ))
+    }
+
+    fn build(c2pa: crate::layers::c2pa::C2paLayer) -> Self {
         Pipeline {
             layers: vec![
-                Box::new(crate::layers::c2pa::C2paLayer),
+                Box::new(c2pa),
                 Box::new(crate::layers::watermark::WatermarkLayer),
                 Box::new(crate::layers::registry::RegistryLayer),
                 Box::new(crate::layers::heuristics::HeuristicsLayer),

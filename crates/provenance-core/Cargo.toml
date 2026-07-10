@@ -6,7 +6,15 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
-# The core stays dependency-free until Milestone 1 wires in the `c2pa` crate.
-# Anything heavier (watermark detectors, registry clients) lives behind the
-# Layer trait and enters only through its gated milestone.
+# M1 dependency (ExecPlan Decision Log): the c2pa crate with default features
+# OFF — no OpenSSL (rust-native crypto keeps bare-machine and wasm32 builds
+# clean) and no HTTP clients (the core is sans-IO; remote manifest fetching
+# must be impossible, not merely disabled).
 [dependencies]
+c2pa = { version = "0.89.2", default-features = false, features = ["rust_native_crypto"] }
+
+[dev-dependencies]
+base64 = "0.22"
+
+[[example]]
+name = "gen_vectors"
