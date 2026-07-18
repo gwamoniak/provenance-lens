@@ -45,7 +45,7 @@ None. Everything left is a maintainer decision, not a blocker.
 
 1. **Maintainer: submit to the Chrome Web Store** — `docs/STORE_LISTING.md` has everything the form asks; the zip is in `dist/`.
 2. **Maintainer, when ready**: make the repo public (`gh repo edit gwamoniak/provenance-lens --visibility public`).
-3. **Maintainer: review + sign off branch `post-wedge-hardening`** (2026-07-18) — the hardening backlog is implemented there: cert-policy pinning tests (expiry end-to-end + sign-time gate + profile check; algorithm allowlist), `manifest_parsing` cargo-fuzz target (nightly-only, workspace-excluded), monthly trust-list refresh workflow that opens a review PR, and a panic guard in the c2pa layer. It touches signature-validation policy surface, so the standing sign-off rule applies before merge.
+3. ~~Review branch `post-wedge-hardening`~~ — **signed off and merged 2026-07-18** ("approved, merge it"); the hardening backlog (cert-policy pinning tests, fuzz target, panic guard, trust-list refresh workflow) is on `main`.
 4. **Maintainer: file the prepared upstream report** — the fuzz target's first run found an unchecked-subtraction panic in the c2pa crate's JUMBF parser (still in 0.90.0); ready-to-file text is in the ExecPlan's Artifacts and Notes.
 5. **Next wave when ready**: `PROVENANCE_LENS_UPGRADES_EXECPLAN.md` (JSON CLI output, credential summaries, proven format coverage, CI, Firefox, npm; page-scan badges design-gated).
 4. **Gated milestones**: open M5 (watermark) / M6 (registry) only when their gates open; `lens-research` tracks detector and registry availability.
