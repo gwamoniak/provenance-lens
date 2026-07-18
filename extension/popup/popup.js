@@ -1,8 +1,12 @@
-// Renders the last verification result from chrome.storage.session.
+// Renders the last verification result from storage.session.
 // Rules: textContent ONLY (manifest fields are attacker-authored strings),
 // verdict phrases come verbatim from the engine's JSON, errors are never
 // styled as a tier, and Inconclusive never gets the visual language of
 // safety (neutral gray, same as the legend).
+
+// Firefox's chrome.* is callback-style; promise-style APIs live on
+// browser.*. Chrome defines only chrome.* (promise-capable in MV3).
+const api = typeof browser !== "undefined" ? browser : chrome;
 
 const TIER_CLASSES = ["verified", "indicated", "inconclusive", "tampered"];
 
@@ -64,13 +68,13 @@ function render(entry) {
   }
 }
 
-chrome.storage.session.get("lastResult").then(({ lastResult }) => render(lastResult));
-chrome.storage.onChanged.addListener((changes, area) => {
+api.storage.session.get("lastResult").then(({ lastResult }) => render(lastResult));
+api.storage.onChanged.addListener((changes, area) => {
   if (area === "session" && changes.lastResult) render(changes.lastResult.newValue);
 });
 
 // Engine presence is reported honestly; this never claims a capability.
-fetch(chrome.runtime.getURL("pkg/provenance_wasm_bg.wasm"), { method: "HEAD" })
+fetch(api.runtime.getURL("pkg/provenance_wasm_bg.wasm"), { method: "HEAD" })
   .then(() => {
     document.getElementById("engine-status").textContent =
       "Engine bundled. Right-click any image → Verify provenance.";

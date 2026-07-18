@@ -1,6 +1,6 @@
-# Chrome Web Store listing — Provenance Lens 0.1.0
+# Store listings — Provenance Lens 0.1.0 (Chrome Web Store + Firefox AMO)
 
-Copy below obeys `.claude/skills/verdict-language/SKILL.md`: understatement is the brand; no "detect AI fakes" claims, ever. The maintainer submits; nothing here is published by agents.
+Copy below obeys `.claude/skills/verdict-language/SKILL.md`: understatement is the brand; no "detect AI fakes" claims, ever. The maintainer submits; nothing here is published by agents. The Name / Summary / Description / privacy sections are shared by both stores; store-specific fields follow at the end.
 
 ## Name
 
@@ -38,6 +38,15 @@ Open source (MIT OR Apache-2.0).
 
 Provenance Lens verifies image provenance locally. It does not collect, transmit, store (beyond the current browser session), or sell any user data. Image bytes are fetched only on explicit user action and are processed entirely on-device. No telemetry of any kind.
 
+## Firefox Add-ons (AMO) — store-specific fields (U5)
+
+- Add-on ID: `provenance-lens@gwamoniak.github.io` (pinned in `manifest.json` `browser_specific_settings.gecko.id`; choose the final ID BEFORE first submission — it cannot change afterwards).
+- Minimum Firefox version: 121.0 (pinned as `strict_min_version`; below 121 Firefox does not start the background event page when the manifest also declares a service worker — the dual-key manifest is the documented cross-browser pattern).
+- Summary (250 chars max): the shared Summary above fits unchanged.
+- Categories: Privacy & Security. License: MIT OR Apache-2.0. Source code: the public repository URL (AMO reviewers may ask how to build the WASM engine — point at `extension/README.md` and `.claude/skills/wasm-packaging/SKILL.md`; the engine builds reproducibly from source with wasm-pack).
+- `action.openPopup()` needs Firefox ≥127; on 121–126 the popup does not auto-open after verification and the action badge + manual click is the flow (the code already falls back — mention in reviewer notes, not in user-facing copy).
+- Reviewer notes (paste into "Notes for Reviewers"): all verification is local WASM; the only network request fetches the image the user explicitly right-clicked; no remote code, no analytics; `wasm-unsafe-eval` CSP exists solely to instantiate the bundled engine.
+
 ## Pre-submission checklist (lens-release runs this; maintainer presses publish)
 
 1. `cargo test --workspace` green (includes the wording-sync audit) and `node scripts/wasm_smoke.mjs` passing.
@@ -45,5 +54,5 @@ Provenance Lens verifies image provenance locally. It does not collect, transmit
 3. `CHANGELOG.md` entry for the version.
 4. `extension/trust/anchors.pem` is the official C2PA list with a current provenance header (`sh scripts/update_trust_list.sh`), NOT a test CA.
 5. `sh scripts/package_extension.sh` → zip builds from a clean tree; record sha256 and size in the ExecPlan's Artifacts.
-6. Manual browser smoke (ExecPlan M3 script) passed on the packaged build.
+6. Manual browser smoke (ExecPlan M3 script) passed on the packaged build — in Chrome AND in Firefox (about:debugging → This Firefox → Load Temporary Add-on → `extension/manifest.json`).
 7. Any release touching signature-validation code: maintainer cryptography sign-off recorded in the Decision Log first.

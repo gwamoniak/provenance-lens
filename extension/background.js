@@ -1,12 +1,20 @@
-// Module service worker. Owns the context-menu entry and the verification
-// flow: fetch the right-clicked image (the ONLY network request this
-// extension ever makes on the user's behalf — image bytes never leave the
-// device), run the bundled WASM engine, store the result for the popup, and
-// reflect the verdict on the action badge.
+// Background script. In Chrome this runs as a module service worker; in
+// Firefox as an MV3 event page (the manifest declares both background keys —
+// the documented cross-browser pattern; Firefox ≥121 required). It owns the
+// context-menu entry and the verification flow: fetch the right-clicked
+// image (the ONLY network request this extension ever makes on the user's
+// behalf — image bytes never leave the device), run the bundled WASM engine,
+// store the result for the popup, and reflect the verdict on the action
+// badge. No static imports and all listeners registered synchronously at top
+// level — both are event-page requirements.
 //
 // Honesty rules enforced here: errors are errors (never mapped onto a
 // verdict tier), a missing engine says so, and nothing is rendered that the
 // engine did not compute.
+
+// Firefox's chrome.* is callback-style; its promise-style APIs live on
+// browser.*. Chrome defines only chrome.* (promise-capable in MV3).
+const api = typeof browser !== "undefined" ? browser : chrome;
 
 const MENU_ID = "provenance-lens-verify";
 
@@ -18,15 +26,15 @@ const BADGE = {
   tampered: { text: "TAM", color: "#c62828" },
 };
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
+api.runtime.onInstalled.addListener(() => {
+  api.contextMenus.create({
     id: MENU_ID,
     title: "Verify provenance with Provenance Lens",
     contexts: ["image"],
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info) => {
+api.contextMenus.onClicked.addListener((info) => {
   if (info.menuItemId !== MENU_ID || !info.srcUrl) return;
   verifyImage(info.srcUrl);
 });
@@ -39,7 +47,7 @@ function engine() {
     enginePromise = (async () => {
       const mod = await import("./pkg/provenance_wasm.js");
       await mod.default({
-        module_or_path: chrome.runtime.getURL("pkg/provenance_wasm_bg.wasm"),
+        module_or_path: api.runtime.getURL("pkg/provenance_wasm_bg.wasm"),
       });
       return mod;
     })().catch((err) => {
@@ -55,7 +63,7 @@ function engine() {
 // like "no anchors": nothing can verify as trusted.
 async function loadAnchors() {
   try {
-    const response = await fetch(chrome.runtime.getURL("trust/anchors.pem"));
+    const response = await fetch(api.runtime.getURL("trust/anchors.pem"));
     const pem = await response.text();
     return pem.includes("BEGIN CERTIFICATE") ? pem : undefined;
   } catch {
@@ -99,10 +107,10 @@ async function verifyImage(srcUrl) {
     entry.error = String((err && err.message) || err);
   }
 
-  await chrome.storage.session.set({ lastResult: entry });
+  await api.storage.session.set({ lastResult: entry });
   updateBadge(entry);
   try {
-    await chrome.action.openPopup();
+    await api.action.openPopup();
   } catch {
     // openPopup needs a recent user gesture and is not available everywhere;
     // the badge plus a manual click on the action icon is the fallback.
@@ -112,10 +120,10 @@ async function verifyImage(srcUrl) {
 function updateBadge(entry) {
   const tier = entry.report && BADGE[entry.report.verdict];
   if (tier) {
-    chrome.action.setBadgeText({ text: tier.text });
-    chrome.action.setBadgeBackgroundColor({ color: tier.color });
+    api.action.setBadgeText({ text: tier.text });
+    api.action.setBadgeBackgroundColor({ color: tier.color });
   } else {
-    chrome.action.setBadgeText({ text: "ERR" });
-    chrome.action.setBadgeBackgroundColor({ color: "#000000" });
+    api.action.setBadgeText({ text: "ERR" });
+    api.action.setBadgeBackgroundColor({ color: "#000000" });
   }
 }
