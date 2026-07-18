@@ -12,7 +12,7 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 
 - [x] (2026-07-18) Plan authored, after the post-wedge hardening pass (branch `post-wedge-hardening`: cert-policy pinning tests, fuzz target, trust-list refresh workflow — see the wedge plan's Progress for details).
 - [x] (2026-07-18) U1 complete — `render_json(report, file?)` lives in `crates/provenance-core/src/json.rs`; the WASM wrapper is now logic-free (delegates, shape byte-identical — parity suite passed untouched, so no engine rebuild was needed); `lens verify` takes `[--json] [--trust-anchors <PEM>] <FILE>...` with flags in any order and exits with the highest per-file code. Suite 27/27 green (2 new json tests, 2 new CLI parser tests), clippy clean; acceptance transcript in Artifacts.
-- [ ] U2 — credential summary: verified reports say what the credentials claim.
+- [x] (2026-07-18) U2 complete — `Report.credentials: Option<CredentialSummary>` (Some exactly when Verified; pinned corpus-wide and by dedicated tests), extracted by the concrete Layer-1 instance the pipeline now retains; rendered in CLI human output ("credential claims:" block), in the shared JSON (`credentials` object, absent keys omitted), and in the popup (from the engine JSON, textContent only). Suite 30/30 green, clippy clean; acceptance in Artifacts. Note: the browser shows the block only after the engine is next rebuilt (wasm-pack not installed on this machine — engine-side behavior proven by the parity and JSON tests; the release packaging script rebuilds regardless).
 - [ ] U3 — format coverage proven by vectors (PNG at minimum; alignment of sniffing and CLI extension-guessing).
 - [ ] U4 — CI baseline: build/lint/test on every push, scheduled cargo-audit and fuzz smoke.
 - [ ] U5 — Firefox port and AMO listing collateral.
@@ -37,6 +37,13 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 - Decision: U2 extends the pipeline's `Report` with an optional `credentials: Option<CredentialSummary>` field populated ONLY when Layer 1 returns `Proof`, rather than widening the `Proof` variant itself.
   Rationale: `LayerFinding` is the evidentiary type system (the wedge plan's Interfaces section pins it); keeping it minimal preserves the honesty typing, while a separate summary struct carries descriptive metadata that has no bearing on the verdict. A summary must never appear beside a non-Verified verdict, and a test pins that.
   Date/Author: 2026-07-18 / plan authoring.
+
+- Decision: U2 field names finalized: `digital_source_type` (the declared digitalSourceType URI, verbatim) plus `source_type_note` (a fixed descriptive phrase) replace the sketched `ai_involvement_declared`. The note exists for exactly two IPTC generative-AI types — `trainedAlgorithmicMedia` → "the credential declares this content AI-generated", `compositeWithTrainedAlgorithmicMedia` → "the credential declares AI-generated elements composited into this content" — and is defined once in `layers/c2pa.rs::source_type_note`; every surface (CLI, JSON, popup) prints it as data from that single definition, so no `wording_sync.rs` growth is needed: there is no second copy to drift. All other source types show only the verbatim URI, uninterpreted.
+  Rationale: verbatim-URI + separate note keeps the reported fact (what the credential says) cleanly apart from the vocabulary gloss (what IPTC defines that value to mean), and single-sourcing the phrase is what the wording audit exists to approximate.
+  Date/Author: 2026-07-18 / U2 implementation.
+- Decision: U2 extraction lives in `C2paLayer::credential_summary`, called by `Pipeline::examine` only when the combined verdict is Verified; the pipeline retains its concrete `C2paLayer` (`with_layers` pipelines have none and never carry a summary). This re-parses the asset on the Verified path — accepted and marked in code — because the alternative (widening the `Layer` trait's return type) would touch all four layers for one layer's metadata. The extraction runs under the same panic guard as validation, and any extraction failure means "no summary", never a verdict change.
+  Rationale: smallest change that keeps the evidentiary `LayerFinding` type untouched; milliseconds of re-parse on the rarest (Verified) path is the right price for that.
+  Date/Author: 2026-07-18 / U2 implementation.
 
 ## Outcomes & Retrospective
 
@@ -101,21 +108,39 @@ U1 acceptance (2026-07-18; `V=crates/provenance-core/tests/vectors`; JSON parsed
     $ lens verify --trust-anchors $V/test_ca.pem $V/valid_signed.jpg   # human mode unchanged
     → verdict: Verified …, exit 0
 
+U2 acceptance (2026-07-18):
+
+    $ lens verify --trust-anchors $V/test_ca.pem $V/valid_signed.jpg
+      verdict: Verified: …
+      [c2pa] valid provenance chain, issuer: Self-signed ephemeral certificate …
+      credential claims:
+        claim generator: provenance-lens test vectors/0.1.0
+        declared source type: http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia
+        note: the credential declares this content AI-generated
+      → exit 0
+    $ lens verify --trust-anchors $V/test_ca.pem $V/stripped.jpg
+      verdict: Inconclusive: no provenance data was found. This does NOT mean the asset is authentic.
+      (no credential block)                                  → exit 20
+    $ lens verify --json … valid_signed.jpg | node JSON.parse
+      credentials: { issuer, claim_generator, digital_source_type, source_type_note }
+      (signing_time absent — the test vectors carry no timestamp; absent keys are omitted)
+
 ## Interfaces and Dependencies
 
 New in U1, in `crates/provenance-core/src/json.rs`:
 
     pub fn render_json(report: &Report) -> String   // flat JSON: {"verdict": id, "phrase": ..., "findings": [{"layer": ..., "kind": ..., ...}]}
 
-`crates/provenance-wasm` keeps its exported signature unchanged and delegates to `render_json`. New in U2, in `crates/provenance-core/src/pipeline.rs` (exact fields finalized at implementation, recorded here when they land):
+`crates/provenance-wasm` keeps its exported signature unchanged and delegates to `render_json`. Landed in U2, in `crates/provenance-core/src/pipeline.rs` (final shape; see the Decision Log for the rename from the sketched `ai_involvement_declared`):
 
     pub struct CredentialSummary {
         pub issuer: String,
-        pub claim_generator: Option<String>,
-        pub signing_time: Option<String>,      // RFC 3339 when present
-        pub ai_involvement_declared: Option<String>, // the digitalSourceType, verbatim
+        pub claim_generator: Option<String>,        // "name/version"
+        pub signing_time: Option<String>,           // as reported by the validator
+        pub digital_source_type: Option<String>,    // the declared digitalSourceType URI, verbatim
+        pub source_type_note: Option<&'static str>, // fixed phrase for the generative-AI types
     }
-    // Report gains: pub credentials: Option<CredentialSummary>  — Some only when Layer 1 returned Proof.
+    // Report gains: pub credentials: Option<CredentialSummary> — Some exactly when the verdict is Verified.
 
 No new Rust dependencies are anticipated for U1–U4; U5–U7 add none to the Rust workspace (extension/JS only). Any deviation requires a Decision Log entry here.
 

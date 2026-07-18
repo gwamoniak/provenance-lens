@@ -17,7 +17,7 @@
 //! }
 //! ```
 
-use crate::pipeline::{LayerFinding, Report};
+use crate::pipeline::{CredentialSummary, LayerFinding, Report};
 
 /// Render `report` as a single flat JSON object. `file` (when given) becomes
 /// a leading `"file"` key — the CLI uses it to label per-file results; the
@@ -49,12 +49,38 @@ pub fn render_json(report: &Report, file: Option<&str>) -> String {
         None => String::new(),
     };
 
+    // Present only on Verified reports (the pipeline guarantees it); absent
+    // keys are omitted rather than null.
+    let credentials_field = match &report.credentials {
+        Some(summary) => format!(r#","credentials":{}"#, credentials_json(summary)),
+        None => String::new(),
+    };
+
     format!(
-        r#"{{{file_field}"verdict":{},"phrase":{},"findings":[{}]}}"#,
+        r#"{{{file_field}"verdict":{},"phrase":{}{credentials_field},"findings":[{}]}}"#,
         json_string(report.verdict.id()),
         json_string(report.verdict.approved_phrase()),
         findings
     )
+}
+
+fn credentials_json(summary: &CredentialSummary) -> String {
+    let mut fields = vec![format!(r#""issuer":{}"#, json_string(&summary.issuer))];
+    let optional = [
+        ("claim_generator", summary.claim_generator.as_deref()),
+        ("signing_time", summary.signing_time.as_deref()),
+        (
+            "digital_source_type",
+            summary.digital_source_type.as_deref(),
+        ),
+        ("source_type_note", summary.source_type_note),
+    ];
+    for (key, value) in optional {
+        if let Some(value) = value {
+            fields.push(format!(r#""{key}":{}"#, json_string(value)));
+        }
+    }
+    format!("{{{}}}", fields.join(","))
 }
 
 /// Minimal JSON string encoder (quotes, backslashes, control characters).

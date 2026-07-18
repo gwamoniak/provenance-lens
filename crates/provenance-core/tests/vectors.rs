@@ -48,6 +48,13 @@ fn every_committed_vector_matches_its_recorded_verdict() {
             "vector {file}: expected {expected:?}, findings: {:?}",
             report.findings
         );
+        // U2 invariant over the whole corpus: a credential summary appears
+        // exactly on Verified reports, never beside any other verdict.
+        assert_eq!(
+            report.credentials.is_some(),
+            report.verdict == Verdict::Verified,
+            "vector {file}: credentials presence must track Verified"
+        );
     }
     assert!(!catalogued.is_empty(), "manifest.tsv lists no vectors");
 

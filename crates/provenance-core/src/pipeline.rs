@@ -41,6 +41,26 @@ pub trait Layer {
     fn examine(&self, asset: &Asset) -> LayerFinding;
 }
 
+/// What a Verified credential *claims* — descriptive metadata read from the
+/// already-validated manifest (U2). This never affects the verdict: it
+/// reports the credential's own statements, and the wording must stay
+/// descriptive ("the credential declares…"), never an endorsement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CredentialSummary {
+    /// Issuing authority of the validated signature (also on the Proof finding).
+    pub issuer: String,
+    /// Claim generator as "name/version" when the manifest names one.
+    pub claim_generator: Option<String>,
+    /// Signature time as reported by the validator, when present.
+    pub signing_time: Option<String>,
+    /// The declared digitalSourceType, verbatim (an IPTC/C2PA URI).
+    pub digital_source_type: Option<String>,
+    /// Fixed descriptive phrase for the generative-AI source types, so every
+    /// surface (CLI, JSON, popup) prints the identical sentence from one
+    /// definition here in core.
+    pub source_type_note: Option<&'static str>,
+}
+
 /// The full result: per-layer findings plus the combined verdict.
 #[derive(Debug)]
 pub struct Report {
@@ -48,11 +68,18 @@ pub struct Report {
     /// `(layer name, finding)` in pipeline order, so a report always shows
     /// which layers actually ran.
     pub findings: Vec<(String, LayerFinding)>,
+    /// `Some` only when the verdict is Verified — a summary must never
+    /// appear beside a non-Verified verdict (pinned by tests).
+    pub credentials: Option<CredentialSummary>,
 }
 
 /// The ordered pipeline.
 pub struct Pipeline {
     layers: Vec<Box<dyn Layer>>,
+    /// The concrete Layer-1 instance, kept so `examine` can ask it what a
+    /// Verified credential claims. `None` for `with_layers` pipelines, which
+    /// therefore never carry a summary.
+    c2pa: Option<crate::layers::c2pa::C2paLayer>,
 }
 
 impl Pipeline {
@@ -74,17 +101,18 @@ impl Pipeline {
     fn build(c2pa: crate::layers::c2pa::C2paLayer) -> Self {
         Pipeline {
             layers: vec![
-                Box::new(c2pa),
+                Box::new(c2pa.clone()),
                 Box::new(crate::layers::watermark::WatermarkLayer),
                 Box::new(crate::layers::registry::RegistryLayer),
                 Box::new(crate::layers::heuristics::HeuristicsLayer),
             ],
+            c2pa: Some(c2pa),
         }
     }
 
     /// A pipeline with caller-supplied layers (tests, future configuration).
     pub fn with_layers(layers: Vec<Box<dyn Layer>>) -> Self {
-        Pipeline { layers }
+        Pipeline { layers, c2pa: None }
     }
 
     /// Run every layer and combine the findings. All layers always run —
@@ -96,7 +124,21 @@ impl Pipeline {
             .map(|layer| (layer.name().to_string(), layer.examine(asset)))
             .collect();
         let verdict = combine(&findings);
-        Report { verdict, findings }
+        // ponytail: the summary re-parses the asset (second Reader run), but
+        // only on the Verified path; plumb it through examine() instead if a
+        // profile ever cares.
+        let credentials = if verdict == Verdict::Verified {
+            self.c2pa
+                .as_ref()
+                .and_then(|layer| layer.credential_summary(asset))
+        } else {
+            None
+        };
+        Report {
+            verdict,
+            findings,
+            credentials,
+        }
     }
 }
 

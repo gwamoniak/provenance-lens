@@ -113,6 +113,23 @@ fn verify_all(args: &VerifyArgs) -> ExitCode {
                     for (layer, finding) in &report.findings {
                         println!("  [{layer}] {}", describe(finding));
                     }
+                    // Present only on Verified reports; descriptive of what
+                    // the credential claims, never an endorsement.
+                    if let Some(summary) = &report.credentials {
+                        println!("  credential claims:");
+                        if let Some(generator) = &summary.claim_generator {
+                            println!("    claim generator: {generator}");
+                        }
+                        if let Some(time) = &summary.signing_time {
+                            println!("    signed at: {time}");
+                        }
+                        if let Some(source_type) = &summary.digital_source_type {
+                            println!("    declared source type: {source_type}");
+                        }
+                        if let Some(note) = summary.source_type_note {
+                            println!("    note: {note}");
+                        }
+                    }
                 }
                 exit_code(&report.verdict)
             }

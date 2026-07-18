@@ -30,6 +30,29 @@ function render(entry) {
         : `${finding.layer}: ${finding.status.replaceAll("_", " ")}`;
       list.appendChild(item);
     }
+    // Credential claims: present in the engine JSON only for Verified.
+    // Descriptive lines of what the credential itself states — the
+    // source_type_note phrase comes verbatim from the engine.
+    const credentials = document.getElementById("report-credentials");
+    credentials.textContent = "";
+    credentials.hidden = true;
+    if (entry.report.credentials) {
+      const c = entry.report.credentials;
+      const lines = [
+        ["credential claims", ""],
+        ["claim generator", c.claim_generator],
+        ["signed at", c.signing_time],
+        ["declared source type", c.digital_source_type],
+        ["note", c.source_type_note],
+      ];
+      for (const [label, value] of lines) {
+        if (value === undefined || value === null) continue;
+        const item = document.createElement("li");
+        item.textContent = value === "" ? `${label}:` : `${label}: ${value}`;
+        credentials.appendChild(item);
+      }
+      credentials.hidden = false;
+    }
     document.getElementById("report-anchors").textContent = entry.anchorsLoaded
       ? "Trust anchors: loaded from trust/anchors.pem."
       : "Trust anchors: none configured — no signature chain can validate as trusted.";

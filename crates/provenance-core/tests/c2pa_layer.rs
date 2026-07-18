@@ -151,6 +151,39 @@ fn wrong_anchor_does_not_verify() {
 }
 
 #[test]
+fn verified_report_says_what_the_credential_claims() {
+    // The test manifest declares digitalSourceType trainedAlgorithmicMedia,
+    // so a Verified report must carry the summary with the verbatim URI and
+    // the fixed descriptive note.
+    let (signed, ca_pem) = signed_asset();
+    let report = examine(&signed, Some(&ca_pem));
+    assert_eq!(report.verdict, Verdict::Verified);
+    let summary = report.credentials.as_ref().expect("summary on Verified");
+    assert!(!summary.issuer.is_empty());
+    assert_eq!(
+        summary.claim_generator.as_deref(),
+        Some("provenance-lens tests/0.1.0")
+    );
+    assert_eq!(
+        summary.digital_source_type.as_deref(),
+        Some("http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia")
+    );
+    assert_eq!(
+        summary.source_type_note,
+        Some("the credential declares this content AI-generated")
+    );
+}
+
+#[test]
+fn non_verified_reports_never_carry_credentials() {
+    let (signed, _ca_pem) = signed_asset();
+    // Same signed asset, no anchors: Tampered (unverifiable provenance).
+    assert!(examine(&signed, None).credentials.is_none());
+    // Unsigned: Inconclusive.
+    assert!(examine(PLAIN_JPG, None).credentials.is_none());
+}
+
+#[test]
 fn hostile_bytes_never_panic_and_never_prove() {
     // Deterministic pseudo-random garbage, magic-byte prefixes, and
     // truncations of a real signed asset: whatever comes back, the layer

@@ -23,10 +23,14 @@
 
 use std::io::Cursor;
 
-use c2pa::{settings::Settings, Context, Error as C2paError, Reader, ValidationState};
+use c2pa::{
+    assertions::Actions, settings::Settings, Context, DigitalSourceType, Error as C2paError,
+    Reader, ValidationState,
+};
 
-use crate::pipeline::{Asset, Layer, LayerFinding};
+use crate::pipeline::{Asset, CredentialSummary, Layer, LayerFinding};
 
+#[derive(Clone)]
 pub struct C2paLayer {
     /// PEM bundle of trust-anchor root certificates. `None` means no anchors
     /// are configured, so no chain can reach `Trusted` and signed assets cap
@@ -54,6 +58,74 @@ impl C2paLayer {
         let mut settings = Settings::new().with_json(r#"{"verify": {"verify_trust": true}}"#)?;
         settings.trust.user_anchors = self.trust_anchors_pem.clone();
         Context::new().with_settings(settings)
+    }
+
+    /// What the (already-validated) credential claims — U2. The pipeline
+    /// calls this only after the combined verdict is Verified; any failure
+    /// here just means "no summary", never a verdict change. Descriptive
+    /// only: these are the credential's own statements.
+    pub(crate) fn credential_summary(&self, asset: &Asset) -> Option<CredentialSummary> {
+        let format = match asset.media_type {
+            Some(mime) => mime.to_string(),
+            None => sniff_media_type(asset.bytes)?.to_string(),
+        };
+        let context = self.context().ok()?;
+        let bytes = asset.bytes;
+        // Same panic containment as examine(): upstream parser bugs must not
+        // crash the caller, least of all on the Verified path.
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let reader = Reader::from_context(context)
+                .with_stream(&format, Cursor::new(bytes))
+                .ok()?;
+            let manifest = reader.active_manifest()?;
+            let signature = manifest.signature_info();
+            let issuer = signature
+                .and_then(|info| info.issuer.clone())
+                .unwrap_or_else(|| "unknown issuer".to_string());
+            let claim_generator = manifest
+                .claim_generator_info
+                .as_ref()
+                .and_then(|infos| infos.first())
+                .map(|info| match &info.version {
+                    Some(version) => format!("{}/{version}", info.name),
+                    None => info.name.clone(),
+                });
+            let signing_time = signature.and_then(|info| info.time.clone());
+            let source_type = manifest
+                .find_assertion::<Actions>(Actions::LABEL)
+                .ok()
+                .and_then(|actions| {
+                    actions
+                        .actions
+                        .iter()
+                        .find_map(|action| action.source_type().cloned())
+                });
+            Some(CredentialSummary {
+                issuer,
+                claim_generator,
+                signing_time,
+                digital_source_type: source_type.as_ref().map(|t| t.to_string()),
+                source_type_note: source_type.as_ref().and_then(source_type_note),
+            })
+        }))
+        .ok()
+        .flatten()
+    }
+}
+
+/// Fixed descriptive phrases for the generative-AI digitalSourceType values
+/// (IPTC vocabulary). Single definition — every surface (CLI, JSON, popup)
+/// prints these verbatim. Descriptive of the credential's claim, never an
+/// endorsement; unknown or non-AI types get no note, just the verbatim URI.
+fn source_type_note(source_type: &DigitalSourceType) -> Option<&'static str> {
+    match source_type {
+        DigitalSourceType::TrainedAlgorithmicMedia => {
+            Some("the credential declares this content AI-generated")
+        }
+        DigitalSourceType::CompositeWithTrainedAlgorithmicMedia => {
+            Some("the credential declares AI-generated elements composited into this content")
+        }
+        _ => None,
     }
 }
 

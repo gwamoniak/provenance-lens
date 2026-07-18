@@ -60,6 +60,22 @@ fn wrapper_matches_native_pipeline_on_every_vector() {
                 "phrase parity failed for {file}"
             );
 
+            // U2: the credentials object appears in the JSON exactly when the
+            // native report carries a summary, with the same issuer.
+            assert_eq!(
+                parsed["credentials"].is_object(),
+                native.credentials.is_some(),
+                "credentials presence parity for {file} (anchors: {})",
+                anchors.is_some()
+            );
+            if let Some(summary) = &native.credentials {
+                assert_eq!(
+                    parsed["credentials"]["issuer"].as_str(),
+                    Some(summary.issuer.as_str()),
+                    "credentials issuer parity for {file}"
+                );
+            }
+
             let json_findings = parsed["findings"].as_array().expect("findings array");
             assert_eq!(
                 json_findings.len(),
