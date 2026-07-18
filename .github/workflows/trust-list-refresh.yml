@@ -1,0 +1,46 @@
+# Trust-list refresh cadence (post-wedge hardening backlog item).
+#
+# A stale anchor bundle turns fresh legitimate credentials into
+# "Tampered / unverifiable", so the official C2PA conformance list is
+# re-fetched monthly. The refresh NEVER lands directly: anchors.pem is
+# trust-model data, so the run opens a pull request and the maintainer
+# reviews the diff — same rule as a manual `sh scripts/update_trust_list.sh`.
+name: trust-list-refresh
+
+on:
+  schedule:
+    - cron: "17 4 1 * *" # monthly, 1st at 04:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refresh anchors from the official conformance list
+        run: sh scripts/update_trust_list.sh
+      - name: Open a review PR if the list changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Ignore the always-changing "Fetched:" provenance line when
+          # deciding whether anything real changed.
+          if git diff -I '^# Fetched:' --quiet extension/trust/anchors.pem; then
+            echo "trust list unchanged"
+            exit 0
+          fi
+          branch="trust-list-refresh-$(date -u +%Y-%m-%d)"
+          git config user.name "trust-list-refresh workflow"
+          git config user.email "actions@github.com"
+          git checkout -b "$branch"
+          git add extension/trust/anchors.pem
+          git commit -m "Trust list refresh: official C2PA conformance list ($(date -u +%Y-%m-%d))"
+          git push origin "$branch"
+          gh pr create \
+            --title "Trust list refresh ($(date -u +%Y-%m-%d))" \
+            --body "Automated monthly refresh from the official C2PA conformance trust list. **This diff is trust-model data — review every certificate change before merging.** Source and sha256 are in the file's provenance header." \
+            --base main --head "$branch"

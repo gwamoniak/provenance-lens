@@ -91,51 +91,73 @@ impl Layer for C2paLayer {
             }
         };
 
-        let reader =
-            match Reader::from_context(context).with_stream(&format, Cursor::new(asset.bytes)) {
-                Ok(reader) => reader,
-                Err(C2paError::JumbfNotFound) => return LayerFinding::NoSignal,
-                Err(C2paError::UnsupportedType) => {
-                    return LayerFinding::NotEvaluated {
-                        reason: format!("media type {format} is not supported by the C2PA reader"),
-                    }
-                }
-                Err(err) => {
-                    // Parse errors are NOT tamper evidence (see module docs).
-                    return LayerFinding::NotEvaluated {
-                        reason: format!("asset could not be parsed for a manifest store: {err}"),
-                    };
-                }
-            };
-
-        match reader.validation_state() {
-            ValidationState::Trusted => {
-                let issuer = reader
-                    .active_manifest()
-                    .and_then(|manifest| manifest.signature_info())
-                    .and_then(|info| info.issuer.clone())
-                    .unwrap_or_else(|| "unknown issuer".to_string());
-                LayerFinding::Proof { issuer }
-            }
-            ValidationState::Valid => LayerFinding::TamperEvidence {
-                detail: "manifest signature verifies cryptographically but its certificate \
-                         does not chain to a configured trust anchor"
+        // The c2pa crate can panic on malformed manifests (the fuzz target
+        // found a debug-build subtraction overflow in its JUMBF box parser,
+        // still present in 0.90.0). A panic while parsing hostile bytes
+        // degrades to NotEvaluated — the same honesty rule as any other
+        // parse failure — instead of crashing the caller. On wasm32
+        // (panic=abort) this guard cannot catch; the extension already
+        // renders engine failures as errors, never as verdicts.
+        let bytes = asset.bytes;
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            examine_manifest(context, &format, bytes)
+        })) {
+            Ok(finding) => finding,
+            Err(_) => LayerFinding::NotEvaluated {
+                reason: "manifest parsing panicked on malformed input (parser bug; \
+                         treated as unparseable, never as tamper evidence)"
                     .to_string(),
             },
-            ValidationState::Invalid => {
-                let codes: Vec<String> = reader
-                    .validation_status()
-                    .unwrap_or(&[])
-                    .iter()
-                    .map(|status| status.code().to_string())
-                    .collect();
-                let detail = if codes.is_empty() {
-                    "manifest store present but fails validation".to_string()
-                } else {
-                    format!("manifest validation failed: {}", codes.join(", "))
-                };
-                LayerFinding::TamperEvidence { detail }
+        }
+    }
+}
+
+/// The parsing and validation-state mapping, separated so `examine` can wrap
+/// it in a panic guard.
+fn examine_manifest(context: Context, format: &str, bytes: &[u8]) -> LayerFinding {
+    let reader = match Reader::from_context(context).with_stream(format, Cursor::new(bytes)) {
+        Ok(reader) => reader,
+        Err(C2paError::JumbfNotFound) => return LayerFinding::NoSignal,
+        Err(C2paError::UnsupportedType) => {
+            return LayerFinding::NotEvaluated {
+                reason: format!("media type {format} is not supported by the C2PA reader"),
             }
+        }
+        Err(err) => {
+            // Parse errors are NOT tamper evidence (see module docs).
+            return LayerFinding::NotEvaluated {
+                reason: format!("asset could not be parsed for a manifest store: {err}"),
+            };
+        }
+    };
+
+    match reader.validation_state() {
+        ValidationState::Trusted => {
+            let issuer = reader
+                .active_manifest()
+                .and_then(|manifest| manifest.signature_info())
+                .and_then(|info| info.issuer.clone())
+                .unwrap_or_else(|| "unknown issuer".to_string());
+            LayerFinding::Proof { issuer }
+        }
+        ValidationState::Valid => LayerFinding::TamperEvidence {
+            detail: "manifest signature verifies cryptographically but its certificate \
+                     does not chain to a configured trust anchor"
+                .to_string(),
+        },
+        ValidationState::Invalid => {
+            let codes: Vec<String> = reader
+                .validation_status()
+                .unwrap_or(&[])
+                .iter()
+                .map(|status| status.code().to_string())
+                .collect();
+            let detail = if codes.is_empty() {
+                "manifest store present but fails validation".to_string()
+            } else {
+                format!("manifest validation failed: {}", codes.join(", "))
+            };
+            LayerFinding::TamperEvidence { detail }
         }
     }
 }
