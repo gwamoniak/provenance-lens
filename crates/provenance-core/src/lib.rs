@@ -17,9 +17,11 @@
 //! The crate is sans-IO: layers examine bytes they are handed and never open
 //! files, sockets, or processes. The CLI and WASM wrappers own all I/O.
 
+pub mod json;
 pub mod layers;
 pub mod pipeline;
 pub mod verdict;
 
+pub use json::render_json;
 pub use pipeline::{Asset, Layer, LayerFinding, Pipeline, Report};
 pub use verdict::Verdict;

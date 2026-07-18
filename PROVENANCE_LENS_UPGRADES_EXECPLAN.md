@@ -11,7 +11,7 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 ## Progress
 
 - [x] (2026-07-18) Plan authored, after the post-wedge hardening pass (branch `post-wedge-hardening`: cert-policy pinning tests, fuzz target, trust-list refresh workflow — see the wedge plan's Progress for details).
-- [ ] U1 — machine-readable CLI output (`--json`), JSON renderer shared with the WASM wrapper.
+- [x] (2026-07-18) U1 complete — `render_json(report, file?)` lives in `crates/provenance-core/src/json.rs`; the WASM wrapper is now logic-free (delegates, shape byte-identical — parity suite passed untouched, so no engine rebuild was needed); `lens verify` takes `[--json] [--trust-anchors <PEM>] <FILE>...` with flags in any order and exits with the highest per-file code. Suite 27/27 green (2 new json tests, 2 new CLI parser tests), clippy clean; acceptance transcript in Artifacts.
 - [ ] U2 — credential summary: verified reports say what the credentials claim.
 - [ ] U3 — format coverage proven by vectors (PNG at minimum; alignment of sniffing and CLI extension-guessing).
 - [ ] U4 — CI baseline: build/lint/test on every push, scheduled cargo-audit and fuzz smoke.
@@ -88,7 +88,18 @@ All steps are re-runnable: cargo/wasm-pack/npm-pack commands are idempotent, vec
 
 ## Artifacts and Notes
 
-(Transcripts land here as milestones complete.)
+U1 acceptance (2026-07-18; `V=crates/provenance-core/tests/vectors`; JSON parsed back with node to prove machine-readability):
+
+    $ lens verify --json --trust-anchors $V/test_ca.pem \
+          $V/valid_signed.jpg $V/manifest_corrupted.jpg $V/plain.jpg
+    {"file":"…/valid_signed.jpg","verdict":"verified","phrase":…,"findings":[…4 layers…]}
+    {"file":"…/manifest_corrupted.jpg","verdict":"tampered",…}
+    {"file":"…/plain.jpg","verdict":"inconclusive",…}
+    → exit 30 (worst of 0 / 30 / 20)
+    node JSON.parse per line: valid_signed.jpg -> verified | manifest_corrupted.jpg -> tampered | plain.jpg -> inconclusive
+
+    $ lens verify --trust-anchors $V/test_ca.pem $V/valid_signed.jpg   # human mode unchanged
+    → verdict: Verified …, exit 0
 
 ## Interfaces and Dependencies
 

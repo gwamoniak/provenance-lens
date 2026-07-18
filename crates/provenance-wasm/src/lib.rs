@@ -1,12 +1,10 @@
 //! WASM boundary. One exported function: bytes in, JSON report out. The
 //! extension owns fetching the asset and bundling its trust-anchor list;
-//! this crate owns nothing but the call into `provenance-core`.
-//!
-//! JSON is hand-rolled for now to keep the artifact small; if the report
-//! shape grows past this flat structure, switch to serde + serde-wasm-bindgen
-//! (Milestone 2 decision point — recorded in the ExecPlan Decision Log).
+//! this crate owns nothing but the call into `provenance-core` — since U1
+//! even the JSON shape lives there (`provenance_core::render_json`), shared
+//! with the CLI's `--json` output so the two surfaces cannot drift.
 
-use provenance_core::{Asset, LayerFinding, Pipeline};
+use provenance_core::{render_json, Asset, Pipeline};
 use wasm_bindgen::prelude::*;
 
 /// Examine `bytes` and return the report as a JSON string.
@@ -37,53 +35,7 @@ pub fn verify_bytes(
         None => Pipeline::standard(),
     };
     let report = pipeline.examine(&asset);
-
-    let findings = report
-        .findings
-        .iter()
-        .map(|(layer, finding)| {
-            let (status, detail) = match finding {
-                LayerFinding::NotEvaluated { reason } => ("not_evaluated", reason.clone()),
-                LayerFinding::NoSignal => ("no_signal", String::new()),
-                LayerFinding::Proof { issuer } => ("proof", issuer.clone()),
-                LayerFinding::Indication { source } => ("indication", source.clone()),
-                LayerFinding::TamperEvidence { detail } => ("tamper_evidence", detail.clone()),
-            };
-            format!(
-                r#"{{"layer":{},"status":{},"detail":{}}}"#,
-                json_string(layer),
-                json_string(status),
-                json_string(&detail)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    format!(
-        r#"{{"verdict":{},"phrase":{},"findings":[{}]}}"#,
-        json_string(report.verdict.id()),
-        json_string(report.verdict.approved_phrase()),
-        findings
-    )
-}
-
-/// Minimal JSON string encoder (quotes, backslashes, control characters).
-fn json_string(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
+    render_json(&report, None)
 }
 
 #[cfg(test)]
@@ -96,10 +48,5 @@ mod tests {
         assert!(json.starts_with('{') && json.ends_with('}'));
         assert!(json.contains(r#""verdict":"inconclusive""#));
         assert!(json.contains(r#""layer":"c2pa""#));
-    }
-
-    #[test]
-    fn json_string_escapes() {
-        assert_eq!(json_string("a\"b\\c\nd"), r#""a\"b\\c\nd""#);
     }
 }

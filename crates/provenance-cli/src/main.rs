@@ -3,20 +3,27 @@
 //!
 //! Exit codes are part of the contract (scripts depend on them):
 //!   0 verified, 10 indicated, 20 inconclusive, 30 tampered, 2 usage/IO error.
+//! With multiple files the exit code is the highest per-file code, so the
+//! worst result wins (a Tampered anywhere outranks everything, mirroring the
+//! pipeline's own precedence rule).
 
 use std::process::ExitCode;
 
-use provenance_core::{Asset, LayerFinding, Pipeline, Verdict};
+use provenance_core::{render_json, Asset, LayerFinding, Pipeline, Verdict};
 
 const USAGE: &str = "\
 lens — honest provenance verdicts for media files
 
 USAGE:
-    lens verify [--trust-anchors <PEM>] <FILE>
-                          examine a file and print a verdict report;
+    lens verify [--json] [--trust-anchors <PEM>] <FILE>...
+                          examine each file and print a verdict report;
+                          --json prints one JSON object per line (same shape
+                          the WASM engine returns, plus a \"file\" key);
                           --trust-anchors loads a PEM bundle of root
                           certificates that signatures may chain to
-                          (without it, no chain can validate as trusted)
+                          (without it, no chain can validate as trusted).
+                          With multiple files the exit code is the highest
+                          per-file code — the worst result wins.
     lens tiers            print the four verdict tiers and their meaning
 
 EXIT CODES:
@@ -26,8 +33,8 @@ EXIT CODES:
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
-        Some("verify") => match parse_verify_args(&args[2..]) {
-            Some((anchors_path, file)) => verify(file, anchors_path),
+        Some("verify") => match VerifyArgs::parse(&args[2..]) {
+            Some(parsed) => verify_all(&parsed),
             None => {
                 eprint!("{USAGE}");
                 ExitCode::from(2)
@@ -44,25 +51,42 @@ fn main() -> ExitCode {
     }
 }
 
-/// `verify` accepts exactly: [--trust-anchors <PEM>] <FILE>.
-fn parse_verify_args(rest: &[String]) -> Option<(Option<&String>, &String)> {
-    match rest {
-        [file] => Some((None, file)),
-        [flag, pem, file] if flag == "--trust-anchors" => Some((Some(pem), file)),
-        _ => None,
+struct VerifyArgs<'a> {
+    json: bool,
+    anchors_path: Option<&'a str>,
+    files: Vec<&'a str>,
+}
+
+impl<'a> VerifyArgs<'a> {
+    /// `verify` accepts: [--json] [--trust-anchors <PEM>] <FILE>...
+    /// Flags may appear in any order before or between files; anything else
+    /// starting with `--` is a usage error.
+    fn parse(rest: &'a [String]) -> Option<Self> {
+        let mut json = false;
+        let mut anchors_path = None;
+        let mut files = Vec::new();
+        let mut it = rest.iter();
+        while let Some(arg) = it.next() {
+            match arg.as_str() {
+                "--json" => json = true,
+                "--trust-anchors" => anchors_path = Some(it.next()?.as_str()),
+                flag if flag.starts_with("--") => return None,
+                file => files.push(file),
+            }
+        }
+        if files.is_empty() {
+            return None;
+        }
+        Some(VerifyArgs {
+            json,
+            anchors_path,
+            files,
+        })
     }
 }
 
-fn verify(path: &str, anchors_path: Option<&String>) -> ExitCode {
-    let bytes = match std::fs::read(path) {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            eprintln!("lens: cannot read {path}: {err}");
-            return ExitCode::from(2);
-        }
-    };
-
-    let pipeline = match anchors_path {
+fn verify_all(args: &VerifyArgs) -> ExitCode {
+    let pipeline = match args.anchors_path {
         Some(anchors_path) => match std::fs::read_to_string(anchors_path) {
             Ok(pem) => Pipeline::with_trust_anchors(pem),
             Err(err) => {
@@ -73,23 +97,41 @@ fn verify(path: &str, anchors_path: Option<&String>) -> ExitCode {
         None => Pipeline::standard(),
     };
 
-    let asset = Asset {
-        bytes: &bytes,
-        media_type: guess_media_type(path),
-    };
-    let report = pipeline.examine(&asset);
-
-    println!("{path}");
-    println!("  verdict: {}", report.verdict);
-    for (layer, finding) in &report.findings {
-        println!("  [{layer}] {}", describe(finding));
+    let mut worst = 0u8;
+    for path in &args.files {
+        let code = match std::fs::read(path) {
+            Ok(bytes) => {
+                let report = pipeline.examine(&Asset {
+                    bytes: &bytes,
+                    media_type: guess_media_type(path),
+                });
+                if args.json {
+                    println!("{}", render_json(&report, Some(path)));
+                } else {
+                    println!("{path}");
+                    println!("  verdict: {}", report.verdict);
+                    for (layer, finding) in &report.findings {
+                        println!("  [{layer}] {}", describe(finding));
+                    }
+                }
+                exit_code(&report.verdict)
+            }
+            Err(err) => {
+                eprintln!("lens: cannot read {path}: {err}");
+                2
+            }
+        };
+        worst = worst.max(code);
     }
+    ExitCode::from(worst)
+}
 
-    match report.verdict {
-        Verdict::Verified => ExitCode::SUCCESS,
-        Verdict::Indicated => ExitCode::from(10),
-        Verdict::Inconclusive => ExitCode::from(20),
-        Verdict::Tampered => ExitCode::from(30),
+fn exit_code(verdict: &Verdict) -> u8 {
+    match verdict {
+        Verdict::Verified => 0,
+        Verdict::Indicated => 10,
+        Verdict::Inconclusive => 20,
+        Verdict::Tampered => 30,
     }
 }
 
@@ -126,5 +168,31 @@ fn guess_media_type(path: &str) -> Option<&'static str> {
         Some("image/avif")
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn strings(args: &[&str]) -> Vec<String> {
+        args.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn parse_accepts_flags_in_any_order_and_many_files() {
+        let args = strings(&["--json", "a.jpg", "--trust-anchors", "ca.pem", "b.jpg"]);
+        let parsed = VerifyArgs::parse(&args).expect("valid invocation");
+        assert!(parsed.json);
+        assert_eq!(parsed.anchors_path, Some("ca.pem"));
+        assert_eq!(parsed.files, vec!["a.jpg", "b.jpg"]);
+    }
+
+    #[test]
+    fn parse_rejects_missing_files_unknown_flags_and_dangling_value() {
+        assert!(VerifyArgs::parse(&strings(&["--json"])).is_none());
+        assert!(VerifyArgs::parse(&strings(&["--jsn", "a.jpg"])).is_none());
+        assert!(VerifyArgs::parse(&strings(&["a.jpg", "--trust-anchors"])).is_none());
+        assert!(VerifyArgs::parse(&[]).is_none());
     }
 }
