@@ -5,6 +5,9 @@ members = [
     "crates/provenance-cli",
     "crates/provenance-wasm",
 ]
+# The fuzz crate needs nightly (cargo-fuzz/libFuzzer); keeping it out of the
+# workspace keeps the stable `cargo test --workspace` loop bare-machine clean.
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"
