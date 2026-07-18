@@ -16,7 +16,7 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 - [x] (2026-07-18) U3 complete — corpus grown to eight vectors (PNG trio: signed / caBX-stripped / caBX-corrupted-with-CRC-refresh, all self-verified by the generator); corpus test, parity suite, and wasm smoke now run HINT-FREE so the whole corpus doubles as the sniffing test; `sniff_media_type` gained AVIF (`ftyp` brand) and the CLI gained `.gif`, aligning both sides on jpeg/png/webp/gif/avif; smoke page and its content types are derived from `manifest.tsv` so they cannot go stale. True-artifact smoke green through a fresh wasm-pack build on this machine (wasm-pack installed; 8/8 PASS). Unoptimized artifact 7,031,523 B raw / 2,204,797 B gz — the release script's wasm-opt step (binaryen, not on this machine) brings raw below the ≤7 MB budget; gz is already within ≤2.5 MB. Suite 30/30 green, clippy clean.
 - [x] (2026-07-18) U4 complete — `.github/workflows/ci.yml`: on every push/PR, the exact local loop (fmt check, clippy `-D warnings`, full test suite) plus a wasm32 type-check of the engine crate; weekly scheduled job runs cargo-audit and a 5-minute fuzz smoke, both ADVISORY for now (`continue-on-error`) — audit because enforcing on advisories is a maintainer decision, fuzz because it re-finds the known upstream c2pa JUMBF panic and would sit permanently red until the upstream fix ships in a version bump (flip to enforcing then). Only external action: `actions/checkout`; the runner's rustup honors `rust-toolchain.toml`. Acceptance proven live: the `main` push ran green on GitHub, and a scratch branch with a deliberate fmt violation ran red (failing at the first gate), then was deleted.
 - [x] U5 — Firefox port and AMO listing collateral. **Complete: the maintainer ran the Firefox browser smoke and reported it passed ("firefox smoke passed", 2026-07-18) — the acceptance bar (all vectors + failure states in a real Firefox) is met.** Implemented (2026-07-18): dual background keys in the manifest (Chrome runs `background.js` as a module service worker, Firefox ≥121 as an event page — the file already had no static imports and registers listeners synchronously, so one script serves both), `api` namespace shim in `background.js` and `popup.js` (`browser` where defined, else `chrome` — Firefox's `chrome.*` is callback-style and would break the popup's `.then` chain), `browser_specific_settings.gecko` (id `provenance-lens@gwamoniak.github.io`, `strict_min_version` 121.0), AMO section in `docs/STORE_LISTING.md` (ID pinning, version floor, reviewer notes), Firefox loading instructions in `extension/README.md`; both scripts pass `node --check`, manifest valid, suite 30/30, Chrome-side CI green. **Remaining: the acceptance bar — the manual browser smoke in a real Firefox (about:debugging → Load Temporary Add-on; all eight vectors + failure states) — is the maintainer's step, mirroring M3's Chrome smoke. On Firefox 121–126 the popup does not auto-open (openPopup is 127+); badge + click is the expected flow.**
-- [ ] U6 — npm packaging of the WASM engine (publish prep; maintainer publishes).
+- [x] (2026-07-18) U6 complete — `sh scripts/package_npm.sh`: wasm-pack `web`-target build into `dist/npm-pkg/`, best-effort wasm-opt (warns and proceeds when binaryen is absent), package.json patched to the publishable name `@provenance-lens/verify-wasm` (maintainer may rename BEFORE first publish, never after), corpus smoke through the exact packed artifact (`scripts/wasm_smoke.mjs` now takes a pkg-dir argument, defaulting to the extension engine), then `npm pack` → `dist/provenance-lens-verify-wasm-0.1.0.tgz` (2.4 MB packed / 7.0 MB unpacked, 5 files). The crate README ships as the npm README (honest wording; its four tier phrases are now covered by the wording-sync audit as a fourth location). Acceptance proven: a scratch Node project installed the tarball by name and reproduced all eight corpus verdicts through the README's documented usage. **`npm publish` is the maintainer's action** (the scoped name also needs the npm org to exist first).
 - [ ] U7 — page-scan badge UX behind an explicit opt-in site-access grant (design first; separate maintainer approval for the permission change).
 
 ## Surprises & Discoveries
@@ -56,6 +56,10 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 - Decision: U5 cross-browser mechanics — one background file under BOTH manifest keys (`service_worker` for Chrome, `scripts` for Firefox's MV3 event pages; MDN's documented pattern), a two-line feature-detect shim (`const api = typeof browser !== "undefined" ? browser : chrome`) instead of the webextension-polyfill dependency, and a hard Firefox floor of 121 (below it, Firefox refuses to start the event page when a `service_worker` key is also present, which would mean no background at all). The gecko add-on ID is pinned as `provenance-lens@gwamoniak.github.io` — the maintainer may change it any time BEFORE the first AMO submission, never after (AMO IDs are permanent).
   Rationale: the polyfill is a dependency for what two lines do (Firefox's `chrome.*` is callback-style, so bare `chrome.*` promise chains break; everything else is API-compatible); the dual-key manifest keeps a single codebase; the version floor turns a silent no-background failure mode into an install-time refusal.
   Date/Author: 2026-07-18 / U5 implementation.
+
+- Decision: U6 ships the wasm-pack `web` target as the one npm artifact flavor, not `bundler` or `nodejs`. `web` is the only target that works everywhere the package is aimed: browsers (URL init), bundlers (ESM glue), and plain Node (bytes init — proven by the smoke and the acceptance test); it is also exactly what the extension consumes, so one artifact shape is exercised by every consumer. The generated package.json is patched (name, description, keywords) by the packaging script rather than committed, keeping wasm-pack the single source of the package layout and the version in automatic lockstep with the workspace.
+  Rationale: one flavor everyone runs beats three flavors nobody fully tests; the Node-usability of the `web` target removes the only argument for a second build.
+  Date/Author: 2026-07-18 / U6 implementation.
 
 ## Outcomes & Retrospective
 
@@ -156,6 +160,16 @@ U4 acceptance (2026-07-18; run conclusions polled from the GitHub Actions API):
     main        fce8832  ci  completed  success   (fmt + clippy + tests + wasm32 check)
     ci-redcheck 986d40b  ci  completed  failure   (deliberate fmt violation; failed at the
                                                    first gate; scratch branch deleted after)
+
+U6 acceptance (2026-07-18):
+
+    $ sh scripts/package_npm.sh
+    warning: wasm-opt (binaryen) not found - packing the unoptimized artifact
+    wasm smoke: all vectors match        (through dist/npm-pkg, the packed artifact)
+    provenance-lens-verify-wasm-0.1.0.tgz  (2.4 MB packed / 7.0 MB unpacked, 5 files)
+
+    scratch project: npm install <tarball> → import by name per the README →
+    PASS ×8 (all corpus vectors, JPEG + PNG, hint-free) → "npm-install acceptance: all vectors match"
 
 ## Interfaces and Dependencies
 

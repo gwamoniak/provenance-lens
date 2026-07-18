@@ -19,6 +19,9 @@ fn approved_phrases_are_identical_in_all_wording_locations() {
         "README.md",
         "extension/popup/popup.html",
         ".claude/skills/verdict-language/SKILL.md",
+        // The npm package README (U6) — wasm-pack copies it into the
+        // published package, so its tier wording is user-facing too.
+        "crates/provenance-wasm/README.md",
     ];
     let verdicts = [
         Verdict::Verified,

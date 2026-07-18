@@ -1,17 +1,24 @@
-// True-WASM smoke: load the built artifact (extension/pkg/) through the
-// wasm-pack JS glue in Node and run the committed vector corpus through it —
-// the same call path the extension will use in M3. Exit 0 only if every
-// vector produces its recorded verdict.
+// True-WASM smoke: load a built artifact through the wasm-pack JS glue in
+// Node and run the committed vector corpus through it — the same call path
+// the extension uses. Exit 0 only if every vector produces its recorded
+// verdict.
 //
-//   wasm-pack build crates/provenance-wasm --target web --out-dir ../../extension/pkg
-//   wasm-opt <flags per .claude/skills/wasm-packaging/SKILL.md>
-//   node scripts/wasm_smoke.mjs
+//   node scripts/wasm_smoke.mjs [pkg-dir]
+//
+// pkg-dir defaults to extension/pkg (the extension engine); pass dist/npm-pkg
+// to smoke the npm package build (U6, scripts/package_npm.sh does this).
 
 import { readFileSync } from "node:fs";
-import init, { verify_bytes } from "../extension/pkg/provenance_wasm.js";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const pkgDir = process.argv[2]
+  ? pathToFileURL(resolve(process.argv[2]) + "/")
+  : new URL("../extension/pkg/", import.meta.url);
+const { default: init, verify_bytes } = await import(new URL("provenance_wasm.js", pkgDir));
 
 const vectors = new URL("../crates/provenance-core/tests/vectors/", import.meta.url);
-const wasmBytes = readFileSync(new URL("../extension/pkg/provenance_wasm_bg.wasm", import.meta.url));
+const wasmBytes = readFileSync(new URL("provenance_wasm_bg.wasm", pkgDir));
 await init({ module_or_path: wasmBytes });
 
 const caPem = readFileSync(new URL("test_ca.pem", vectors), "utf8");
