@@ -14,7 +14,7 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 - [x] (2026-07-18) U1 complete — `render_json(report, file?)` lives in `crates/provenance-core/src/json.rs`; the WASM wrapper is now logic-free (delegates, shape byte-identical — parity suite passed untouched, so no engine rebuild was needed); `lens verify` takes `[--json] [--trust-anchors <PEM>] <FILE>...` with flags in any order and exits with the highest per-file code. Suite 27/27 green (2 new json tests, 2 new CLI parser tests), clippy clean; acceptance transcript in Artifacts.
 - [x] (2026-07-18) U2 complete — `Report.credentials: Option<CredentialSummary>` (Some exactly when Verified; pinned corpus-wide and by dedicated tests), extracted by the concrete Layer-1 instance the pipeline now retains; rendered in CLI human output ("credential claims:" block), in the shared JSON (`credentials` object, absent keys omitted), and in the popup (from the engine JSON, textContent only). Suite 30/30 green, clippy clean; acceptance in Artifacts. Note: the browser shows the block only after the engine is next rebuilt (wasm-pack not installed on this machine — engine-side behavior proven by the parity and JSON tests; the release packaging script rebuilds regardless).
 - [x] (2026-07-18) U3 complete — corpus grown to eight vectors (PNG trio: signed / caBX-stripped / caBX-corrupted-with-CRC-refresh, all self-verified by the generator); corpus test, parity suite, and wasm smoke now run HINT-FREE so the whole corpus doubles as the sniffing test; `sniff_media_type` gained AVIF (`ftyp` brand) and the CLI gained `.gif`, aligning both sides on jpeg/png/webp/gif/avif; smoke page and its content types are derived from `manifest.tsv` so they cannot go stale. True-artifact smoke green through a fresh wasm-pack build on this machine (wasm-pack installed; 8/8 PASS). Unoptimized artifact 7,031,523 B raw / 2,204,797 B gz — the release script's wasm-opt step (binaryen, not on this machine) brings raw below the ≤7 MB budget; gz is already within ≤2.5 MB. Suite 30/30 green, clippy clean.
-- [ ] U4 — CI baseline: build/lint/test on every push, scheduled cargo-audit and fuzz smoke.
+- [x] (2026-07-18) U4 complete — `.github/workflows/ci.yml`: on every push/PR, the exact local loop (fmt check, clippy `-D warnings`, full test suite) plus a wasm32 type-check of the engine crate; weekly scheduled job runs cargo-audit and a 5-minute fuzz smoke, both ADVISORY for now (`continue-on-error`) — audit because enforcing on advisories is a maintainer decision, fuzz because it re-finds the known upstream c2pa JUMBF panic and would sit permanently red until the upstream fix ships in a version bump (flip to enforcing then). Only external action: `actions/checkout`; the runner's rustup honors `rust-toolchain.toml`. Acceptance proven live: the `main` push ran green on GitHub, and a scratch branch with a deliberate fmt violation ran red (failing at the first gate), then was deleted.
 - [ ] U5 — Firefox port and AMO listing collateral.
 - [ ] U6 — npm packaging of the WASM engine (publish prep; maintainer publishes).
 - [ ] U7 — page-scan badge UX behind an explicit opt-in site-access grant (design first; separate maintainer approval for the permission change).
@@ -48,6 +48,10 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 - Decision: U3 alignment resolved as "add, don't drop": the byte sniffer gained AVIF (`ftyp` box, brands `avif`/`avis`) rather than the CLI losing its `.avif` guess, and the CLI gained `.gif` to match the sniffer — both sides now recognize exactly jpeg/png/webp/gif/avif. The corpus tests (native, parity, wasm smoke) pass NO media-type hint anymore, so every vector must reach its verdict from bytes alone; the PNG "corrupted" vector refreshes the caBX chunk CRC after the byte flip so the container stays structurally valid and the Tampered verdict comes from manifest validation, not a parse failure — same honesty line as the JPEG corpus.
   Rationale: the c2pa crate supports AVIF via its BMFF handler, so widening the sniffer is real capability, not a claim; hint-free testing is strictly stronger than hinted (the hinted path is a subset); and a corrupted vector that fails at the container level would test the wrong thing.
   Date/Author: 2026-07-18 / U3 implementation.
+
+- Decision: U4's scheduled jobs (cargo-audit, weekly fuzz smoke) start ADVISORY (`continue-on-error: true`); the push/PR loop is the only hard gate. Two named triggers flip them to enforcing: cargo-audit when the maintainer decides advisories should fail the build, and the fuzz smoke when the upstream c2pa JUMBF-panic fix ships and the dependency is bumped (until then a red weekly job would be permanent noise that trains people to ignore CI). The workflow also adds a wasm32 type-check of `provenance-wasm` to the hard gate — a widening of the plan's sketched "exact loop", because the extension engine surface would otherwise only break at the next manual wasm-pack build.
+  Rationale: a gate that is red for reasons nobody can act on stops being a gate; advisory visibility now, enforcement tied to concrete unblock events.
+  Date/Author: 2026-07-18 / U4 implementation.
 
 ## Outcomes & Retrospective
 
@@ -142,6 +146,12 @@ U3 acceptance (2026-07-18; fresh wasm-pack build on this machine, corpus through
 
     Unoptimized artifact: 7,031,523 B raw / 2,204,797 B gzipped (wasm-opt runs in the
     release packaging step; gz already within the ≤2.5 MB budget).
+
+U4 acceptance (2026-07-18; run conclusions polled from the GitHub Actions API):
+
+    main        fce8832  ci  completed  success   (fmt + clippy + tests + wasm32 check)
+    ci-redcheck 986d40b  ci  completed  failure   (deliberate fmt violation; failed at the
+                                                   first gate; scratch branch deleted after)
 
 ## Interfaces and Dependencies
 
