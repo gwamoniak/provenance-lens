@@ -5,9 +5,12 @@
 //!
 //! Run (needs nightly + cargo-fuzz):
 //!
-//!     cargo +nightly fuzz run manifest_parsing fuzz/corpus_seed
+//!     cargo +nightly fuzz run manifest_parsing fuzz/corpus fuzz/corpus_seed
 //!
-//! `fuzz/corpus_seed/` holds the committed vector corpus as seeds.
+//! `fuzz/corpus_seed/` holds the committed vector corpus as read-only
+//! seeds; the first directory (`fuzz/corpus/`, gitignored) is where
+//! libFuzzer accumulates its evolved corpus — never point the run at
+//! `corpus_seed` alone or the generated inputs land in the seed dir.
 //!
 //! Windows note: keep the default ASAN sanitizer but put MSVC's ASAN
 //! runtime on PATH first, or the binary dies at launch with
