@@ -15,6 +15,17 @@ c2pa = { version = "0.89.2", default-features = false, features = ["rust_native_
 
 [dev-dependencies]
 base64 = "0.22"
+# Cert-policy pinning tests (tests/cert_policy.rs) build their own X.509
+# chains — expired validity, disallowed signature algorithm — which the
+# public EphemeralSigner cannot produce. Every crate below is already in
+# the dependency tree via c2pa itself (same versions as Cargo.lock), so
+# this adds no new supply-chain surface.
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+ed25519-dalek = { version = "2.2", default-features = false, features = ["alloc", "pkcs8"] }
+pkcs8 = { version = "0.10", features = ["pem"] }
+rasn = "0.28"
+rasn-pkix = "0.28"
+sha1 = "0.10"
 
 [[example]]
 name = "gen_vectors"
