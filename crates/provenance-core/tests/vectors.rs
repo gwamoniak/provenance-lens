@@ -32,9 +32,11 @@ fn every_committed_vector_matches_its_recorded_verdict() {
         catalogued.push(file.to_string());
 
         let bytes = std::fs::read(dir.join(file)).expect("read vector file");
+        // No MIME hint on purpose: the corpus doubles as the sniffing test
+        // (U3) — every vector must reach its verdict from bytes alone.
         let report = Pipeline::with_trust_anchors(ca_pem.as_str()).examine(&Asset {
             bytes: &bytes,
-            media_type: Some("image/jpeg"),
+            media_type: None,
         });
         let expected = match expected {
             "verified" => Verdict::Verified,
@@ -58,14 +60,14 @@ fn every_committed_vector_matches_its_recorded_verdict() {
     }
     assert!(!catalogued.is_empty(), "manifest.tsv lists no vectors");
 
-    // No orphan vectors: every .jpg on disk must be catalogued.
+    // No orphan vectors: every image on disk must be catalogued.
     for entry in std::fs::read_dir(&dir).expect("list vectors dir") {
         let name = entry
             .expect("dir entry")
             .file_name()
             .to_string_lossy()
             .into_owned();
-        if name.ends_with(".jpg") {
+        if name.ends_with(".jpg") || name.ends_with(".png") {
             assert!(
                 catalogued.contains(&name),
                 "vector {name} on disk but not in manifest.tsv"

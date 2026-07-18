@@ -173,6 +173,9 @@ fn describe(finding: &LayerFinding) -> String {
     }
 }
 
+/// Extension-based hint; recognizes exactly the set `sniff_media_type` in
+/// the core recognizes from bytes (U3 alignment), so hinted and hint-free
+/// verification cover the same formats.
 fn guess_media_type(path: &str) -> Option<&'static str> {
     let lower = path.to_ascii_lowercase();
     if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
@@ -181,6 +184,8 @@ fn guess_media_type(path: &str) -> Option<&'static str> {
         Some("image/png")
     } else if lower.ends_with(".webp") {
         Some("image/webp")
+    } else if lower.ends_with(".gif") {
+        Some("image/gif")
     } else if lower.ends_with(".avif") {
         Some("image/avif")
     } else {

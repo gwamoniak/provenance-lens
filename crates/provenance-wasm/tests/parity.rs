@@ -36,16 +36,18 @@ fn wrapper_matches_native_pipeline_on_every_vector() {
 
         // Both sides get identical inputs, each with and without anchors.
         for anchors in [Some(ca_pem.clone()), None] {
+            // No MIME hint on either side: parity must hold for the sniffing
+            // path too (the corpus is JPEG + PNG since U3).
             let native = match &anchors {
                 Some(pem) => Pipeline::with_trust_anchors(pem.as_str()),
                 None => Pipeline::standard(),
             }
             .examine(&Asset {
                 bytes: &bytes,
-                media_type: Some("image/jpeg"),
+                media_type: None,
             });
 
-            let json = verify_bytes(&bytes, Some("image/jpeg".into()), anchors.clone());
+            let json = verify_bytes(&bytes, None, anchors.clone());
             let parsed: Value = serde_json::from_str(&json).expect("wrapper emits valid JSON");
 
             assert_eq!(

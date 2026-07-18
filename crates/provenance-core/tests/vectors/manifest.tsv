@@ -3,4 +3,7 @@ plain.jpg	inconclusive	source image, never signed
 valid_signed.jpg	verified	signed by the ephemeral chain in test_ca.pem
 stripped.jpg	inconclusive	valid_signed.jpg with all APP11 segments removed
 manifest_corrupted.jpg	tampered	valid_signed.jpg with byte at offset 343 XOR 0x01 (inside the manifest store)
-content_tampered.jpg	tampered	valid_signed.jpg with image byte at offset 14173 XOR 0x01 (content-hash mismatch)
+content_tampered.jpg	tampered	valid_signed.jpg with image byte at offset 14171 XOR 0x01 (content-hash mismatch)
+valid_signed.png	verified	plain.png signed by the same ephemeral chain
+stripped.png	inconclusive	valid_signed.png with all caBX chunks removed
+manifest_corrupted.png	tampered	valid_signed.png with byte at offset 267 XOR 0x01 inside the caBX chunk, chunk CRC refreshed so the container parses

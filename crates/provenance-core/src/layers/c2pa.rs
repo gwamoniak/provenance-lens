@@ -245,6 +245,11 @@ pub(crate) fn sniff_media_type(bytes: &[u8]) -> Option<&'static str> {
         Some("image/webp")
     } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
         Some("image/gif")
+    } else if bytes.len() >= 12
+        && &bytes[4..8] == b"ftyp"
+        && matches!(&bytes[8..12], b"avif" | b"avis")
+    {
+        Some("image/avif")
     } else {
         None
     }
@@ -269,6 +274,10 @@ mod tests {
             Some("image/webp")
         );
         assert_eq!(sniff_media_type(b"GIF89a"), Some("image/gif"));
+        assert_eq!(
+            sniff_media_type(b"\x00\x00\x00\x1cftypavif\x00\x00"),
+            Some("image/avif")
+        );
         assert_eq!(sniff_media_type(b"not an image"), None);
         assert_eq!(sniff_media_type(&[]), None);
     }

@@ -13,7 +13,7 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 - [x] (2026-07-18) Plan authored, after the post-wedge hardening pass (branch `post-wedge-hardening`: cert-policy pinning tests, fuzz target, trust-list refresh workflow — see the wedge plan's Progress for details).
 - [x] (2026-07-18) U1 complete — `render_json(report, file?)` lives in `crates/provenance-core/src/json.rs`; the WASM wrapper is now logic-free (delegates, shape byte-identical — parity suite passed untouched, so no engine rebuild was needed); `lens verify` takes `[--json] [--trust-anchors <PEM>] <FILE>...` with flags in any order and exits with the highest per-file code. Suite 27/27 green (2 new json tests, 2 new CLI parser tests), clippy clean; acceptance transcript in Artifacts.
 - [x] (2026-07-18) U2 complete — `Report.credentials: Option<CredentialSummary>` (Some exactly when Verified; pinned corpus-wide and by dedicated tests), extracted by the concrete Layer-1 instance the pipeline now retains; rendered in CLI human output ("credential claims:" block), in the shared JSON (`credentials` object, absent keys omitted), and in the popup (from the engine JSON, textContent only). Suite 30/30 green, clippy clean; acceptance in Artifacts. Note: the browser shows the block only after the engine is next rebuilt (wasm-pack not installed on this machine — engine-side behavior proven by the parity and JSON tests; the release packaging script rebuilds regardless).
-- [ ] U3 — format coverage proven by vectors (PNG at minimum; alignment of sniffing and CLI extension-guessing).
+- [x] (2026-07-18) U3 complete — corpus grown to eight vectors (PNG trio: signed / caBX-stripped / caBX-corrupted-with-CRC-refresh, all self-verified by the generator); corpus test, parity suite, and wasm smoke now run HINT-FREE so the whole corpus doubles as the sniffing test; `sniff_media_type` gained AVIF (`ftyp` brand) and the CLI gained `.gif`, aligning both sides on jpeg/png/webp/gif/avif; smoke page and its content types are derived from `manifest.tsv` so they cannot go stale. True-artifact smoke green through a fresh wasm-pack build on this machine (wasm-pack installed; 8/8 PASS). Unoptimized artifact 7,031,523 B raw / 2,204,797 B gz — the release script's wasm-opt step (binaryen, not on this machine) brings raw below the ≤7 MB budget; gz is already within ≤2.5 MB. Suite 30/30 green, clippy clean.
 - [ ] U4 — CI baseline: build/lint/test on every push, scheduled cargo-audit and fuzz smoke.
 - [ ] U5 — Firefox port and AMO listing collateral.
 - [ ] U6 — npm packaging of the WASM engine (publish prep; maintainer publishes).
@@ -44,6 +44,10 @@ The shipped wedge gives a user one honest verdict about one image at a time: `le
 - Decision: U2 extraction lives in `C2paLayer::credential_summary`, called by `Pipeline::examine` only when the combined verdict is Verified; the pipeline retains its concrete `C2paLayer` (`with_layers` pipelines have none and never carry a summary). This re-parses the asset on the Verified path — accepted and marked in code — because the alternative (widening the `Layer` trait's return type) would touch all four layers for one layer's metadata. The extraction runs under the same panic guard as validation, and any extraction failure means "no summary", never a verdict change.
   Rationale: smallest change that keeps the evidentiary `LayerFinding` type untouched; milliseconds of re-parse on the rarest (Verified) path is the right price for that.
   Date/Author: 2026-07-18 / U2 implementation.
+
+- Decision: U3 alignment resolved as "add, don't drop": the byte sniffer gained AVIF (`ftyp` box, brands `avif`/`avis`) rather than the CLI losing its `.avif` guess, and the CLI gained `.gif` to match the sniffer — both sides now recognize exactly jpeg/png/webp/gif/avif. The corpus tests (native, parity, wasm smoke) pass NO media-type hint anymore, so every vector must reach its verdict from bytes alone; the PNG "corrupted" vector refreshes the caBX chunk CRC after the byte flip so the container stays structurally valid and the Tampered verdict comes from manifest validation, not a parse failure — same honesty line as the JPEG corpus.
+  Rationale: the c2pa crate supports AVIF via its BMFF handler, so widening the sniffer is real capability, not a claim; hint-free testing is strictly stronger than hinted (the hinted path is a subset); and a corrupted vector that fails at the container level would test the wrong thing.
+  Date/Author: 2026-07-18 / U3 implementation.
 
 ## Outcomes & Retrospective
 
@@ -124,6 +128,20 @@ U2 acceptance (2026-07-18):
     $ lens verify --json … valid_signed.jpg | node JSON.parse
       credentials: { issuer, claim_generator, digital_source_type, source_type_note }
       (signing_time absent — the test vectors carry no timestamp; absent keys are omitted)
+
+U3 acceptance (2026-07-18; fresh wasm-pack build on this machine, corpus through the compiled artifact in Node, no content-type hints anywhere):
+
+    $ cargo run -q -p provenance-core --example gen_vectors
+    wrote 8 vectors + test_ca.pem + manifest.tsv to …/tests/vectors
+    $ node scripts/wasm_smoke.mjs
+    PASS plain.jpg: inconclusive            PASS valid_signed.jpg: verified
+    PASS stripped.jpg: inconclusive         PASS manifest_corrupted.jpg: tampered
+    PASS content_tampered.jpg: tampered     PASS valid_signed.png: verified
+    PASS stripped.png: inconclusive         PASS manifest_corrupted.png: tampered
+    wasm smoke: all vectors match
+
+    Unoptimized artifact: 7,031,523 B raw / 2,204,797 B gzipped (wasm-opt runs in the
+    release packaging step; gz already within the ≤2.5 MB budget).
 
 ## Interfaces and Dependencies
 
