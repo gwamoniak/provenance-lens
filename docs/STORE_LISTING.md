@@ -29,10 +29,12 @@ Open source (MIT OR Apache-2.0).
 
 ## Permission justifications (store review form)
 
-- `contextMenus` — the single entry point: the right-click "Verify provenance" item on images.
+- `contextMenus` — the right-click "Verify provenance" item on images.
 - `activeTab` — lets the extension fetch the image you right-clicked from the page you are on, without any standing host permissions.
-- `storage` (session) — holds the last verification result so the popup can display it; cleared when the browser closes.
-- No host permissions. No remote code. WASM is bundled in the package (`wasm-unsafe-eval` CSP is required to instantiate it).
+- `storage` (session) — holds the last verification result and a session-only verdict cache so the popup and page badges can display them; cleared when the browser closes.
+- `scripting` — registers the page-scan content script, ONLY for sites the user has explicitly granted; nothing is registered otherwise.
+- `optional_host_permissions` (`*://*/*`) — never granted at install. Each site is granted individually, at runtime, through the browser's own consent prompt when the user clicks "Scan images on this site"; revocable the same way. Granted-site state lives in the browser's permission store, not in extension storage.
+- No install-time host permissions. No remote code. WASM is bundled in the package (`wasm-unsafe-eval` CSP is required to instantiate it).
 
 ## Privacy policy (single purpose)
 
@@ -41,10 +43,9 @@ Provenance Lens verifies image provenance locally. It does not collect, transmit
 ## Firefox Add-ons (AMO) — store-specific fields (U5)
 
 - Add-on ID: `provenance-lens@gwamoniak.github.io` (pinned in `manifest.json` `browser_specific_settings.gecko.id`; choose the final ID BEFORE first submission — it cannot change afterwards).
-- Minimum Firefox version: 121.0 (pinned as `strict_min_version`; below 121 Firefox does not start the background event page when the manifest also declares a service worker — the dual-key manifest is the documented cross-browser pattern).
+- Minimum Firefox version: 128.0 (pinned as `strict_min_version`; 128 is where `optional_host_permissions` — required by the per-site scan opt-in — lands, and it also covers the older event-page and `action.openPopup` floors).
 - Summary (250 chars max): the shared Summary above fits unchanged.
 - Categories: Privacy & Security. License: MIT OR Apache-2.0. Source code: the public repository URL (AMO reviewers may ask how to build the WASM engine — point at `extension/README.md` and `.claude/skills/wasm-packaging/SKILL.md`; the engine builds reproducibly from source with wasm-pack).
-- `action.openPopup()` needs Firefox ≥127; on 121–126 the popup does not auto-open after verification and the action badge + manual click is the flow (the code already falls back — mention in reviewer notes, not in user-facing copy).
 - Reviewer notes (paste into "Notes for Reviewers"): all verification is local WASM; the only network request fetches the image the user explicitly right-clicked; no remote code, no analytics; `wasm-unsafe-eval` CSP exists solely to instantiate the bundled engine.
 
 ## Pre-submission checklist (lens-release runs this; maintainer presses publish)

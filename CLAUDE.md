@@ -35,7 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Evidentiary typing:** only Layer 1 (c2pa) may return `Proof`; heuristics at most `Indication`; a layer that didn't run returns `NotEvaluated { reason }`, never `NoSignal`. Combination precedence: Tampered > Verified > Indicated > Inconclusive.
 - **Sans-IO core:** `provenance-core` never opens files/sockets; transports are injected; CLI and WASM wrappers own I/O.
 - **Human sign-off rule:** signature-validation code (C2PA validation path, trust lists, inclusion proofs) merges only with a human cryptography reviewer's sign-off recorded in the ExecPlan Decision Log. Agents prepare; humans approve.
-- **Extension surface:** permissions stay `contextMenus` + `activeTab`; no host permissions, no remote code, no analytics; the extension never renders a verdict it didn't compute.
+- **Extension surface:** permissions are `contextMenus` + `activeTab` + `storage` + `scripting`, with host access ONLY via `optional_host_permissions` granted per site at runtime by explicit user gesture (U7 Decision Log, maintainer-approved); no install-time host permissions, no remote code, no analytics; the extension never renders a verdict it didn't compute.
 - **Privacy:** image bytes never leave the device — parsing and hashing happen locally; post-wedge network layers (2–3) may send perceptual hashes only, with explicit user consent.
 - **Blockchain:** optional anchoring of registry checkpoints only, default off; no verdict path may require it.
 - **ExecPlan discipline:** living sections updated at every stopping point; commit at milestone boundaries with the milestone name in the message.

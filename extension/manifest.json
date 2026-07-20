@@ -12,12 +12,13 @@
     "scripts": ["background.js"],
     "type": "module"
   },
-  "permissions": ["contextMenus", "activeTab", "storage"],
+  "permissions": ["contextMenus", "activeTab", "storage", "scripting"],
   "host_permissions": [],
+  "optional_host_permissions": ["*://*/*"],
   "browser_specific_settings": {
     "gecko": {
       "id": "provenance-lens@gwamoniak.github.io",
-      "strict_min_version": "121.0"
+      "strict_min_version": "128.0"
     }
   },
   "content_security_policy": {

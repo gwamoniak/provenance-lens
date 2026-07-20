@@ -32,6 +32,7 @@ api.runtime.onInstalled.addListener(() => {
     title: "Verify provenance with Provenance Lens",
     contexts: ["image"],
   });
+  syncScanRegistration(); // U7a: reconcile grants → registration on install/update
 });
 
 api.contextMenus.onClicked.addListener((info) => {
@@ -71,7 +72,9 @@ async function loadAnchors() {
   }
 }
 
-async function verifyImage(srcUrl) {
+// Fetch + verify one image URL; returns the report entry and performs no UI
+// side effects (shared by the context-menu flow and the U7 scan service).
+async function examineUrl(srcUrl) {
   const entry = { srcUrl, at: new Date().toISOString() };
   try {
     let mod;
@@ -106,7 +109,11 @@ async function verifyImage(srcUrl) {
   } catch (err) {
     entry.error = String((err && err.message) || err);
   }
+  return entry;
+}
 
+async function verifyImage(srcUrl) {
+  const entry = await examineUrl(srcUrl);
   await api.storage.session.set({ lastResult: entry });
   updateBadge(entry);
   try {
@@ -116,6 +123,77 @@ async function verifyImage(srcUrl) {
     // the badge plus a manual click on the action icon is the fallback.
   }
 }
+
+// ---------------------------------------------------------------------------
+// U7a: page-scan plumbing. The content script (content/scan.js) is registered
+// PER GRANTED ORIGIN — never in the manifest — so the extension's reach is
+// exactly the user's grants at any moment. The browser's permission store is
+// the single source of truth; this only mirrors it into script registration.
+
+const SCAN_SCRIPT_ID = "provenance-lens-scan";
+
+async function syncScanRegistration() {
+  const { origins = [] } = await api.permissions.getAll();
+  const existing = await api.scripting
+    .getRegisteredContentScripts({ ids: [SCAN_SCRIPT_ID] })
+    .catch(() => []);
+  if (origins.length === 0) {
+    if (existing.length > 0) {
+      await api.scripting.unregisterContentScripts({ ids: [SCAN_SCRIPT_ID] });
+    }
+    return;
+  }
+  const script = {
+    id: SCAN_SCRIPT_ID,
+    js: ["content/scan.js"],
+    matches: origins,
+    runAt: "document_idle",
+    persistAcrossSessions: true,
+  };
+  if (existing.length > 0) await api.scripting.updateContentScripts([script]);
+  else await api.scripting.registerContentScripts([script]);
+}
+
+api.permissions.onAdded.addListener(syncScanRegistration);
+api.permissions.onRemoved.addListener(syncScanRegistration);
+api.runtime.onStartup.addListener(syncScanRegistration);
+
+// The verify service for content scripts: { type: "pl-verify", url } →
+// report entry. At most 2 verifications in flight (the rest queue FIFO) and
+// a capped per-URL session cache, so repeated images cost one verification.
+let scanServicePromise = null;
+function scanService() {
+  if (!scanServicePromise) {
+    scanServicePromise = (async () => {
+      const lib = await import("./lib/scan_support.js");
+      return {
+        limit: lib.makeLimiter(2),
+        cache: lib.makeSessionCache(api.storage.session, "verdictCache", 200),
+      };
+    })().catch((err) => {
+      scanServicePromise = null;
+      throw err;
+    });
+  }
+  return scanServicePromise;
+}
+
+api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!message || message.type !== "pl-verify" || typeof message.url !== "string") {
+    return false;
+  }
+  (async () => {
+    const { limit, cache } = await scanService();
+    const cached = await cache.get(message.url);
+    if (cached) return cached;
+    const entry = await limit(() => examineUrl(message.url));
+    await cache.put(message.url, entry);
+    return entry;
+  })().then(sendResponse, (err) => {
+    sendResponse({ srcUrl: message.url, error: String((err && err.message) || err) });
+  });
+  return true; // async sendResponse
+});
 
 function updateBadge(entry) {
   const tier = entry.report && BADGE[entry.report.verdict];
