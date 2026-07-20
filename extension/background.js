@@ -18,14 +18,6 @@ const api = typeof browser !== "undefined" ? browser : chrome;
 
 const MENU_ID = "provenance-lens-verify";
 
-// Badge colors mirror popup.css tier colors; Inconclusive stays neutral gray.
-const BADGE = {
-  verified: { text: "VER", color: "#2e7d32" },
-  indicated: { text: "IND", color: "#e09b00" },
-  inconclusive: { text: "INC", color: "#757575" },
-  tampered: { text: "TAM", color: "#c62828" },
-};
-
 api.runtime.onInstalled.addListener(() => {
   api.contextMenus.create({
     id: MENU_ID,
@@ -90,6 +82,9 @@ async function examineUrl(srcUrl) {
     try {
       response = await fetch(srcUrl);
     } catch {
+      // Marked so page pills can show the neutral "not examined" state:
+      // this is where a non-granted image host lands (CORS/permission).
+      entry.notFetched = true;
       throw new Error(
         "could not fetch the image (network failure or cross-origin restrictions). The asset was NOT examined."
       );
@@ -114,8 +109,16 @@ async function examineUrl(srcUrl) {
 
 async function verifyImage(srcUrl) {
   const entry = await examineUrl(srcUrl);
+  await showEntry(entry);
+}
+
+// Surface an entry as "the" result: popup storage, action badge, popup.
+async function showEntry(entry) {
+  const { lib } = await scanService();
   await api.storage.session.set({ lastResult: entry });
-  updateBadge(entry);
+  const badge = lib.actionBadge(entry);
+  api.action.setBadgeText({ text: badge.text });
+  api.action.setBadgeBackgroundColor({ color: badge.color });
   try {
     await api.action.openPopup();
   } catch {
@@ -158,15 +161,21 @@ api.permissions.onAdded.addListener(syncScanRegistration);
 api.permissions.onRemoved.addListener(syncScanRegistration);
 api.runtime.onStartup.addListener(syncScanRegistration);
 
-// The verify service for content scripts: { type: "pl-verify", url } →
-// report entry. At most 2 verifications in flight (the rest queue FIFO) and
-// a capped per-URL session cache, so repeated images cost one verification.
+// The scan service for content scripts. Two message types (U7b contract):
+//   { type: "pl-verify", url } → { entry, pill }   — verify (cached, capped)
+//   { type: "pl-show",   url } → true              — surface the report in
+//     the popup/badge (the pill-click flow); the grant-more-hosts affordance
+//     for not-examined images lives in the popup (U7c), because
+//     permissions.request is unavailable to content scripts.
+// At most 2 verifications in flight (the rest queue FIFO) and a capped
+// per-URL session cache, so repeated images cost one verification.
 let scanServicePromise = null;
 function scanService() {
   if (!scanServicePromise) {
     scanServicePromise = (async () => {
       const lib = await import("./lib/scan_support.js");
       return {
+        lib,
         limit: lib.makeLimiter(2),
         cache: lib.makeSessionCache(api.storage.session, "verdictCache", 200),
       };
@@ -178,30 +187,36 @@ function scanService() {
   return scanServicePromise;
 }
 
+async function verifyCached(url) {
+  const { limit, cache } = await scanService();
+  const cached = await cache.get(url);
+  if (cached) return cached;
+  const entry = await limit(() => examineUrl(url));
+  await cache.put(url, entry);
+  return entry;
+}
+
 api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!message || message.type !== "pl-verify" || typeof message.url !== "string") {
-    return false;
+  if (!message || typeof message.url !== "string") return false;
+  if (message.type === "pl-verify") {
+    (async () => {
+      const { lib } = await scanService();
+      const entry = await verifyCached(message.url);
+      return { entry, pill: lib.pillSpec(entry) };
+    })().then(sendResponse, async (err) => {
+      const entry = { srcUrl: message.url, error: String((err && err.message) || err) };
+      const { lib } = await scanService();
+      sendResponse({ entry, pill: lib.pillSpec(entry) });
+    });
+    return true; // async sendResponse
   }
-  (async () => {
-    const { limit, cache } = await scanService();
-    const cached = await cache.get(message.url);
-    if (cached) return cached;
-    const entry = await limit(() => examineUrl(message.url));
-    await cache.put(message.url, entry);
-    return entry;
-  })().then(sendResponse, (err) => {
-    sendResponse({ srcUrl: message.url, error: String((err && err.message) || err) });
-  });
-  return true; // async sendResponse
+  if (message.type === "pl-show") {
+    (async () => {
+      await showEntry(await verifyCached(message.url));
+      return true;
+    })().then(sendResponse, () => sendResponse(false));
+    return true;
+  }
+  return false;
 });
 
-function updateBadge(entry) {
-  const tier = entry.report && BADGE[entry.report.verdict];
-  if (tier) {
-    api.action.setBadgeText({ text: tier.text });
-    api.action.setBadgeBackgroundColor({ color: tier.color });
-  } else {
-    api.action.setBadgeText({ text: "ERR" });
-    api.action.setBadgeBackgroundColor({ color: "#000000" });
-  }
-}

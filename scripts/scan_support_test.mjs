@@ -6,7 +6,13 @@
 // assert-based, no framework; exits non-zero on failure.
 
 import assert from "node:assert/strict";
-import { makeLimiter, makeSessionCache } from "../extension/lib/scan_support.js";
+import {
+  actionBadge,
+  makeLimiter,
+  makeSessionCache,
+  pillSpec,
+  TIER_BADGE,
+} from "../extension/lib/scan_support.js";
 
 // --- limiter: cap respected, FIFO order, failures release the slot ---------
 {
@@ -69,6 +75,36 @@ import { makeLimiter, makeSessionCache } from "../extension/lib/scan_support.js"
   assert.equal(await cache.get("u1"), 11, "refreshed key survived");
   assert.equal(await cache.get("u3"), 3);
   assert.equal(await cache.get("u4"), 4);
+}
+
+// --- presentation: pillSpec / actionBadge cover every entry shape ----------
+{
+  const verified = {
+    srcUrl: "https://cdn.example/a.jpg",
+    report: { verdict: "verified", phrase: "Verified: …chain." },
+  };
+  const pill = pillSpec(verified);
+  assert.equal(pill.kind, "tier");
+  assert.equal(pill.text, "VER");
+  assert.equal(pill.color, TIER_BADGE.verified.color);
+  assert.equal(pill.title, "Verified: …chain.", "tooltip is the verbatim phrase");
+  assert.deepEqual(actionBadge(verified), TIER_BADGE.verified);
+
+  const blocked = { srcUrl: "https://cdn.example/b.jpg", notFetched: true, error: "could not fetch…" };
+  const marker = pillSpec(blocked);
+  assert.equal(marker.kind, "not-examined");
+  assert.ok(marker.title.includes("cdn.example"), "tooltip names the image host");
+  assert.equal(actionBadge(blocked).text, "ERR", "action badge stays honest on errors");
+
+  const broken = { srcUrl: "not a url", error: "engine is not bundled…" };
+  const err = pillSpec(broken);
+  assert.equal(err.kind, "error");
+  assert.equal(err.title, "engine is not bundled…");
+
+  // An unknown verdict id (future tier, corrupted entry) must fall through
+  // to ERR, never invent a tier pill.
+  const unknown = { srcUrl: "x", report: { verdict: "trusted-ish", phrase: "?" } };
+  assert.equal(pillSpec(unknown).kind, "error");
 }
 
 console.log("scan_support tests: all assertions passed");
