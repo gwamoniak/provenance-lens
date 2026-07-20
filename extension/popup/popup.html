@@ -20,11 +20,27 @@
     <p id="report-anchors" class="anchors-note"></p>
   </section>
 
+  <!-- U7c: per-site page scanning. Hidden unless the active tab is an
+       http(s) page whose URL the popup may read. Granting goes through the
+       browser's own consent prompt; the browser's permission store is the
+       single source of truth. -->
+  <section id="scan-site" hidden>
+    <h2>Page scanning</h2>
+    <p id="scan-status" class="anchors-note"></p>
+    <button id="scan-toggle" class="scan-button"></button>
+    <p id="scan-reload-note" class="anchors-note" hidden>
+      Reload the page to apply the change.
+    </p>
+  </section>
+
   <!-- Error state: an error is an error, never a verdict tier. -->
   <section id="error" hidden>
     <h2>Last verification</h2>
     <p id="error-url" class="url"></p>
     <p id="error-message" class="error-message"></p>
+    <!-- U7c: offered only when the image's bytes could not be fetched —
+         granting its host lets the engine actually examine it. -->
+    <button id="grant-image-host" class="scan-button" hidden></button>
   </section>
 
   <p class="status" id="engine-status">

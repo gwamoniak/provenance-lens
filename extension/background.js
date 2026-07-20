@@ -192,7 +192,10 @@ async function verifyCached(url) {
   const cached = await cache.get(url);
   if (cached) return cached;
   const entry = await limit(() => examineUrl(url));
-  await cache.put(url, entry);
+  // Only successful examinations are cached: failures are transient (the
+  // user may grant the image's host a moment later — U7c's allow button —
+  // or the network may recover), and a cached failure would replay forever.
+  if (!entry.error) await cache.put(url, entry);
   return entry;
 }
 

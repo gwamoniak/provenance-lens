@@ -29,6 +29,10 @@ const page = `<!DOCTYPE html>
 <p>Right-click each image → “Verify provenance with Provenance Lens”. Expected verdicts below each image
 (Verified requires the test CA in extension/trust/anchors.pem — see the placeholder file).</p>
 ${IMAGES.map((name) => `<figure><img src="/${name}" alt="${name}"><figcaption>${name}<br><strong>${EXPECTED[name]}</strong></figcaption></figure>`).join("\n")}
+<figure><img src="http://127.0.0.1:${PORT}/nocors/valid_signed.jpg" alt="second-origin case"><figcaption>127.0.0.1 (no CORS)<br><strong>U7: “· · ·” until 127.0.0.1 granted, then Verified</strong></figcaption></figure>
+<p>The last image is the U7 second-origin case: served from the 127.0.0.1 hostname WITHOUT a CORS
+header, so the engine cannot fetch its bytes until that host is granted (page pill shows the neutral
+“not examined” marker; the popup offers “Allow access to 127.0.0.1 and verify”).</p>
 </body></html>`;
 
 createServer((req, res) => {
@@ -38,15 +42,19 @@ createServer((req, res) => {
     res.end(page);
     return;
   }
-  const name = path.slice(1);
+  // U7 second-origin case: /nocors/<vector> serves WITHOUT the CORS header,
+  // so the extension's background fetch is blocked until the user grants
+  // the requesting hostname (the page embeds it via 127.0.0.1, which is a
+  // different host than localhost in match patterns).
+  const noCors = path.startsWith("/nocors/");
+  const name = noCors ? path.slice("/nocors/".length) : path.slice(1);
   if (!IMAGES.includes(name)) {
     res.writeHead(404, { "content-type": "text/plain" });
     res.end("not found");
     return;
   }
-  res.writeHead(200, {
-    "content-type": name.endsWith(".png") ? "image/png" : "image/jpeg",
-    "access-control-allow-origin": "*",
-  });
+  const headers = { "content-type": name.endsWith(".png") ? "image/png" : "image/jpeg" };
+  if (!noCors) headers["access-control-allow-origin"] = "*";
+  res.writeHead(200, headers);
   res.end(readFileSync(new URL(name, vectors)));
 }).listen(PORT, () => console.log(`smoke page: http://localhost:${PORT}`));
