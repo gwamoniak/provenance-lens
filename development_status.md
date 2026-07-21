@@ -1,6 +1,6 @@
 # Development status — Provenance Lens
 
-**TL;DR (2026-07-10, end of day): the Layer-1 wedge is DONE and PUSHED — M0–M4 all closed in a single day. `lens` (CLI) and the browser extension verify real C2PA Content Credentials against the official conformance trust list; the installable zip is built; 20/20 tests green; everything is on the private GitHub remote. Remaining: maintainer submits to the store; hardening backlog; gated M5–M7.**
+**TL;DR (2026-07-18): the wedge shipped, the hardening pass is merged (cryptography sign-off recorded), and the upgrades plan U1–U7 is FULLY EXECUTED — JSON CLI output, credential summaries, an 8-vector JPEG+PNG corpus, CI, Firefox support, npm publish prep, and opt-in page scanning, all browser-smoked where it counts. 30/30 tests green. Remaining: maintainer's external actions (store submissions, npm publish, upstream c2pa report, release bump) and the gated M5–M7.**
 
 Snapshot dashboard, last updated **2026-07-10 (post-M4, wedge shipped)**. This file is a *derived view* for humans skimming the repo: the authoritative record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
 
@@ -41,13 +41,13 @@ Verdict model (Tampered > Verified > Indicated > Inconclusive; only Layer 1 prov
 
 None. Everything left is a maintainer decision, not a blocker.
 
-## Next actions
+## Next actions (all maintainer's — nothing is blocked on development)
 
-1. **Maintainer: submit to the Chrome Web Store** — `docs/STORE_LISTING.md` has everything the form asks; the zip is in `dist/`.
-2. **Maintainer, when ready**: make the repo public (`gh repo edit gwamoniak/provenance-lens --visibility public`).
-3. ~~Review branch `post-wedge-hardening`~~ — **signed off and merged 2026-07-18** ("approved, merge it"); the hardening backlog (cert-policy pinning tests, fuzz target, panic guard, trust-list refresh workflow) is on `main`.
-4. **Maintainer: file the prepared upstream report** — the fuzz target's first run found an unchecked-subtraction panic in the c2pa crate's JUMBF parser (still in 0.90.0); ready-to-file text is in the ExecPlan's Artifacts and Notes.
-5. **Next wave when ready**: `PROVENANCE_LENS_UPGRADES_EXECPLAN.md` (JSON CLI output, credential summaries, proven format coverage, CI, Firefox, npm; page-scan badges design-gated).
+1. **Release bump + store submissions**: pick the version (CHANGELOG "Unreleased" has the release notes), run the pre-submission checklist in `docs/STORE_LISTING.md`, submit to the Chrome Web Store and Firefox AMO (extension needs Firefox ≥128; both listings' copy is prepared).
+2. **`npm publish`**: `sh scripts/package_npm.sh` → tarball in `dist/`; the `@provenance-lens` scope needs the npm org (or rename before first publish — never after).
+3. **File the prepared upstream report** — unchecked-subtraction panic in the c2pa JUMBF parser (still in 0.90.0); ready-to-file text in the wedge ExecPlan's Artifacts. When the fix ships, bump the dependency and flip the CI fuzz job to enforcing.
+4. **When ready**: make the repo public.
+5. **Gated milestones** (wedge plan): M5 watermark / M6 registry / M7 heuristics — open only when their gates open; `lens-research` tracks availability.
 4. **Gated milestones**: open M5 (watermark) / M6 (registry) only when their gates open; `lens-research` tracks detector and registry availability.
 
 ## Risks being tracked
