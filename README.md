@@ -21,11 +21,19 @@ One asset flows through four layers, ordered by evidentiary strength; findings c
               4. Heuristics        statistical signals                 → can indicate   [optional]
                                                           ──▶ Verified / Indicated / Inconclusive / Tampered
 
-Everything is one Rust workspace: `provenance-core` (the pipeline, sans-IO), `provenance-cli` (the `lens` binary), `provenance-wasm` (the WASM wrapper the extension embeds). Blockchain appears only as optional anchoring for the registry's transparency log — never as a dependency. Privacy first: image bytes never leave your device; verification is local, and future registry lookups send perceptual hashes only, with consent.
+Everything is one Rust workspace: `provenance-core` (the pipeline, sans-IO), `provenance-cli` (the `lens` binary), `provenance-wasm` (the WASM wrapper the extension and the npm package embed). Blockchain appears only as optional anchoring for the registry's transparency log — never as a dependency. Privacy first: image bytes never leave your device; verification is local, and future registry lookups send perceptual hashes only, with consent.
+
+## What you can do today
+
+- **CLI**: `lens verify [--json] [--trust-anchors <PEM>] <FILE>...` — one honest verdict per file, machine-readable with `--json`, exit codes scripts can branch on (0 verified / 10 indicated / 20 inconclusive / 30 tampered / 2 error). Verified reports also say what the credential *claims*: claim generator, signing time, declared digitalSourceType (with a plain note when it declares AI-generated content).
+- **Browser extension** (Chrome, and Firefox ≥ 128, one codebase): right-click any image → "Verify provenance with Provenance Lens" → verdict on the badge and in the popup. Optionally, per site and only after you grant it through the browser's own consent prompt, it scans the images on a page and marks each visible one with a small text pill — including an honest "not examined" marker when it cannot read an image's bytes.
+- **JavaScript library**: the engine packs as `@provenance-lens/verify-wasm` (`sh scripts/package_npm.sh`); same API, same wording, browser and Node.
+
+The user manual — CLI reference, extension walkthrough including page scanning, JSON shape, troubleshooting — is **[docs/MANUAL.md](docs/MANUAL.md)**.
 
 ## Status
 
-The Layer-1 wedge works end to end (M0–M3 complete, 2026-07-10; M4 packaging in progress): the `lens` CLI and the browser extension verify C2PA Content Credentials for real — cryptographically valid chains report Verified with the issuer named, stripped credentials report Inconclusive, broken ones report Tampered with the validator's status codes. The extension ships the official C2PA conformance trust list as an updatable data file (`extension/trust/anchors.pem`). The build order is deliberate: a **Layer-1-only** tool first — small but provable — because surfacing "Tampered / credentials stripped" at scale is the wedge that pressures platforms to stop stripping Content Credentials. Watermark and registry layers are gated behind real detectors and a real transparency log; until then they honestly report themselves as not evaluated. The full plan lives in `PROVENANCE_LENS_EXECPLAN.md`.
+The Layer-1 wedge shipped and has since been hardened and extended (2026-07-18): real C2PA validation against the official conformance trust list (shipped as an updatable data file, refreshed by a monthly review PR), an eight-vector self-verifying test corpus (JPEG + PNG) exercised natively, through the compiled WASM artifact, and in real browsers, cert-policy pinning tests, a fuzz target, and CI on every push. The build order is deliberate: a **Layer-1-only** tool first — small but provable — because surfacing "Tampered / credentials stripped" at scale is the wedge that pressures platforms to stop stripping Content Credentials. Watermark and registry layers stay gated behind real detectors and a real transparency log; until then they honestly report themselves as not evaluated. The plans live in `PROVENANCE_LENS_EXECPLAN.md` (the wedge) and `PROVENANCE_LENS_UPGRADES_EXECPLAN.md` (the executed upgrade wave).
 
 ## Build and run
 
@@ -35,14 +43,15 @@ Requires Rust stable (pinned via `rust-toolchain.toml`; includes the wasm32 targ
     cargo run -p provenance-cli -- tiers
     cargo run -p provenance-cli -- verify photo.jpg     # exit: 0 verified / 10 indicated / 20 inconclusive / 30 tampered
 
-Extension (skeleton today, functional from Milestone 3):
+Extension:
 
     wasm-pack build crates/provenance-wasm --target web --out-dir ../../extension/pkg
-    # chrome://extensions → Developer mode → Load unpacked → extension/
+    # Chrome:  chrome://extensions → Developer mode → Load unpacked → extension/
+    # Firefox: about:debugging → This Firefox → Load Temporary Add-on → extension/manifest.json
 
 ## Honesty rules
 
-The wording above is normative (see `.claude/skills/verdict-language/SKILL.md`): Inconclusive is never styled or phrased as safety, Indicated is never an accusation, Verified vouches for the provenance chain — not for the content being human-made. Signature-validation code merges only with human cryptography-reviewer sign-off.
+The wording above is normative (see `.claude/skills/verdict-language/SKILL.md`): Inconclusive is never styled or phrased as safety, Indicated is never an accusation, Verified vouches for the provenance chain — not for the content being human-made. The four phrases are pinned character-identical across the README, the popup, the npm README, and the manual by a CI test. Signature-validation code merges only with human cryptography-reviewer sign-off.
 
 ## License
 

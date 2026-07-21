@@ -22,6 +22,8 @@ fn approved_phrases_are_identical_in_all_wording_locations() {
         // The npm package README (U6) — wasm-pack copies it into the
         // published package, so its tier wording is user-facing too.
         "crates/provenance-wasm/README.md",
+        // The user manual quotes the tiers as the product's contract.
+        "docs/MANUAL.md",
     ];
     let verdicts = [
         Verdict::Verified,
