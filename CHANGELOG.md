@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased — the post-wedge upgrades (U1–U7, 2026-07-18)
+## 0.2.0 — 2026-07-18 (the post-wedge upgrades, U1–U7)
 
-Version number is the maintainer's release decision. All changes below are
-on `main`, CI-green, and browser-smoked where they touch the extension.
+All changes below are CI-green and browser-smoked where they touch the
+extension (Chrome + Firefox ≥ 128).
 
 - CLI: `lens verify --json` (one JSON object per file, same shape the WASM
   engine returns), multiple files per invocation, exit code = the worst

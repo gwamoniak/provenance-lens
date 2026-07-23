@@ -39,7 +39,9 @@ The U7 browser smoke (run after the M3 smoke steps — engine built, test CA in 
 
 ## Surprises & Discoveries
 
-(None yet for this plan. The hardening pass that preceded it recorded its surprises — e.g. the c2pa verifier's hard requirement of an organizationName in the end-entity subject — in the wedge plan's Surprises & Discoveries section.)
+- Observation: The npm `wasm-opt` wrapper (which downloads a binaryen binary — v112 on this machine) EXITS 0 when the underlying wasm-opt fails, printing the error but writing no output file. During the 0.2.0 release packaging this made `package_npm.sh` "succeed" while silently packing the unoptimized artifact: the hardcoded `--enable-bulk-memory-opt` flag (a newer-binaryen flag) was rejected, the wrapper swallowed the failure, `set -eu` saw exit 0, and the input file — never overwritten — went into the tarball at 7.0 MB instead of 6.5 MB.
+  Evidence: `wasm-opt … --enable-bulk-memory-opt -o out.wasm` → stderr "Unknown option '--enable-bulk-memory-opt'", `echo $?` → 0, no `out.wasm` created; tarball unpacked size 7.0 MB (the exact unoptimized size) on the first packaging run.
+  Consequence: both packaging scripts now (a) probe `wasm-opt --help` for the flag instead of pinning it, and (b) write to a temp output and refuse to continue unless that file exists non-empty — an exit code from this wrapper is not evidence of anything. The corpus smoke would not have caught this (an unoptimized artifact verifies fine); only the size did.
 
 ## Decision Log
 

@@ -10,10 +10,24 @@ wasm-pack build crates/provenance-wasm --target web --out-dir "../../$OUT"
 
 # Size optimization is best-effort here: the corpus smoke below is the real
 # gate, and CI/dev machines without binaryen still produce a working package.
+# --enable-bulk-memory-opt exists only in newer binaryen (probe, don't pin),
+# and the npm wasm-opt wrapper exits 0 even on failure — so require the
+# output file to actually exist before trusting the run.
 if command -v wasm-opt >/dev/null 2>&1; then
-  wasm-opt "$OUT/provenance_wasm_bg.wasm" -Os --enable-bulk-memory --enable-bulk-memory-opt \
+  BULK_OPT=""
+  if wasm-opt --help 2>&1 | grep -q "bulk-memory-opt"; then
+    BULK_OPT="--enable-bulk-memory-opt"
+  fi
+  wasm-opt "$OUT/provenance_wasm_bg.wasm" -Os --enable-bulk-memory $BULK_OPT \
     --enable-sign-ext --enable-mutable-globals --enable-nontrapping-float-to-int \
-    --enable-reference-types -o "$OUT/provenance_wasm_bg.wasm"
+    --enable-reference-types -o "$OUT/provenance_wasm_bg.wasm.opt"
+  if [ -s "$OUT/provenance_wasm_bg.wasm.opt" ]; then
+    mv "$OUT/provenance_wasm_bg.wasm.opt" "$OUT/provenance_wasm_bg.wasm"
+  else
+    rm -f "$OUT/provenance_wasm_bg.wasm.opt"
+    echo "error: wasm-opt produced no output (it can exit 0 on failure) - refusing to pack silently unoptimized" >&2
+    exit 1
+  fi
 else
   echo "warning: wasm-opt (binaryen) not found - packing the unoptimized artifact" >&2
 fi

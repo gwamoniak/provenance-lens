@@ -29,9 +29,15 @@ The proposal's "weeks 1–6" wedge exists, works, and is proven. Layer 1 does re
 
 Verdict model (Tampered > Verified > Indicated > Inconclusive; only Layer 1 proves; "no data ≠ authentic"): **implemented, green, and wording-audited by CI** — `tests/wording_sync.rs` fails the suite if README, popup legend, or the verdict-language skill drift from the canonical phrases in `verdict.rs`.
 
-## Release state (0.1.0)
+## Release state (0.2.0, packaged 2026-07-18 — awaiting the maintainer's submissions)
 
-- Artifact: `dist/provenance-lens-0.1.0.zip` — 2,299,035 bytes, sha256 `9687a5d25553125ee5a94b73d080bc5dccaaaa3fe177c5ccf33d21bbe07980e2` (rebuild: `sh scripts/package_extension.sh`; refuses to package a test CA).
+- Extension: `dist/provenance-lens-0.2.0.zip` — 2,301,482 bytes, sha256 `92213e56…d5043c4d` (rebuild: `sh scripts/package_extension.sh`; refuses to package a test CA). Chrome + Firefox ≥ 128.
+- npm: `dist/provenance-lens-verify-wasm-0.2.0.tgz` — 2,441,384 bytes, sha256 `867447b9…7c7e8889` (rebuild: `sh scripts/package_npm.sh`). Publish is the maintainer's action.
+- Release notes: CHANGELOG.md `0.2.0`. Versions in lockstep (root `Cargo.toml`, `extension/manifest.json`, both packaged artifacts).
+
+Previous (0.1.0):
+
+- Artifact: `dist/provenance-lens-0.1.0.zip` — 2,299,035 bytes, sha256 `9687a5d25553125ee5a94b73d080bc5dccaaaa3fe177c5ccf33d21bbe07980e2`.
 - Trust anchors: official C2PA conformance list, 28 certificates, sha256 `b1f399a7…7cdb46c1`, provenance header in `extension/trust/anchors.pem`; refresh via `sh scripts/update_trust_list.sh` — **the diff is trust-model data; maintainer reviews every change.**
 - Collateral: `CHANGELOG.md` (0.1.0), `docs/STORE_LISTING.md` (listing copy, permission justifications, privacy policy, pre-submission checklist).
 - Remote: https://github.com/gwamoniak/provenance-lens (private, `origin`; `main` in sync, M1 review branch pushed). `gh` authenticated as gwamoniak (HTTPS; SSH to GitHub does not work on this machine).
