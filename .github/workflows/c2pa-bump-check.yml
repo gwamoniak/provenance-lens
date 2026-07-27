@@ -1,0 +1,92 @@
+# Watch for the c2pa release that carries the SaltHash JUMBF underflow fix,
+# then open a review PR bumping the dependency. Same discipline as the
+# trust-list refresh: this NEVER merges — bumping c2pa is signature-validation
+# surface and needs the maintainer's cryptography sign-off. The bug: every
+# c2pa release through 0.90.3 has `bytes_left -= header.size;` in the SaltHash
+# box parser (sdk/src/jumbf/boxes.rs); the fix (`checked_sub`) is on c2pa-rs
+# main, unreleased as of 2026-07-27. Only actions/checkout + gh (built-in
+# token) — no third-party actions, matching the trust-list workflow.
+name: c2pa-bump-check
+
+on:
+  schedule:
+    - cron: "0 8 * * 1" # weekly, Monday 08:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump c2pa if a release now contains the SaltHash fix
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          MANIFEST=crates/provenance-core/Cargo.toml
+
+          PIN="$(grep -oE 'c2pa = \{ version = "[^"]+"' "$MANIFEST" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+          LATEST="$(curl -s -A 'provenance-lens-bot (github actions)' https://crates.io/api/v1/crates/c2pa \
+                    | grep -oE '"max_stable_version":"[^"]+"' | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+          echo "pinned=$PIN  latest=$LATEST"
+          [ -n "$LATEST" ] || { echo "could not read crates.io; skipping this run"; exit 0; }
+
+          # Act only on a strictly newer release.
+          if [ "$LATEST" = "$PIN" ] || \
+             [ "$(printf '%s\n%s\n' "$PIN" "$LATEST" | sort -V | tail -1)" != "$LATEST" ]; then
+            echo "no newer c2pa release; nothing to do"; exit 0
+          fi
+
+          # A version number is not proof — verify the fix is actually in that
+          # release tag: SaltHash path must use checked_sub and have no raw
+          # `bytes_left -= header.size;`.
+          BOXES="$(curl -s "https://raw.githubusercontent.com/contentauth/c2pa-rs/c2pa-v$LATEST/sdk/src/jumbf/boxes.rs")"
+          if ! printf '%s' "$BOXES" | grep -q 'checked_sub(header.size)' \
+             || printf '%s' "$BOXES" | grep -q 'bytes_left -= header.size'; then
+            echo "c2pa $LATEST is newer but the SaltHash fix is not in it; not bumping"; exit 0
+          fi
+
+          BRANCH="bump-c2pa-$LATEST"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "branch $BRANCH already exists (PR likely open); skipping"; exit 0
+          fi
+
+          # The only tracked change is the one-line pin (Cargo.lock is gitignored).
+          sed -i "s/\(c2pa = { version = \)\"[^\"]*\"/\1\"$LATEST\"/" "$MANIFEST"
+
+          # Run the gate; capture the outcome without aborting the job, so a
+          # release that needs code changes still surfaces as a (draft) PR
+          # whose CI shows the exact breakage.
+          RESULT=pass
+          cargo test --workspace || RESULT=fail
+          echo "cargo test --workspace: $RESULT"
+
+          git config user.name "c2pa-bump-check workflow"
+          git config user.email "actions@github.com"
+          git checkout -b "$BRANCH"
+          git add "$MANIFEST"
+          git commit -m "Bump c2pa $PIN -> $LATEST (SaltHash JUMBF underflow fix)"
+          git push origin "$BRANCH"
+
+          DRAFT=""
+          NOTE="\`cargo test --workspace\` PASSED in the bump job."
+          if [ "$RESULT" = "fail" ]; then
+            DRAFT="--draft"
+            NOTE="\`cargo test --workspace\` FAILED in the bump job — the new c2pa release very likely changed its API. This PR is a DRAFT: the Layer 1 code (\`crates/provenance-core/src/layers/c2pa.rs\`), cert-policy tests, or the vector generator need manual updates. The PR's own CI shows the exact errors. Treat any change to validation SEMANTICS as requiring extra scrutiny."
+          fi
+
+          cat > /tmp/pr-body.md <<EOF
+          Automated bump: c2pa **$PIN → $LATEST**. The \`$LATEST\` release contains the SaltHash JUMBF integer-underflow fix (\`sdk/src/jumbf/boxes.rs\`: \`bytes_left -= header.size;\` → \`bytes_left.checked_sub(header.size)\`), which every release through 0.90.3 lacked.
+
+          $NOTE
+
+          **This is signature-validation surface — it merges only with the maintainer's cryptography sign-off recorded in the ExecPlan Decision Log.** Before merging, review any code changes for validation-semantics impact. After merging: flip the fuzz job in \`.github/workflows/ci.yml\` from \`continue-on-error: true\` to enforcing (the panic that job kept re-finding is now fixed upstream), and decide whether to keep the panic guard in \`layers/c2pa.rs\`.
+          EOF
+
+          gh pr create --base main --head "$BRANCH" $DRAFT \
+            --title "Bump c2pa to $LATEST (SaltHash JUMBF underflow fix)" \
+            --body-file /tmp/pr-body.md
