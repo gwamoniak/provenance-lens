@@ -1,6 +1,6 @@
 # Development status — Provenance Lens
 
-**TL;DR (2026-07-18, end of day): 0.2.0 is OUT THE DOOR — submitted to the Chrome Web Store and Firefox AMO (both in review) and published to npm. The wedge shipped, the hardening pass merged with sign-off, the upgrades plan U1–U7 fully executed and browser-smoked, the trust list verified current at submission. 30/30 tests green. Remaining: store review outcomes, the upstream c2pa report, the repo-public decision, and the gated M5–M7.**
+**TL;DR (2026-07-18, end of day): 0.2.0 is OUT THE DOOR — submitted to the Chrome Web Store and Firefox AMO (both in review) and published to npm. The wedge shipped, the hardening pass merged with sign-off, the upgrades plan U1–U7 fully executed and browser-smoked, the trust list verified current at submission. 30/30 tests green, and the repo is public. Remaining: store review outcomes, the upstream c2pa report, and the gated M5–M7.**
 
 Snapshot dashboard, last updated **2026-07-10 (post-M4, wedge shipped)**. This file is a *derived view* for humans skimming the repo: the authoritative record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
 
@@ -29,10 +29,10 @@ The proposal's "weeks 1–6" wedge exists, works, and is proven. Layer 1 does re
 
 Verdict model (Tampered > Verified > Indicated > Inconclusive; only Layer 1 proves; "no data ≠ authentic"): **implemented, green, and wording-audited by CI** — `tests/wording_sync.rs` fails the suite if README, popup legend, or the verdict-language skill drift from the canonical phrases in `verdict.rs`.
 
-## Release state (0.2.0, packaged 2026-07-18 — awaiting the maintainer's submissions)
+## Release state (0.2.0 — submitted to both stores and published to npm, 2026-07-18)
 
-- Extension: `dist/provenance-lens-0.2.0.zip` — 2,301,127 bytes, sha256 `e666b30c…a0817b12` (rebuild: `sh scripts/package_extension.sh`; refuses to package a test CA). Chrome + Firefox ≥ 128. Trust list verified current upstream at packaging time (2026-07-18, 28 certs, unchanged since 2026-07-10).
-- npm: `dist/provenance-lens-verify-wasm-0.2.0.tgz` — 2,441,384 bytes, sha256 `867447b9…7c7e8889` (rebuild: `sh scripts/package_npm.sh`). Publish is the maintainer's action.
+- Extension: `dist/provenance-lens-0.2.0.zip` — 2,301,127 bytes, sha256 `e666b30c…a0817b12` (rebuild: `sh scripts/package_extension.sh`; refuses to package a test CA). Chrome + Firefox ≥ 128; **submitted to the Chrome Web Store and AMO, both in store review**. Trust list verified current upstream at packaging time (2026-07-18, 28 certs, unchanged since 2026-07-10).
+- npm: `dist/provenance-lens-verify-wasm-0.2.0.tgz` — 2,441,384 bytes, sha256 `867447b9…7c7e8889` (rebuild: `sh scripts/package_npm.sh`). **Published.**
 - Release notes: CHANGELOG.md `0.2.0`. Versions in lockstep (root `Cargo.toml`, `extension/manifest.json`, both packaged artifacts).
 
 Previous (0.1.0):
@@ -40,7 +40,7 @@ Previous (0.1.0):
 - Artifact: `dist/provenance-lens-0.1.0.zip` — 2,299,035 bytes, sha256 `9687a5d25553125ee5a94b73d080bc5dccaaaa3fe177c5ccf33d21bbe07980e2`.
 - Trust anchors: official C2PA conformance list, 28 certificates, sha256 `b1f399a7…7cdb46c1`, provenance header in `extension/trust/anchors.pem`; refresh via `sh scripts/update_trust_list.sh` — **the diff is trust-model data; maintainer reviews every change.**
 - Collateral: `CHANGELOG.md` (0.1.0), `docs/STORE_LISTING.md` (listing copy, permission justifications, privacy policy, pre-submission checklist).
-- Remote: https://github.com/gwamoniak/provenance-lens (private, `origin`; `main` in sync, M1 review branch pushed). `gh` authenticated as gwamoniak (HTTPS; SSH to GitHub does not work on this machine).
+- Remote: https://github.com/gwamoniak/provenance-lens (**public** as of 2026-07-18, `origin`; `main` in sync).
 - Test evidence: 20/20 tests, clippy `-D warnings` clean; corpus verified natively, through the WASM wrapper, through the compiled artifact in Node, and by the maintainer's browser smoke.
 
 ## Blockers
@@ -51,9 +51,8 @@ None. Everything left is a maintainer decision, not a blocker.
 
 1. ~~Release + submissions~~ — **done 2026-07-18**: 0.2.0 submitted to the Chrome Web Store and Firefox AMO (maintainer; both awaiting store review) and published to npm (`@provenance-lens/verify-wasm`). Watch for reviewer questions — permission justifications and reviewer notes are in `docs/STORE_LISTING.md`.
 2. **File the prepared upstream report** — unchecked-subtraction panic in the c2pa JUMBF parser (still in 0.90.0); ready-to-file text in the wedge ExecPlan's Artifacts. When the fix ships, bump the dependency and flip the CI fuzz job to enforcing.
-3. **When ready**: make the repo public (the npm package and store listings point at it).
+3. ~~Make the repo public~~ — **done 2026-07-18**: https://github.com/gwamoniak/provenance-lens is public.
 4. **Gated milestones** (wedge plan): M5 watermark / M6 registry / M7 heuristics — open only when their gates open; `lens-research` tracks availability.
-4. **Gated milestones**: open M5 (watermark) / M6 (registry) only when their gates open; `lens-research` tracks detector and registry availability.
 
 ## Risks being tracked
 
