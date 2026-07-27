@@ -50,7 +50,7 @@ None. Everything left is a maintainer decision, not a blocker.
 ## Next actions
 
 1. ~~Release + submissions~~ — **done 2026-07-18**: 0.2.0 submitted to the Chrome Web Store and Firefox AMO (maintainer; both awaiting store review) and published to npm (`@provenance-lens/verify-wasm`). Watch for reviewer questions — permission justifications and reviewer notes are in `docs/STORE_LISTING.md`.
-2. **File the prepared upstream report** — unchecked-subtraction panic in the c2pa JUMBF parser (still in 0.90.0); ready-to-file text in the wedge ExecPlan's Artifacts. When the fix ships, bump the dependency and flip the CI fuzz job to enforcing.
+2. ~~File the prepared upstream report~~ — **not needed (checked 2026-07-27)**: the c2pa maintainers already fixed our exact SaltHash-box underflow on `main` (unreleased); every release through 0.90.3 still has it. No open issue; filing would duplicate resolved work. **New action:** watch for the c2pa release that includes the main fix, then bump the dependency (needs crypto sign-off), drop the panic guard if desired, and flip the CI fuzz job to enforcing. Panic guard protects us meanwhile.
 3. ~~Make the repo public~~ — **done 2026-07-18**: https://github.com/gwamoniak/provenance-lens is public.
 4. **Gated milestones** (wedge plan): M5 watermark / M6 registry / M7 heuristics — open only when their gates open; `lens-research` tracks availability.
 

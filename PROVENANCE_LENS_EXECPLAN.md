@@ -286,7 +286,9 @@ M1 acceptance transcript (2026-07-10, branch `m1-c2pa-validation`; `V=crates/pro
       [c2pa] ran, no signal
       → exit 20
 
-Prepared upstream report (2026-07-18, for the maintainer to file on `contentauth/c2pa-rs` — title "Unchecked subtraction in JUMBF box parser panics on malformed salt box (debug builds)"):
+Upstream status update (2026-07-27): the report below was NOT filed — checking upstream first showed the bug is already FIXED on `contentauth/c2pa-rs` `main` (unreleased). The exact site, `sdk/src/jumbf/boxes.rs` SaltHash-box path, is now `bytes_left = bytes_left.checked_sub(header.size)` on main with a dedicated SaltHash test, whereas every release through the latest (`c2pa-v0.90.3`, 2026-07-24) still has the raw `bytes_left -= header.size;`. It is part of a series of already-merged JUMBF integer-underflow hardening PRs (#1949, #2200, #2201, #2334); no open issue tracks it. Filing would have duplicated resolved work. **Revised action:** when a c2pa release ships that contains the main fix (verify by re-fetching that file at the release tag), bump the dependency, drop the panic guard if desired, and flip the CI fuzz job from advisory to enforcing. Until then the panic guard is the protection and the fuzz job stays advisory (it will keep re-finding the bug against the pinned 0.89.x). Bumping is signature-validation-surface — it needs maintainer sign-off. The original prepared text is kept below for the record.
+
+Prepared upstream report (2026-07-18, NOT filed — see the status update above; kept for the record — title "Unchecked subtraction in JUMBF box parser panics on malformed salt box (debug builds)"):
 
     In src/jumbf/boxes.rs, CAIUUIDAssertionBox/salt-box parsing does
     `bytes_left -= header.size;` (line 2148 in c2pa 0.89.3 and 0.90.0)
