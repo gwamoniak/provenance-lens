@@ -31,7 +31,7 @@ Verdict model (Tampered > Verified > Indicated > Inconclusive; only Layer 1 prov
 
 ## Release state (0.2.0, packaged 2026-07-18 — awaiting the maintainer's submissions)
 
-- Extension: `dist/provenance-lens-0.2.0.zip` — 2,301,482 bytes, sha256 `92213e56…d5043c4d` (rebuild: `sh scripts/package_extension.sh`; refuses to package a test CA). Chrome + Firefox ≥ 128.
+- Extension: `dist/provenance-lens-0.2.0.zip` — 2,301,127 bytes, sha256 `e666b30c…a0817b12` (rebuild: `sh scripts/package_extension.sh`; refuses to package a test CA). Chrome + Firefox ≥ 128. Trust list verified current upstream at packaging time (2026-07-18, 28 certs, unchanged since 2026-07-10).
 - npm: `dist/provenance-lens-verify-wasm-0.2.0.tgz` — 2,441,384 bytes, sha256 `867447b9…7c7e8889` (rebuild: `sh scripts/package_npm.sh`). Publish is the maintainer's action.
 - Release notes: CHANGELOG.md `0.2.0`. Versions in lockstep (root `Cargo.toml`, `extension/manifest.json`, both packaged artifacts).
 

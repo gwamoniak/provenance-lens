@@ -302,13 +302,15 @@ Prepared upstream report (2026-07-18, for the maintainer to file on `contentauth
 
 0.2.0 release artifacts (2026-07-18, packaged on the Windows machine after the upgrades plan closed; suite 30/30 and the eight-vector corpus green through the optimized artifact in both cases):
 
-    dist/provenance-lens-0.2.0.zip              2,301,482 B  sha256 92213e5638d0b3625480035ed60d9bc84802f0de45bbaed342afc4d6d5043c4d
+    dist/provenance-lens-0.2.0.zip              2,301,127 B  sha256 e666b30c746e73cb04fc3a58f9807a842f5c9a5b7a37f17a7810340ea0817b12
     dist/provenance-lens-verify-wasm-0.2.0.tgz  2,441,384 B  sha256 867447b97945f7801688e9ba93cd275f54ab9ab4841b6753cb55fa3c7c7e8889
     optimized engine: 6,456,124 B raw (budget ≤ 7 MB) — wasm-opt via the npm binaryen
     wrapper (v112; the packaging scripts probe for the newer --enable-bulk-memory-opt
     flag and verify wasm-opt actually produced output — see the upgrades plan's Surprises).
-    Bundled anchors unchanged: official C2PA conformance list, 28 certificates
-    (fetched 2026-07-10; the monthly refresh workflow owns staleness).
+    Bundled anchors: official C2PA conformance list refreshed pre-submission
+    (2026-07-18) — byte-identical to the 2026-07-10 fetch, 28 certificates,
+    list sha256 b1f399a7…7cdb46c1 (upstream unchanged; only the Fetched:
+    provenance line moved, and the zip was repackaged to match).
     Store submission and npm publish remain the maintainer's actions.
 
 M4 release artifact (2026-07-10): `dist/provenance-lens-0.1.0.zip`, 2,299,035 bytes, sha256 `9687a5d25553125ee5a94b73d080bc5dccaaaa3fe177c5ccf33d21bbe07980e2`; bundled anchors: official C2PA conformance list, 28 certificates, sha256 `b1f399a7235f188a22f3db97992f1cc1417517664600335f9d105a6a7cdb46c1`.
