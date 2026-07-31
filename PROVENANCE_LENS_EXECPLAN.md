@@ -30,6 +30,7 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - [x] (2026-07-18) First fuzz run executed on this machine (60 s, ASAN, ~5.5k execs): found a reachable panic in the c2pa crate's JUMBF parser (see Surprises); panic containment added to `C2paLayer::examine` (see Decision Log); upstream report prepared in Artifacts — **filing it on contentauth/c2pa-rs is the maintainer's action**, as is deciding on a c2pa version bump when a fix ships.
 - [x] (2026-07-18) Successor plan authored for the non-gated upgrade wave: `PROVENANCE_LENS_UPGRADES_EXECPLAN.md` (U1 machine-readable CLI, U2 credential summary, U3 proven format coverage, U4 CI baseline, U5 Firefox, U6 npm package, U7 design-gated page-scan badges). M5–M7 remain gated here, untouched.
 - [x] (2026-07-18) **0.2.0 released and distributed — the maintainer submitted the extension to the Chrome Web Store and Firefox AMO (both in store review) and published the engine to npm.** The wedge's distribution story, first drawn in the proposal, is now complete on all three channels; the trust list was verified current upstream at submission time. Still with the maintainer: the upstream c2pa report, the repo-public decision, and watching the store reviews.
+- [x] (2026-07-31) Third plan authored from an external technical review of 0.2.0: `PROVENANCE_LENS_ROADMAP_EXECPLAN.md` (R1 docs honesty/EU-AI-Act positioning, R2 trust-list staleness defenses, W1–W2 a staged real watermark layer with measured-FPR gates, W3 SynthID vendor-gated, W4 registry-before-heuristics). It PROPOSES revising this plan's M5 gate (licensed-vendor → open-spec detector with measured FPR) and recording M6-before-M7 priority — both pending the maintainer's approval here in the Decision Log; until then M5–M7 stand exactly as written below.
 - [ ] Post-wedge (each gated, see Milestones): M5 watermark layer, M6 registry layer, M7 heuristics layer.
 
 ## Surprises & Discoveries
@@ -142,6 +143,10 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - Decision: **Cryptography sign-off, post-wedge hardening** — the maintainer (gwamoniak) reviewed the `post-wedge-hardening` branch (cert-policy pinning tests with their dev-dependency additions, the fuzz target and its first-run finding, the panic guard in `layers/c2pa.rs`, the trust-list refresh workflow) and approved the merge to `main`.
   Rationale: per the standing human-sign-off rule for signature-validation surface; second exercise of the process after M1.
   Date/Author: 2026-07-18 / maintainer (gwamoniak): "approved, merge it".
+
+- Decision: PENDING MAINTAINER APPROVAL — `PROVENANCE_LENS_ROADMAP_EXECPLAN.md` (2026-07-31, from an external review of 0.2.0) proposes (a) revising the M5 gate from "a runnable, licensed vendor detector" to "a runnable detector with a public specification or published weights, whose false-positive rate we measure ourselves on a clean corpus before it may contribute to verdicts" — which the fully open Stable Diffusion invisible-watermark DWT-DCT decoder satisfies today — and (b) recording registry-before-heuristics (M6 ahead of M7) as the strategic ordering. Neither takes effect until a dated maintainer entry lands here; the roadmap plan's W1 does not start before that.
+  Rationale: the original M5 gate's intent was "no fake detectors"; an open, spec-known decoder with a measured ≤0.1% FPR honors that intent, while no vendor-licensed detector exists or is likely to. Full argument and verification evidence in the roadmap plan.
+  Date/Author: 2026-07-31 / agent (proposal); maintainer decision pending.
 
 ## Outcomes & Retrospective
 
