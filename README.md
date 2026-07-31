@@ -21,6 +21,8 @@ One asset flows through four layers, ordered by evidentiary strength; findings c
               4. Heuristics        statistical signals                 → can indicate   [optional]
                                                           ──▶ Verified / Indicated / Inconclusive / Tampered
 
+A caveat on the diagram's example: **SynthID is not third-party-detectable.** Google publishes no spec, decoder weights, or public API for it, so only Google's own infrastructure can verify a SynthID watermark — no independent tool can, this one included. The watermark layer stays gated until a detector we can actually run exists, and until then it reports itself as not evaluated.
+
 Everything is one Rust workspace: `provenance-core` (the pipeline, sans-IO), `provenance-cli` (the `lens` binary), `provenance-wasm` (the WASM wrapper the extension and the npm package embed). Blockchain appears only as optional anchoring for the registry's transparency log — never as a dependency. Privacy first: image bytes never leave your device; verification is local, and future registry lookups send perceptual hashes only, with consent.
 
 ## What you can do today
@@ -33,7 +35,9 @@ The user manual — CLI reference, extension walkthrough including page scanning
 
 ## Status
 
-The Layer-1 wedge shipped and has since been hardened and extended (2026-07-18): real C2PA validation against the official conformance trust list (shipped as an updatable data file, refreshed by a monthly review PR), an eight-vector self-verifying test corpus (JPEG + PNG) exercised natively, through the compiled WASM artifact, and in real browsers, cert-policy pinning tests, a fuzz target, and CI on every push. The build order is deliberate: a **Layer-1-only** tool first — small but provable — because surfacing "Tampered / credentials stripped" at scale is the wedge that pressures platforms to stop stripping Content Credentials. Watermark and registry layers stay gated behind real detectors and a real transparency log; until then they honestly report themselves as not evaluated. The plans live in `PROVENANCE_LENS_EXECPLAN.md` (the wedge) and `PROVENANCE_LENS_UPGRADES_EXECPLAN.md` (the executed upgrade wave).
+The Layer-1 wedge shipped and has since been hardened and extended (2026-07-18): real C2PA validation against the official conformance trust list (shipped as an updatable data file, refreshed by a monthly review PR), an eight-vector self-verifying test corpus (JPEG + PNG) exercised natively, through the compiled WASM artifact, and in real browsers, cert-policy pinning tests, a fuzz target, and CI on every push. The build order is deliberate: a **Layer-1-only** tool first — small but provable — because surfacing "Tampered / credentials stripped" at scale is the wedge that pressures platforms to stop stripping Content Credentials. Watermark and registry layers stay gated behind real detectors and a real transparency log; until then they honestly report themselves as not evaluated. The plans live in `PROVENANCE_LENS_EXECPLAN.md` (the wedge), `PROVENANCE_LENS_UPGRADES_EXECPLAN.md` (the executed upgrade wave), and `PROVENANCE_LENS_ROADMAP_EXECPLAN.md` (what's next).
+
+Ecosystem context: the EU AI Act's Article 50 transparency obligations apply from 2 August 2026 (machine-readable marking for generative systems already on the market is deferred to 2 December 2026). The Act obliges *generators* to mark AI content; it asks nothing of verifiers. Provenance Lens is the independent verification side of that ecosystem — as marked content becomes the norm, checking those marks locally is exactly what this tool does.
 
 ## Build and run
 

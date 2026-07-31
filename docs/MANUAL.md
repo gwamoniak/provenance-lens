@@ -6,6 +6,8 @@ This manual covers the `lens` command-line tool, the browser extension (includin
 
 Provenance Lens validates **C2PA Content Credentials** — cryptographically signed provenance manifests that some cameras, editors, and AI generators embed in media files. When credentials are present and valid, that is provable. When they are absent, **nothing is provable in either direction**, and the tool says so. It does not analyze pixels, does not score "AI likelihood", and never calls anything authentic.
 
+Two related honesty notes. First, invisible watermarks such as Google's SynthID cannot be checked by this or any third-party tool: there is no public spec, decoder, or API, so only the vendor's own infrastructure can verify them — which is why the watermark layer reports itself as not evaluated. Second, ecosystem context: the EU AI Act's Article 50 transparency obligations (in force from 2 August 2026) require *generators* to mark AI content in machine-readable form; nothing is required of verifiers or their users. Provenance Lens sits on the independent verification side of that ecosystem, checking such marks locally where a runnable, spec-known verifier exists — today that means C2PA.
+
 ## The four verdicts
 
 - **Verified**: this asset carries a valid, cryptographically signed provenance chain.

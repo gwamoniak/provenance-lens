@@ -12,9 +12,10 @@ After this plan, a reader of the README can no longer infer a capability the too
 
 - [x] (2026-07-31) External review investigated: every repo-checkable claim verified against the tree; time-sensitive external claims (EU AI Act dates, SynthID access status, IMATAG detector scope) verified against current sources. Findings in Surprises & Discoveries.
 - [x] (2026-07-31) Plan authored. R-milestones (immediate) are executable on command; W-milestones carry their own gates as stated below.
-- [ ] R1 — Docs honesty and positioning: SynthID caveat in the README pipeline diagram; EU AI Act Article 50 positioning note.
+- [x] (2026-07-31) Maintainer approved the plan and both pending proposals ("approved, start R1"): the M5 gate revision and the M6-before-M7 ordering are recorded in the wedge plan's Decision Log; the wedge plan's M5 milestone text now carries the revised gate.
+- [x] (2026-07-31) R1 done — Docs honesty and positioning: SynthID non-detectability caveat added directly under the README pipeline diagram; EU AI Act Article 50 ecosystem-context note added to the README Status section and to the manual's "What this tool is, and is not" (both stress the Act binds generators, not verifiers, and that the watermark layer honestly reports not-evaluated). `cargo test --workspace` green, `wording_sync` untouched and passing.
 - [ ] R2 — Trust-list staleness defenses: workflow failure alerting; "signer not on trust list (list dated …)" evidence sub-state (crypto sign-off surface — branch only).
-- [ ] W1 — First real watermark detector (Stable Diffusion invisible-watermark DWT-DCT). BLOCKED until the maintainer approves the M5 gate revision proposed in the Decision Log.
+- [ ] W1 — First real watermark detector (Stable Diffusion invisible-watermark DWT-DCT). Gate satisfied 2026-07-31 (M5 revision approved); starts on the maintainer's word.
 - [ ] W2 — Stable Signature (IMATAG bzh) detector + calibration corpus with published per-transformation TPR/FPR. Starts only after W1 passes its false-positive gate.
 - [ ] W3 — SynthID handled honestly (vendor connector and/or metadata-proxy). GATED: no work until vendor access exists; `lens-research` watches the trigger named below.
 - [ ] W4 — Registry-before-heuristics recorded as the strategic bet; M6 design work may begin on maintainer's word. No code in this plan.
@@ -39,10 +40,10 @@ After this plan, a reader of the README can no longer infer a capability the too
   Date/Author: 2026-07-31 / agent.
 - Decision: PROPOSED, pending maintainer approval — revise the wedge plan's M5 gate from "a runnable, licensed vendor detector" to "a runnable detector with a public specification or published weights, whose false-positive rate we can measure ourselves on a clean corpus before it may contribute to verdicts". The Stable Diffusion invisible-watermark decoder satisfies the revised gate; nothing satisfies the original one today, and nothing is likely to (vendors do not license detectors).
   Rationale: the original gate's intent was "no fake detectors, no lookalike classifiers" — a fully open, spec-known decoder honors that intent better than waiting for a licensing regime that is not coming. The revision keeps the two real protections: measured FPR before verdict influence, and ceiling `Indication`.
-  Date/Author: 2026-07-31 / agent (approval: pending — W1 does not start until a dated maintainer entry lands here and in the wedge plan's Decision Log).
+  Date/Author: 2026-07-31 / agent; APPROVED same day by the maintainer (gwamoniak, "approved, start R1") — dated entry recorded in the wedge plan's Decision Log, M5 milestone text updated there. W1 is unblocked.
 - Decision: PROPOSED, pending maintainer approval — record registry-before-heuristics (W4) as the strategic ordering: M6 (registry) is the next gated milestone to invest in after Layer 2's Stage 1–2; M7 (heuristics) stays gated indefinitely. M6's own gate is unchanged ("a deployed transparency-log endpoint, or an explicit plan revision scoping standing one up").
   Rationale: metadata gets stripped and watermarks are removable (regeneration attacks demonstrably defeat them); a perceptual-hash transparency log is the only layer that survives the screenshot-crop-repost cycle. The wedge plan already lets M6 design work proceed without the gate.
-  Date/Author: 2026-07-31 / agent (approval: pending).
+  Date/Author: 2026-07-31 / agent; APPROVED same day by the maintainer (gwamoniak, "approved, start R1") — recorded in the wedge plan's Decision Log. M6 design work may begin on the maintainer's word (W4).
 - Decision: R2's evidence sub-state changes the wording of Layer-1 findings but NOT the verdict mapping: a valid-but-unanchored signature still yields `TamperEvidence` → Tampered. The sub-state only makes the finding detail say why, including the trust list's own date.
   Rationale: relaxing the verdict would need a far stronger argument and its own sign-off; distinguishing stale-list from broken-signature needs only better evidence text. Conservative-and-explainable beats conservative-and-opaque.
   Date/Author: 2026-07-31 / agent.
