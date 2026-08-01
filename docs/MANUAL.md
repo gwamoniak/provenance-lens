@@ -4,16 +4,16 @@ This manual covers the `lens` command-line tool, the browser extension (includin
 
 ## What this tool is, and is not
 
-Provenance Lens validates **C2PA Content Credentials** — cryptographically signed provenance manifests that some cameras, editors, and AI generators embed in media files. When credentials are present and valid, that is provable. When they are absent, **nothing is provable in either direction**, and the tool says so. It does not analyze pixels, does not score "AI likelihood", and never calls anything authentic.
+Provenance Lens validates **C2PA Content Credentials** — cryptographically signed provenance manifests that some cameras, editors, and AI generators embed in media files — and decodes **openly specified invisible watermarks** (today: the Stable Diffusion scheme). When credentials are present and valid, that is provable; when a known watermark payload decodes exactly, that is an indication. When neither is found, **nothing is provable in either direction**, and the tool says so. It never guesses: no pixel-statistics "AI likelihood" scoring, and it never calls anything authentic.
 
-Two related honesty notes. First, invisible watermarks such as Google's SynthID cannot be checked by this or any third-party tool: there is no public spec, decoder, or API, so only the vendor's own infrastructure can verify them — which is why the watermark layer reports itself as not evaluated. Second, ecosystem context: the EU AI Act's Article 50 transparency obligations (in force from 2 August 2026) require *generators* to mark AI content in machine-readable form; nothing is required of verifiers or their users. Provenance Lens sits on the independent verification side of that ecosystem, checking such marks locally where a runnable, spec-known verifier exists — today that means C2PA.
+Two related honesty notes. First, invisible watermarks with NO public decoder — Google's SynthID above all — cannot be checked by this or any third-party tool: only the vendor's own infrastructure can verify them, and no local detector will pretend otherwise here. Second, ecosystem context: the EU AI Act's Article 50 transparency obligations (in force from 2 August 2026) require *generators* to mark AI content in machine-readable form; nothing is required of verifiers or their users. Provenance Lens sits on the independent verification side of that ecosystem, checking such marks locally where a runnable, spec-known verifier exists — today that means C2PA and the Stable Diffusion watermark.
 
 ## The four verdicts
 
 - **Verified**: this asset carries a valid, cryptographically signed provenance chain.
   The manifest's signature is cryptographically valid AND its certificate chains to one of your configured trust anchors. This vouches for the provenance chain — who signed it and that the bytes are unmodified since — not for the content being true or human-made. A Verified report also states what the credential *claims* (see "Credential claims" below).
 - **Indicated**: signals suggest AI involvement, but no cryptographic proof chain is present.
-  Reserved for the gated non-cryptographic layers (watermark, registry). With those layers gated, you will not see this verdict today.
+  Comes from the non-cryptographic layers. One real source exists today: the Stable Diffusion invisible-watermark detector (in the CLI and native builds; the browser extension's engine does not include it yet). It claims a detection only when a known payload decodes exactly — the finding then reads e.g. "indication from the Stable Diffusion XL invisible watermark (48-bit dwtDct payload, decoded exactly)".
 - **Inconclusive**: no provenance data was found. This does NOT mean the asset is authentic.
   The common case for genuine and generated images alike — most images on the web carry no credentials, often because platforms strip them on upload.
 - **Tampered**: provenance data is present but fails validation. Treat this asset with suspicion.
@@ -43,7 +43,7 @@ Example (against the repo's test corpus; `V=crates/provenance-core/tests/vectors
     crates/provenance-core/tests/vectors/valid_signed.jpg
       verdict: Verified: this asset carries a valid, cryptographically signed provenance chain.
       [c2pa] valid provenance chain, issuer: …
-      [watermark] not evaluated — gated: no vendor watermark detector integrated yet
+      [watermark] ran, no signal
       [registry] not evaluated — gated: no transparency-log registry deployed yet
       [heuristics] not evaluated — optional layer, not implemented
       credential claims:

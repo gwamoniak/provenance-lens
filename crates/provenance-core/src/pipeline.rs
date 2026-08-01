@@ -102,7 +102,7 @@ impl Pipeline {
         Pipeline {
             layers: vec![
                 Box::new(c2pa.clone()),
-                Box::new(crate::layers::watermark::WatermarkLayer),
+                Box::new(crate::layers::watermark::WatermarkLayer::standard()),
                 Box::new(crate::layers::registry::RegistryLayer),
                 Box::new(crate::layers::heuristics::HeuristicsLayer),
             ],

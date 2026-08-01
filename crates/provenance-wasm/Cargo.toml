@@ -10,7 +10,11 @@ repository.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-provenance-core = { path = "../provenance-core" }
+# default-features = false: the WASM engine ships WITHOUT the watermark-dwt
+# detector (W1 is CLI-first; the extension follows only after a measured size
+# check — roadmap plan). The watermark layer honestly reports itself as not
+# compiled into this build.
+provenance-core = { path = "../provenance-core", default-features = false }
 wasm-bindgen = "0.2"
 
 # Parity tests parse the wrapper's JSON output; dev-only.

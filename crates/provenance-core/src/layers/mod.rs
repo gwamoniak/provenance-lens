@@ -5,4 +5,6 @@
 pub mod c2pa;
 pub mod heuristics;
 pub mod registry;
+#[cfg(feature = "watermark-dwt")]
+pub mod sd_dwt;
 pub mod watermark;

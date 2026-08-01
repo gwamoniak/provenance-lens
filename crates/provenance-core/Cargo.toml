@@ -10,8 +10,20 @@ repository.workspace = true
 # OFF — no OpenSSL (rust-native crypto keeps bare-machine and wasm32 builds
 # clean) and no HTTP clients (the core is sans-IO; remote manifest fetching
 # must be impossible, not merely disabled).
+[features]
+# W1 (roadmap plan): the Stable Diffusion invisible-watermark detector needs
+# pixel decoding. Default-on for native (CLI); provenance-wasm opts out with
+# default-features = false so the extension engine's size budget is untouched
+# until a measured size check says otherwise.
+default = ["watermark-dwt"]
+watermark-dwt = ["dep:image"]
+
 [dependencies]
 c2pa = { version = "0.89.2", default-features = false, features = ["rust_native_crypto"] }
+# W1 dependency (roadmap plan Decision Log): pixel decoding for the watermark
+# layer only — JPEG + PNG codecs, nothing else. Optional: absent from wasm
+# and from any build without the watermark-dwt feature.
+image = { version = "0.25", optional = true, default-features = false, features = ["jpeg", "png"] }
 
 [dev-dependencies]
 base64 = "0.22"
@@ -29,3 +41,7 @@ sha1 = "0.10"
 
 [[example]]
 name = "gen_vectors"
+
+[[example]]
+name = "measure_fpr"
+required-features = ["watermark-dwt"]
