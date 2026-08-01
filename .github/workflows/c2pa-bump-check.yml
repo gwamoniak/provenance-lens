@@ -16,6 +16,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   check:
@@ -90,3 +91,13 @@ jobs:
           gh pr create --base main --head "$BRANCH" $DRAFT \
             --title "Bump c2pa to $LATEST (SaltHash JUMBF underflow fix)" \
             --body-file /tmp/pr-body.md
+      # A failed check means the bump watch is silently not running; surface
+      # it as an issue, not just a red run.
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "c2pa-bump-check failed ($(date -u +%Y-%m-%d))" \
+            --body "The weekly c2pa bump check failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} — the watch for the SaltHash-fix release is not running. Investigate and re-run (workflow_dispatch works)."

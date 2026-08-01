@@ -171,8 +171,12 @@ impl Layer for C2paLayer {
         // (panic=abort) this guard cannot catch; the extension already
         // renders engine failures as errors, never as verdicts.
         let bytes = asset.bytes;
+        let list_date = self
+            .trust_anchors_pem
+            .as_deref()
+            .and_then(trust_list_fetched_date);
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
-            examine_manifest(context, &format, bytes)
+            examine_manifest(context, &format, bytes, list_date)
         })) {
             Ok(finding) => finding,
             Err(_) => LayerFinding::NotEvaluated {
@@ -184,9 +188,32 @@ impl Layer for C2paLayer {
     }
 }
 
+/// Extract the fetch date (YYYY-MM-DD) from the provenance header that
+/// `scripts/update_trust_list.sh` writes into the anchors PEM
+/// (`# Fetched: 2026-07-27T09:42:15Z   Certificates: 28   sha256: …`).
+/// Absent or malformed header → None; the finding then simply omits the
+/// date rather than inventing one. Sans-IO holds: this reads only the PEM
+/// bytes the caller already injected.
+fn trust_list_fetched_date(pem: &str) -> Option<&str> {
+    let rest = pem
+        .lines()
+        .find_map(|line| line.strip_prefix("# Fetched: "))?;
+    let date = rest.get(..10)?;
+    let shaped = date.bytes().enumerate().all(|(i, b)| match i {
+        4 | 7 => b == b'-',
+        _ => b.is_ascii_digit(),
+    });
+    shaped.then_some(date)
+}
+
 /// The parsing and validation-state mapping, separated so `examine` can wrap
 /// it in a panic guard.
-fn examine_manifest(context: Context, format: &str, bytes: &[u8]) -> LayerFinding {
+fn examine_manifest(
+    context: Context,
+    format: &str,
+    bytes: &[u8],
+    trust_list_date: Option<&str>,
+) -> LayerFinding {
     let reader = match Reader::from_context(context).with_stream(format, Cursor::new(bytes)) {
         Ok(reader) => reader,
         Err(C2paError::JumbfNotFound) => return LayerFinding::NoSignal,
@@ -212,11 +239,18 @@ fn examine_manifest(context: Context, format: &str, bytes: &[u8]) -> LayerFindin
                 .unwrap_or_else(|| "unknown issuer".to_string());
             LayerFinding::Proof { issuer }
         }
-        ValidationState::Valid => LayerFinding::TamperEvidence {
-            detail: "manifest signature verifies cryptographically but its certificate \
-                     does not chain to a configured trust anchor"
-                .to_string(),
-        },
+        ValidationState::Valid => {
+            let mut detail = "manifest signature verifies cryptographically but its certificate \
+                              does not chain to a configured trust anchor"
+                .to_string();
+            // A stale trust list is the likeliest honest cause of this finding
+            // on a legitimately signed asset; naming the list's own date lets
+            // the user distinguish stale-list from broken-signature.
+            if let Some(date) = trust_list_date {
+                detail.push_str(&format!(" (trust list dated {date})"));
+            }
+            LayerFinding::TamperEvidence { detail }
+        }
         ValidationState::Invalid => {
             let codes: Vec<String> = reader
                 .validation_status()
@@ -280,6 +314,59 @@ mod tests {
         );
         assert_eq!(sniff_media_type(b"not an image"), None);
         assert_eq!(sniff_media_type(&[]), None);
+    }
+
+    #[test]
+    fn trust_list_date_comes_only_from_a_wellformed_fetched_header() {
+        let pem = "# Provenance Lens trust anchors\n\
+                   # Fetched: 2026-07-27T09:42:15Z   Certificates: 28   sha256: abc\n";
+        assert_eq!(trust_list_fetched_date(pem), Some("2026-07-27"));
+        assert_eq!(
+            trust_list_fetched_date("-----BEGIN CERTIFICATE-----\n"),
+            None
+        );
+        assert_eq!(trust_list_fetched_date("# Fetched: not-a-date\n"), None);
+        assert_eq!(trust_list_fetched_date(""), None);
+    }
+
+    #[test]
+    fn unanchored_valid_signature_names_the_trust_list_date() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let bytes = std::fs::read(root.join("tests/vectors/valid_signed.jpg"))
+            .expect("read valid_signed.jpg");
+        // The shipped production list: the vector's ephemeral CA is rightly
+        // not on it, so the signature is valid but unanchored — and the
+        // finding must name the list's own Fetched date.
+        let anchors = std::fs::read_to_string(root.join("../../extension/trust/anchors.pem"))
+            .expect("read shipped trust list");
+        let date = trust_list_fetched_date(&anchors)
+            .expect("shipped anchors.pem must carry its provenance header");
+
+        let finding = C2paLayer::with_trust_anchors(anchors.as_str()).examine(&Asset {
+            bytes: &bytes,
+            media_type: None,
+        });
+        match &finding {
+            LayerFinding::TamperEvidence { detail } => assert!(
+                detail.ends_with(&format!("(trust list dated {date})")),
+                "detail must name the list date, got: {detail}"
+            ),
+            other => panic!("expected TamperEvidence, got {other:?}"),
+        }
+
+        // Anchors without the provenance header: no date is invented.
+        let finding =
+            C2paLayer::with_trust_anchors("# placeholder, no certificates\n").examine(&Asset {
+                bytes: &bytes,
+                media_type: None,
+            });
+        match &finding {
+            LayerFinding::TamperEvidence { detail } => assert!(
+                !detail.contains("trust list dated"),
+                "no header must mean no date, got: {detail}"
+            ),
+            other => panic!("expected TamperEvidence, got {other:?}"),
+        }
     }
 
     #[test]
