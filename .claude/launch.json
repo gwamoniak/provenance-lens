@@ -2,8 +2,14 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "smoke-page",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/serve_testpage.mjs"],
+      "port": 8917
+    },
+    {
       "name": "extension-popup",
-      "runtimeExecutable": "python3",
+      "runtimeExecutable": "py",
       "runtimeArgs": ["-m", "http.server", "8654", "--directory", "extension"],
       "port": 8654
     }

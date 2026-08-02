@@ -56,23 +56,73 @@ probes:
 
 ## Results (measured 2026-08-01, this repository at the W2 milestone)
 
-PENDING — tables inserted by the calibration run.
+Cells are hits/total. On a detector's own set the rate is TPR; on `clean`
+and the other scheme's set every hit would be a false positive.
+
+### stable-diffusion-invisible-watermark
+
+| transform | bzh (hits/total) | clean (hits/total) | sd_dwt (hits/total) |
+|---|---|---|---|
+| orig | 0/100 (0.0%) | 0/100 (0.0%) | 45/100 (45.0%) |
+| jpeg90 | 0/100 (0.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| jpeg70 | 0/100 (0.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| jpeg50 | 0/100 (0.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| resize75 | 0/100 (0.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| resize50 | 0/100 (0.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| crop80 | 0/100 (0.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| screenshot | 0/100 (0.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+
+### imatag-stable-signature-bzh
+
+| transform | bzh (hits/total) | clean (hits/total) | sd_dwt (hits/total) |
+|---|---|---|---|
+| orig | 51/100 (51.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| jpeg90 | 44/100 (44.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| jpeg70 | 33/100 (33.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| jpeg50 | 30/100 (30.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| resize75 | 49/100 (49.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| resize50 | 51/100 (51.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| crop80 | 85/100 (85.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
+| screenshot | 43/100 (43.0%) | 0/100 (0.0%) | 0/100 (0.0%) |
 
 ## Large-corpus clean FPR
 
-PENDING — `measure_fpr` over 2,800 DIV2K images (train+valid HR + bicubic
-LR packs) plus the maintainer's 61-photo local library.
+`measure_fpr` over the flat clean corpora (no transformations):
+
+- `stable-diffusion-invisible-watermark`: **0 / 2,861** (2,800 DIV2K
+  images — train+valid HR plus the official bicubic LR packs — and the
+  maintainer's 61-photo local library). 0.0000%.
+- `imatag-stable-signature-bzh`: **0 / 2,800** (the same DIV2K corpus;
+  the vendor's card states ~1/1000 — we measured better than that here).
+
+Combined with the transformed `clean` sets above (800 variants each,
+0 hits), no false positive has been observed from either detector on any
+corpus this project has measured.
 
 ## Reading the numbers honestly
 
-- The DWT scheme is known to be fragile under re-encoding — published work
-  and the SD community's own experience say JPEG and rescaling degrade it
-  quickly. Low TPR under those transforms is the scheme's property, not a
-  detector bug; the detector's promise is only "if the exact payload
-  survives, we read it, and we essentially never invent it".
-- A watermark that fails to survive a transformation yields
-  **Inconclusive**, never "authentic" — absence of a signal licenses no
-  conclusion in either direction. That founding rule is what makes shipping
+- **The DWT watermark is fragile, and now that's measured, not folklore**:
+  45% of reference-embedded pristine PNGs decode fully, and a single JPEG
+  re-encode at quality 90 — or any resize, crop, or screenshot — drops
+  detection to 0%. That is the scheme's property (the SD community's own
+  experience says the same), not a detector bug: the exact-payload rule
+  reads only unmutilated survivors. What the detector buys, per these
+  tables, is certainty in the positive direction: not one invented
+  detection across every clean corpus and transform measured.
+- **The bzh classifier is the sturdier detector** (30–85% TPR across the
+  battery, still 0 measured false positives). Two honest caveats. First,
+  our watermarked set is VAE-roundtripped *photographs* — a proxy; real
+  bzh deployments watermark SDXL *generations*, where the vendor's own
+  numbers are presumably higher. Second, the curious crop80 result (85%,
+  above orig's 51%) is consistent with the 512×512 model input: cropping
+  768→614 means less downscaling into the model than 768→512, so more
+  watermark energy survives preprocessing — detection strength depends on
+  how far the input is from the model's native scale.
+- With zero observed false positives at these sample sizes, a hit from
+  either detector is strong (though still non-cryptographic) evidence —
+  hence `Indicated`, never `Verified`. A miss means **nothing**: a
+  watermark that fails to survive a transformation yields `Inconclusive`,
+  never "authentic". That founding rule is what makes shipping
   fragile-but-honest detectors acceptable.
 - The bzh classifier's numbers apply to IMATAG's bzh watermark only.
   Nothing here measures — or claims — detection of SynthID or any scheme
