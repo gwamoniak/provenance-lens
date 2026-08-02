@@ -149,6 +149,10 @@ Granular state; every stopping point must be recorded here, splitting partially-
   Rationale: the original M5 gate's intent was "no fake detectors"; an open, spec-known decoder with a measured ≤0.1% FPR honors that intent, while no vendor-licensed detector exists or is likely to. Full argument and verification evidence in the roadmap plan.
   Date/Author: 2026-07-31 / maintainer (gwamoniak): "approved, start R1".
 
+- Decision: **M6 gate OPEN (2026-08-02)** — the maintainer accepted `PROVENANCE_LENS_REGISTRY_EXECPLAN.md` (the scoping this gate's wording requires) and chose the git-backed pilot deployment shape. Registry work proceeds under that plan's own milestone gates (G1 open; G2a on the maintainer's word; G3's inclusion-proof verifier under the standing cryptography sign-off rule; G4 anchoring default-off unchanged).
+  Rationale: recorded here because this plan's M6 milestone defers to that acceptance; the registry plan is authoritative for everything downstream.
+  Date/Author: 2026-08-02 / maintainer (gwamoniak): "approved, start G1 with the git-backed pilot".
+
 - Decision: **Cryptography sign-off, trust-staleness sub-state (roadmap R2)** — the maintainer (gwamoniak) reviewed the `trust-staleness-substate` branch (in `layers/c2pa.rs`: `trust_list_fetched_date()` parsing the anchors PEM's `# Fetched:` provenance header, and the ValidationState::Valid arm appending " (trust list dated YYYY-MM-DD)" to its existing detail — verdict mapping unchanged, header absent → no date; plus failure-alert issue steps on both scheduled workflows) and approved the merge to `main`.
   Rationale: per the standing human-sign-off rule for signature-validation surface; third exercise of the process. The change adds evidence wording only — the conservative valid-but-unanchored → TamperEvidence mapping is untouched, so a stale trust list still yields Tampered but now says why in a way the user can act on.
   Date/Author: 2026-07-31 / maintainer (gwamoniak): "approved, merge it and start W1".

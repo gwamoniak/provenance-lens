@@ -99,6 +99,48 @@ Combined with the transformed `clean` sets above (800 variants each,
 0 hits), no false positive has been observed from either detector on any
 corpus this project has measured.
 
+## PDQ (registry plan, G1 — the Layer-3 lookup hash)
+
+The registry layer will match assets by **PDQ-256** (Meta's open perceptual
+hash; our transcription in `crates/provenance-core/src/layers/pdq.rs` is
+pinned bit-for-bit against the reference implementation by
+`tests/pdq.rs` / `scripts/gen_pdq_kats.py`). Before any lookup exists, the
+match threshold must be a measured number. Measured 2026-08-02 over the
+calibration corpus's `clean` set (100 DIV2K-valid 768² photographs × the
+W2 transformation battery; reproduce with
+`cargo run --release -p provenance-core --example pdq_calibrate -- <corpus-root>`):
+
+### PDQ: same content across transformations
+
+| transform | pairs | min | median | max | ≤24 | ≤31 | ≤47 | ≤63 | word-nominated |
+|---|---|---|---|---|---|---|---|---|---|
+| crop80 | 100 | 86 | 122 | 168 | 0 | 0 | 0 | 0 | 1/100 |
+| jpeg50 | 100 | 0 | 0 | 4 | 100 | 100 | 100 | 100 | 100/100 |
+| jpeg70 | 100 | 0 | 0 | 2 | 100 | 100 | 100 | 100 | 100/100 |
+| jpeg90 | 100 | 0 | 0 | 2 | 100 | 100 | 100 | 100 | 100/100 |
+| resize50 | 100 | 0 | 4 | 10 | 100 | 100 | 100 | 100 | 100/100 |
+| resize75 | 100 | 2 | 10 | 20 | 100 | 100 | 100 | 100 | 100/100 |
+| screenshot | 100 | 2 | 10 | 18 | 100 | 100 | 100 | 100 | 100/100 |
+
+### PDQ: different content (false-match risk)
+
+| pairs | min distance | ≤24 | ≤31 | ≤47 | ≤63 |
+|---|---|---|---|---|---|
+| 316800 | 98 | 0 | 0 | 0 | 0 |
+
+**Chosen threshold: Hamming distance ≤ 31** (the conventional PDQ operating
+point), adopted from these measurements, not convention: same content under
+every survivable transform stays ≤ 20, different content never came closer
+than 98 in 316,800 pairs — the threshold sits inside a 78-bit measured
+margin on both sides. "Word-nominated" is the G2 lookup's recall: the share
+of matching pairs the multi-index (any exact 16-bit word) would surface —
+100% for everything the hash survives.
+
+The honest limit, measured: **PDQ does not survive an 80% crop**
+(distances 86–168, indistinguishable from different content). Re-encodes,
+rescales, and screenshots match; crops will be misses. A registry miss —
+for any reason — yields no finding at all, never a hint of authenticity.
+
 ## Reading the numbers honestly
 
 - **The DWT watermark is fragile, and now that's measured, not folklore**:

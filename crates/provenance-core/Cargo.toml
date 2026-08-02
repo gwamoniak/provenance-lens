@@ -15,8 +15,14 @@ repository.workspace = true
 # pixel decoding. Default-on for native (CLI); provenance-wasm opts out with
 # default-features = false so the extension engine's size budget is untouched
 # until a measured size check says otherwise.
-default = ["watermark-dwt"]
+default = ["watermark-dwt", "registry-pdq"]
 watermark-dwt = ["dep:image"]
+# G1 (registry plan): the PDQ-256 perceptual hash — pure math over decoded
+# pixels, zero dependencies. Default-on so `cargo test --workspace` always
+# exercises the reference KATs (deviation from the plan's default-off,
+# recorded in its Decision Log: nothing consumes the hash in any verdict
+# path until G3, so there is no behavioral surface to gate).
+registry-pdq = []
 # W2 (roadmap plan): the IMATAG Stable Signature (bzh) classifier via
 # pure-Rust ONNX inference. Opt-in and native-only; the model file itself is
 # never bundled — the caller supplies it at runtime (CLI --watermark-model).
@@ -56,3 +62,11 @@ required-features = ["watermark-dwt"]
 [[example]]
 name = "calibrate"
 required-features = ["watermark-dwt"]
+
+[[example]]
+name = "pdq_calibrate"
+required-features = ["watermark-dwt", "registry-pdq"]
+
+[[test]]
+name = "pdq"
+required-features = ["watermark-dwt", "registry-pdq"]

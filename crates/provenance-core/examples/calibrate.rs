@@ -57,14 +57,21 @@ fn main() {
     for set in list_dirs(root) {
         for transform in list_dirs(&root.join(&set)) {
             let dir = root.join(&set).join(&transform);
-            for entry in std::fs::read_dir(&dir).expect("read transform dir").flatten() {
+            for entry in std::fs::read_dir(&dir)
+                .expect("read transform dir")
+                .flatten()
+            {
                 let path = entry.path();
                 let Some(image) = load_rgb(&path) else {
                     eprintln!("undecodable: {}", path.display());
                     continue;
                 };
                 for detector in &detectors {
-                    let key = (set.clone(), transform.clone(), detector.vendor().to_string());
+                    let key = (
+                        set.clone(),
+                        transform.clone(),
+                        detector.vendor().to_string(),
+                    );
                     let counter = results.entry(key).or_insert((0, 0));
                     counter.1 += 1;
                     if detector.probe(&image).is_some() {
@@ -106,7 +113,10 @@ fn main() {
             for set in &sets {
                 match results.get(&(set.clone(), transform.to_string(), vendor.clone())) {
                     Some((hits, total)) => {
-                        print!(" {hits}/{total} ({:.1}%) |", *hits as f64 / *total as f64 * 100.0)
+                        print!(
+                            " {hits}/{total} ({:.1}%) |",
+                            *hits as f64 / *total as f64 * 100.0
+                        )
                     }
                     None => print!(" — |"),
                 }

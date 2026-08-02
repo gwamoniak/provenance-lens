@@ -4,6 +4,8 @@
 
 pub mod c2pa;
 pub mod heuristics;
+#[cfg(feature = "registry-pdq")]
+pub mod pdq;
 pub mod registry;
 #[cfg(feature = "watermark-dwt")]
 pub mod sd_dwt;
