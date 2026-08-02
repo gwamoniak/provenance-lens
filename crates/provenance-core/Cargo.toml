@@ -17,6 +17,10 @@ repository.workspace = true
 # until a measured size check says otherwise.
 default = ["watermark-dwt"]
 watermark-dwt = ["dep:image"]
+# W2 (roadmap plan): the IMATAG Stable Signature (bzh) classifier via
+# pure-Rust ONNX inference. Opt-in and native-only; the model file itself is
+# never bundled — the caller supplies it at runtime (CLI --watermark-model).
+stable-signature = ["watermark-dwt", "dep:tract-onnx"]
 
 [dependencies]
 c2pa = { version = "0.89.2", default-features = false, features = ["rust_native_crypto"] }
@@ -24,6 +28,9 @@ c2pa = { version = "0.89.2", default-features = false, features = ["rust_native_
 # layer only — JPEG + PNG codecs, nothing else. Optional: absent from wasm
 # and from any build without the watermark-dwt feature.
 image = { version = "0.25", optional = true, default-features = false, features = ["jpeg", "png"] }
+# W2 dependency (roadmap plan Decision Log): pure-Rust ONNX runtime for the
+# Stable Signature classifier — no C++ runtime, no build-time downloads.
+tract-onnx = { version = "0.21", optional = true }
 
 [dev-dependencies]
 base64 = "0.22"
@@ -44,4 +51,8 @@ name = "gen_vectors"
 
 [[example]]
 name = "measure_fpr"
+required-features = ["watermark-dwt"]
+
+[[example]]
+name = "calibrate"
 required-features = ["watermark-dwt"]

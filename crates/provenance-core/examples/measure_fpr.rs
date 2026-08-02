@@ -9,6 +9,10 @@
 //! vectors); record the measured number in the roadmap plan.
 //!
 //!     cargo run --release -p provenance-core --example measure_fpr -- <dir>
+//!
+//! With `--model <bzh.onnx>` (needs `--features stable-signature`) the
+//! IMATAG bzh classifier is measured over the same corpus alongside the
+//! DWT detector; hits are reported per detector.
 
 use std::path::Path;
 
@@ -16,15 +20,39 @@ use provenance_core::layers::sd_dwt::SdInvisibleWatermark;
 use provenance_core::layers::watermark::{DecodedImage, WatermarkDetector};
 
 fn main() {
-    let dir = match std::env::args().nth(1) {
-        Some(dir) => dir,
-        None => {
-            eprintln!("usage: measure_fpr <directory of clean images>");
-            std::process::exit(2);
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut dir = None;
+    let mut model = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--model" => model = it.next().cloned(),
+            other => dir = Some(other.to_string()),
         }
+    }
+    let Some(dir) = dir else {
+        eprintln!("usage: measure_fpr <directory of clean images> [--model <bzh.onnx>]");
+        std::process::exit(2);
     };
-    let detector = SdInvisibleWatermark;
-    let (mut examined, mut skipped, mut hits) = (0u64, 0u64, 0u64);
+    let mut detectors: Vec<Box<dyn WatermarkDetector>> = vec![Box::new(SdInvisibleWatermark)];
+    #[cfg(feature = "stable-signature")]
+    if let Some(model_path) = &model {
+        use provenance_core::layers::stable_signature::StableSignatureBzh;
+        match StableSignatureBzh::from_onnx_path(Path::new(model_path)) {
+            Ok(det) => detectors.push(Box::new(det)),
+            Err(err) => {
+                eprintln!("measure_fpr: cannot load model {model_path}: {err}");
+                std::process::exit(2);
+            }
+        }
+    }
+    #[cfg(not(feature = "stable-signature"))]
+    if model.is_some() {
+        eprintln!("measure_fpr: --model needs --features stable-signature");
+        std::process::exit(2);
+    }
+    let (mut examined, mut skipped) = (0u64, 0u64);
+    let mut hits_per: Vec<u64> = vec![0; detectors.len()];
 
     let mut stack = vec![std::path::PathBuf::from(&dir)];
     while let Some(current) = stack.pop() {
@@ -53,9 +81,11 @@ fn main() {
             match load_rgb(&path) {
                 Some(image) => {
                     examined += 1;
-                    if let Some(hit) = detector.probe(&image) {
-                        hits += 1;
-                        println!("FALSE POSITIVE  {}  ({})", path.display(), hit.source);
+                    for (idx, detector) in detectors.iter().enumerate() {
+                        if let Some(hit) = detector.probe(&image) {
+                            hits_per[idx] += 1;
+                            println!("FALSE POSITIVE  {}  ({})", path.display(), hit.source);
+                        }
                     }
                 }
                 None => skipped += 1,
@@ -63,17 +93,17 @@ fn main() {
         }
     }
 
-    println!(
-        "examined {examined} images, skipped {skipped} (undecodable/too small), {hits} false positives"
-    );
-    if examined > 0 {
-        println!(
-            "false-positive rate: {:.4}%",
-            hits as f64 / examined as f64 * 100.0
-        );
+    println!("examined {examined} images, skipped {skipped} (undecodable/too small)");
+    for (idx, detector) in detectors.iter().enumerate() {
+        let hits = hits_per[idx];
+        print!("{}: {hits} false positives", detector.vendor());
+        if examined > 0 {
+            print!(" ({:.4}%)", hits as f64 / examined as f64 * 100.0);
+        }
+        println!();
     }
     if examined < 2000 {
-        println!("note: the W1 gate wants >= 2000 clean images; this corpus has fewer.");
+        println!("note: the gate wants >= 2000 clean images; this corpus has fewer.");
     }
 }
 

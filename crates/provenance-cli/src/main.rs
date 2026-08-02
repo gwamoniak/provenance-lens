@@ -15,13 +15,17 @@ const USAGE: &str = "\
 lens — honest provenance verdicts for media files
 
 USAGE:
-    lens verify [--json] [--trust-anchors <PEM>] <FILE>...
+    lens verify [--json] [--trust-anchors <PEM>] [--watermark-model <ONNX>] <FILE>...
                           examine each file and print a verdict report;
                           --json prints one JSON object per line (same shape
                           the WASM engine returns, plus a \"file\" key);
                           --trust-anchors loads a PEM bundle of root
                           certificates that signatures may chain to
-                          (without it, no chain can validate as trusted).
+                          (without it, no chain can validate as trusted);
+                          --watermark-model loads the IMATAG Stable Signature
+                          bzh classifier exported to ONNX (see
+                          scripts/export_stable_signature_onnx.py) and adds
+                          it to the watermark probes for this run.
                           With multiple files the exit code is the highest
                           per-file code — the worst result wins.
     lens tiers            print the four verdict tiers and their meaning
@@ -54,22 +58,26 @@ fn main() -> ExitCode {
 struct VerifyArgs<'a> {
     json: bool,
     anchors_path: Option<&'a str>,
+    watermark_model: Option<&'a str>,
     files: Vec<&'a str>,
 }
 
 impl<'a> VerifyArgs<'a> {
-    /// `verify` accepts: [--json] [--trust-anchors <PEM>] <FILE>...
+    /// `verify` accepts: [--json] [--trust-anchors <PEM>]
+    /// [--watermark-model <ONNX>] <FILE>...
     /// Flags may appear in any order before or between files; anything else
     /// starting with `--` is a usage error.
     fn parse(rest: &'a [String]) -> Option<Self> {
         let mut json = false;
         let mut anchors_path = None;
+        let mut watermark_model = None;
         let mut files = Vec::new();
         let mut it = rest.iter();
         while let Some(arg) = it.next() {
             match arg.as_str() {
                 "--json" => json = true,
                 "--trust-anchors" => anchors_path = Some(it.next()?.as_str()),
+                "--watermark-model" => watermark_model = Some(it.next()?.as_str()),
                 flag if flag.starts_with("--") => return None,
                 file => files.push(file),
             }
@@ -80,22 +88,49 @@ impl<'a> VerifyArgs<'a> {
         Some(VerifyArgs {
             json,
             anchors_path,
+            watermark_model,
             files,
         })
     }
 }
 
 fn verify_all(args: &VerifyArgs) -> ExitCode {
-    let pipeline = match args.anchors_path {
+    let anchors_pem = match args.anchors_path {
         Some(anchors_path) => match std::fs::read_to_string(anchors_path) {
-            Ok(pem) => Pipeline::with_trust_anchors(pem),
+            Ok(pem) => Some(pem),
             Err(err) => {
                 eprintln!("lens: cannot read trust anchors {anchors_path}: {err}");
                 return ExitCode::from(2);
             }
         },
-        None => Pipeline::standard(),
+        None => None,
     };
+
+    let mut watermark = provenance_core::layers::watermark::WatermarkLayer::standard();
+    if let Some(model_path) = args.watermark_model {
+        // A broken model file fails loudly at startup (exit 2); it must
+        // never silently degrade to "no watermark found".
+        #[cfg(feature = "stable-signature")]
+        {
+            use provenance_core::layers::stable_signature::StableSignatureBzh;
+            match StableSignatureBzh::from_onnx_path(std::path::Path::new(model_path)) {
+                Ok(detector) => watermark.push_detector(Box::new(detector)),
+                Err(err) => {
+                    eprintln!("lens: cannot load watermark model {model_path}: {err}");
+                    return ExitCode::from(2);
+                }
+            }
+        }
+        #[cfg(not(feature = "stable-signature"))]
+        {
+            eprintln!(
+                "lens: --watermark-model requires a build with the stable-signature \
+                 feature (cargo build -p provenance-cli)"
+            );
+            return ExitCode::from(2);
+        }
+    }
+    let pipeline = Pipeline::configured(anchors_pem, watermark);
 
     let mut worst = 0u8;
     for path in &args.files {

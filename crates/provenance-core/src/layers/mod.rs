@@ -7,4 +7,6 @@ pub mod heuristics;
 pub mod registry;
 #[cfg(feature = "watermark-dwt")]
 pub mod sd_dwt;
+#[cfg(feature = "stable-signature")]
+pub mod stable_signature;
 pub mod watermark;

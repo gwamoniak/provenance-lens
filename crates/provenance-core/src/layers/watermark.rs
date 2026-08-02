@@ -71,6 +71,12 @@ impl WatermarkLayer {
     pub fn with_detectors(detectors: Vec<Box<dyn WatermarkDetector>>) -> Self {
         WatermarkLayer { detectors }
     }
+
+    /// Add one detector to this layer (CLI: a runtime-supplied model joins
+    /// the standard set).
+    pub fn push_detector(&mut self, detector: Box<dyn WatermarkDetector>) {
+        self.detectors.push(detector);
+    }
 }
 
 impl Layer for WatermarkLayer {

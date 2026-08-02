@@ -32,6 +32,7 @@ Build it with `cargo build -p provenance-cli --release` (binary at `target/relea
 
 - `--trust-anchors <PEM>` — a PEM bundle of root certificates that signature chains may validate against. **Without it, no chain can validate as trusted**, so even validly signed assets report Tampered (unverifiable provenance). The ecosystem's canonical anchor set is the official C2PA conformance trust list — the copy the extension ships is at `extension/trust/anchors.pem`, refreshed via `sh scripts/update_trust_list.sh`.
 - `--json` — one JSON object per line per file (shape below) instead of the human report.
+- `--watermark-model <ONNX>` — adds the IMATAG Stable Signature "bzh" watermark classifier to the watermark probes for this run. The model is not bundled: IMATAG publishes the weights (MIT) as a PyTorch model, and `scripts/export_stable_signature_onnx.py` exports them to the ONNX file this flag consumes. Honest coverage note: this classifier recognizes ONLY images produced by IMATAG's own bzh-watermarked SDXL-VAE variants — it is not a general Stable Signature detector. Measured behavior under common transformations: `docs/CALIBRATION.md`.
 
 Exit code is the highest per-file code — the worst result wins:
 

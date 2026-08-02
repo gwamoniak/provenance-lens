@@ -98,11 +98,32 @@ impl Pipeline {
         ))
     }
 
+    /// The standard pipeline with explicit components: optional trust
+    /// anchors, and a watermark layer the caller may have extended with
+    /// runtime-supplied detectors (CLI: `--watermark-model`).
+    pub fn configured(
+        anchors_pem: Option<String>,
+        watermark: crate::layers::watermark::WatermarkLayer,
+    ) -> Self {
+        let c2pa = match anchors_pem {
+            Some(pem) => crate::layers::c2pa::C2paLayer::with_trust_anchors(pem),
+            None => crate::layers::c2pa::C2paLayer::new(),
+        };
+        Self::build_with(c2pa, watermark)
+    }
+
     fn build(c2pa: crate::layers::c2pa::C2paLayer) -> Self {
+        Self::build_with(c2pa, crate::layers::watermark::WatermarkLayer::standard())
+    }
+
+    fn build_with(
+        c2pa: crate::layers::c2pa::C2paLayer,
+        watermark: crate::layers::watermark::WatermarkLayer,
+    ) -> Self {
         Pipeline {
             layers: vec![
                 Box::new(c2pa.clone()),
-                Box::new(crate::layers::watermark::WatermarkLayer::standard()),
+                Box::new(watermark),
                 Box::new(crate::layers::registry::RegistryLayer),
                 Box::new(crate::layers::heuristics::HeuristicsLayer),
             ],

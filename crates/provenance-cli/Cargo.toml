@@ -10,6 +10,13 @@ repository.workspace = true
 name = "lens"
 path = "src/main.rs"
 
+# The CLI is the native consumer, so the model-based watermark detector is
+# on by default here (the model file is still runtime-supplied via
+# --watermark-model); core keeps it opt-in and the WASM build never sees it.
+[features]
+default = ["stable-signature"]
+stable-signature = ["provenance-core/stable-signature"]
+
 # std-only argument handling for now; a real CLI framework is not worth a
 # dependency until the subcommand surface grows past two verbs.
 [dependencies]
