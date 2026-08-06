@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/provenance-core",
     "crates/provenance-cli",
+    "crates/provenance-log",
     "crates/provenance-wasm",
 ]
 # The fuzz crate needs nightly (cargo-fuzz/libFuzzer); keeping it out of the

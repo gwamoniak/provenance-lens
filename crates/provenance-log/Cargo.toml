@@ -1,0 +1,24 @@
+[package]
+name = "provenance-log"
+description = "Transparency-log core and the plog tool for the git-backed registry pilot (registry plan, G2a)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "plog"
+path = "src/bin/plog.rs"
+
+# G2a dependencies (registry plan Decision Log): every crate here is already
+# in the dependency tree via c2pa / the cert-policy dev-deps — no new
+# supply-chain surface. NOTE: this crate's verification primitives enter the
+# cryptography sign-off perimeter when G3's client starts consuming them.
+[dependencies]
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+ed25519-dalek = { version = "2.2", default-features = false, features = ["alloc"] }
+getrandom = "0.2"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+provenance-core = { path = "../provenance-core" }
+sha2 = "0.10"
