@@ -18,7 +18,9 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 - [x] (2026-08-11) Checked the European Commission's Article 50 timing and the role of the Code of Practice on marking and detection of AI-generated content.
 - [x] (2026-08-11) Audited the current core, CLI, WASM wrapper, extension, tests, trust bundle, manual, and pinned `c2pa` 0.89.3 source against Claude's file and text marking paths.
 - [x] (2026-08-11) Authored this implementation plan on branch `codex/claude-content-marks-plan`; no product behavior has changed.
-- [ ] C0 — Maintainer accepts this plan and supplies or authorizes collection of genuine, non-sensitive Claude specimens from supported surfaces.
+- [x] (2026-08-11) Maintainer opened the C0 gate with “go with C0”. Branch `codex/claude-c0-specimens` was created directly from clean `main`, then the approved plan commit was carried onto it; no temporary worktree was used.
+- [x] (2026-08-11) C0 inventory contract created at `crates/provenance-core/tests/vectors/claude/README.md` and `manifest.tsv`. Genuine specimen collection remains in progress; the available Claude browser session requires maintainer sign-in, Claude Code is organization-policy blocked, and no replacement specimen was fabricated.
+- [ ] C0 — Collect, hash, and inspect genuine, non-sensitive Claude specimens from supported surfaces. The maintainer gate is open; completion still requires at least one genuine file plus its stripped control and a recorded trust outcome.
 - [ ] C1 — Prove Claude file provenance end to end, add SVG as an explicitly supported C2PA input, and publish accurate product wording after cryptography review.
 - [ ] C2 — Open only after Anthropic publishes a usable third-party text-watermark detector contract; implement a CLI-first detector behind an explicit feature or connector and publish calibration before verdict influence.
 - [ ] C3 — After C2 is accepted, add selected-text browser verification only if its detector and privacy model fit the extension; automatic page-text scanning remains out of scope.
@@ -62,6 +64,10 @@ The observable outcome is intentionally asymmetric. For supported signed image a
   Evidence: `PROVENANCE_LENS_SYNTHID_EXECPLAN.md` and branch history for `codex/w3-synthid-context`.
   Consequence: C1 uses the generic verified credential summary. If W3-M later lands and a genuine Claude manifest contains an explicit watermark declaration, that context may appear too, but this plan never assumes it.
 
+- Observation: C0 could not collect a genuine specimen anonymously or through the installed Claude Code client. The available Claude web surface stopped at account sign-in, no authenticated Chrome or Edge browser was connected, and Claude Code 2.1.220 reported that organization policy disables subscription access and requires an API key. `c2patool` is also not installed on this machine.
+  Evidence: browser state at `https://claude.ai/login`; browser availability checks on 2026-08-11; a benign, tool-disabled, non-persistent Claude Code request returning the organization-policy message before any model response; and `Get-Command c2patool` returning no command. Authentication output was reduced to non-identifying status fields; no credentials or API keys were read.
+  Consequence: the inventory schema and safe collection procedure were completed while the maintainer signs in or supplies raw exports. C0 remains open; public samples, fake vendor strings, and locally signed lookalikes are not substituted for genuine Claude bytes. Independent `c2patool` inspection remains optional and requires separate maintainer approval to install.
+
 ## Decision Log
 
 - Decision: Treat signed file provenance and embedded text watermarking as separate evidence sources with separate gates.
@@ -95,6 +101,10 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 - Decision: For an online future detector, raw text upload is opt-in per use, never part of automatic page scanning, and never performed from `provenance-core`. A local detector is preferred if Anthropic publishes one under usable terms.
   Rationale: the core is sans-I/O, and text can be more sensitive than the image bytes the current privacy policy promises never to upload. A remote design requires explicit consent, endpoint disclosure, retention documentation, error handling, and store-policy review.
   Date/Author: 2026-08-11 / planning session.
+
+- Decision: ACCEPTED — open C0 and authorize collection of benign, publishable Claude specimens under the plan's raw-byte, hashing, privacy, and trust rules.
+  Rationale: the maintainer explicitly directed “go with C0” after pushing the approved plan branch. This opens specimen work only; C1 verifier changes and C2 text detection retain their own gates.
+  Date/Author: 2026-08-11 / maintainer (gwamoniak).
 
 ## Outcomes & Retrospective
 
@@ -296,3 +306,5 @@ Any local model or SDK is opt-in, version-pinned, license-recorded, checksum-ver
 ---
 
 Revision note (2026-08-11, planning session): initial plan authored from Anthropic's official content-marking article and a source-level audit of Provenance Lens. The principal revision to the roadmap is the split between specimen-gated generic C2PA file support (C1) and vendor-documentation-gated text detection (C2), with SVG identified as the immediate proven format gap.
+
+Revision note (2026-08-11, C0 session): recorded the maintainer's C0 approval, the branch boundary, the specimen inventory contract, and the authenticated-session blocker. C0 remains open until genuine raw Claude bytes and a stripped control are hashed and inspected.
