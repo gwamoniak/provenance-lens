@@ -100,6 +100,19 @@ The shipped CLI again returned exit 20, `Inconclusive`, and C2PA `not_evaluated`
 * `raw/flower-2-tulip-labeled.svg`: 771 bytes; SHA-256 `fa1d0c60522359b7afd5d1d6222fc86286a1c3a084b3025f99ca61edff6a1193`.
 * `raw/flower-3-sunflower-labeled.svg`: 1,313 bytes; SHA-256 `369c0aeedb76121baaca70412e3fc3290a442b268718c62f36b389ce90bb33b7`.
 
+### Claude self-report and interpretation
+
+After inspection, the maintainer supplied a Claude reply saying that these SVGs contain no C2PA manifest, that Claude could not inject a genuine signing credential in that interaction, and that the visible disclosure and plain `<metadata>` value are only lightweight non-cryptographic markers. Those statements accurately describe the preserved bytes and agree with both Provenance Lens inspection paths.
+
+Two broader parts of the reply are not accepted as authoritative product or SDK facts:
+
+* C2PA creation and C2PA trust are separate questions. Development credentials can create a signed manifest that validates cryptographically but is reported as untrusted. A conforming production generator needs an appropriate signing certificate whose chain reaches a trust anchor accepted by the verifier. Therefore “not trusted by the production list” is not the same as “cannot be signed,” and a locally trusted test certificate must never be described as Anthropic provenance.
+* SVG embedding is specified by C2PA and is supported by the project's pinned `c2pa` library for reading and building. Current upstream `c2pa-rs` also lists `svg` / `image/svg+xml` as supported. The relevant project gap is automatic SVG admission in the shipped CLI, not an absent or merely hypothetical SVG format implementation.
+
+Authoritative references are Anthropic's [content-marking support article](https://support.claude.com/en/articles/16266773-how-claude-marks-ai-generated-content), the C2PA specification's [SVG embedding rules](https://spec.c2pa.org/specifications/specifications/2.4/specs/C2PA_Specification.html#_embedding_manifests_into_svg), upstream `c2pa-rs` [supported formats](https://github.com/contentauth/c2pa-rs/blob/main/docs/supported-formats.md), and the CAI guidance for [test certificates](https://opensource.contentauthenticity.org/docs/signing/test-certs/) and [production signing certificates](https://opensource.contentauthenticity.org/docs/signing/get-cert/). Anthropic's article says supported output types can include SVG while availability varies by platform and feature. The Claude reply is therefore recorded as surface-specific collection context, not as a contradiction of Anthropic's platform documentation.
+
+Converting these files to PNG and signing the result locally would test PNG ingestion, manifest construction, and trust policy. It would prove only that the local signer processed and declared the converted file; it would not prove that Anthropic signed it or that Claude authored the SVG. Such a file may be created later as a clearly labelled generic C1 conformance vector, but it cannot satisfy C0's genuine positive Claude-specimen gate.
+
 ## Validation
 
 The catalogue was parsed as ten tab-separated columns, every `raw/` filename had exactly one row, and every recorded SHA-256 matched the working bytes. The repository's `.gitattributes` marks only this raw directory `-text`; after re-staging, every index blob ID exactly matched `git hash-object --no-filters` for its source, proving Git did not normalize line endings. `cargo fmt -p provenance-core -- --check` passed. Targeted clippy for `claude_svg_compat` and `inspect_with_mime` passed with `-D warnings`. `cargo test -p provenance-core` passed all 41 tests, including the three SVG compatibility tests and the existing vector/wording/certificate-policy suites.

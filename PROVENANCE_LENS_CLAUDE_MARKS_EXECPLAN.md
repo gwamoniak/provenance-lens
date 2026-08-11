@@ -22,6 +22,7 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 - [x] (2026-08-11) C0 inventory contract created at `crates/provenance-core/tests/vectors/claude/README.md` and `manifest.tsv`. Genuine specimen collection remains in progress; the available Claude browser session requires maintainer sign-in, Claude Code is organization-policy blocked, and no replacement specimen was fabricated.
 - [x] (2026-08-11) Three maintainer-supplied flower SVG candidates preserved byte-identically and catalogued. The shipped CLI returned C2PA `not_evaluated` because it does not admit SVG; the pinned reader with explicit `image/svg+xml` returned `no_signal` for all three. They are useful negative compatibility specimens but contain no manifest, so C0's positive-file and stripped-control acceptance gate remains open. Surface/model/acquisition facts are pending maintainer confirmation. Validation: all recorded hashes match; targeted clippy clean; all 40 `provenance-core` tests green including two new compatibility tests.
 - [x] (2026-08-11) Regenerated flower batch preserved with its `files2.zip` acquisition envelope. Claude explicitly added ordinary `<metadata>AI-generated image</metadata>` and visible `AI-generated` text. Hashes of all three archive entries match the separately supplied files; explicit-MIME C2PA inspection still returns `no_signal` and no credentials. A regression test pins that editable AI-generated labels never become C2PA proof.
+- [x] (2026-08-11) Recorded Claude's maintainer-supplied explanation of the unsigned files. Its file-specific conclusion matches inspection, but its general claims were bounded against primary documentation: SVG embedding is already specified and supported by the pinned SDK, and creating a development-signed manifest is distinct from earning production trust. Locally signing or converting the files cannot satisfy the genuine Anthropic-signed specimen gate.
 - [ ] C0 — Collect, hash, and inspect genuine, non-sensitive Claude specimens from supported surfaces. The maintainer gate is open; completion still requires at least one genuine file plus its stripped control and a recorded trust outcome.
 - [ ] C1 — Prove Claude file provenance end to end, add SVG as an explicitly supported C2PA input, and publish accurate product wording after cryptography review.
 - [ ] C2 — Open only after Anthropic publishes a usable third-party text-watermark detector contract; implement a CLI-first detector behind an explicit feature or connector and publish calibration before verdict influence.
@@ -78,6 +79,10 @@ The observable outcome is intentionally asymmetric. For supported signed image a
   Evidence: `files2.zip` and the three `*-labeled.svg` hashes, exact two-line diffs, explicit-MIME inspection, and `editable_ai_generated_labels_do_not_become_c2pa_proof`.
   Consequence: plain producer self-declarations are useful context but cannot affect the proof verdict. Provenance Lens must not map arbitrary SVG metadata text to `Indication` or `Verified`; only a defined, independently evaluated evidence source may do so.
 
+- Observation: Claude's follow-up correctly described these six SVGs as unsigned but overgeneralized from the interaction by saying SVG C2PA support is unavailable or only prospective and that C2PA signing inherently requires a C2PA-approved issuer. The C2PA specification defines SVG embedding, upstream and pinned `c2pa-rs` support SVG, and the SDK provides non-production test credentials; production trust is a separate policy result.
+  Evidence: the maintainer-supplied Claude reply; C2PA 2.4 SVG embedding rules; upstream `docs/supported-formats.md`; pinned `c2pa-0.89.3/src/asset_handlers/svg_io.rs`; and CAI signing-certificate guidance.
+  Consequence: model self-report is retained as acquisition context but does not override primary specifications, SDK behavior, or Anthropic's official cross-platform article. C1 can use a clearly identified development-signed SVG to prove generic format handling, while only a directly exported Anthropic-signed file can establish Claude interoperability.
+
 ## Decision Log
 
 - Decision: Treat signed file provenance and embedded text watermarking as separate evidence sources with separate gates.
@@ -87,6 +92,10 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 - Decision: Keep Claude file handling vendor-neutral. Do not infer Claude involvement by matching `issuer`, `claim_generator`, certificate subject, filename, metadata strings, or model names.
   Rationale: strings are forgeable and C2PA already gives us the correct trust and integrity mechanism. If a trusted manifest names Claude or an Anthropic tool, the UI may display that signed claim verbatim through `CredentialSummary`; it must not create a stronger conclusion.
   Date/Author: 2026-08-11 / planning session.
+
+- Decision: Do not locally sign or convert a maintainer-supplied Claude specimen and then count it as positive Claude evidence.
+  Rationale: a new signature authenticates the local signer and its declarations, not the original producer. Such derivatives are useful only as explicitly labelled generic conformance vectors or transformation controls.
+  Date/Author: 2026-08-11 / C0 specimen session.
 
 - Decision: A future positive Claude text-watermark result has an `Indication` ceiling. It means that a supported detector found a Claude mark consistent with Claude processing the passage; it does not prove original authorship or exclude later editing.
   Rationale: this follows Anthropic's own limitation language and the project's rule that only Layer 1 C2PA may return `Proof`.
@@ -322,3 +331,5 @@ Revision note (2026-08-11, C0 session): recorded the maintainer's C0 approval, t
 Revision note (2026-08-11, C0 SVG inspection): catalogued three maintainer-supplied flower SVG candidates as negative compatibility specimens. The pinned library supports the container when explicitly hinted, but the files contain no C2PA manifest. Added a repeatable MIME-aware inspection helper and tests without changing production behavior.
 
 Revision note (2026-08-11, C0 labeled SVG inspection): preserved Claude's regenerated archive and labeled SVGs. Recorded that ordinary metadata and visible disclosure remain unsigned self-declarations, extended the compatibility tests, and left the positive signed-file gate open.
+
+Revision note (2026-08-11, Claude self-report review): accepted the reply's description of the preserved bytes, corrected its broader SVG-support and certificate-trust claims against primary sources, and prohibited locally signed derivatives from satisfying the genuine Claude specimen gate.
