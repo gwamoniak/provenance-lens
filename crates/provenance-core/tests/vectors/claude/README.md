@@ -4,7 +4,9 @@ This directory is the C0 compatibility inventory for `PROVENANCE_LENS_CLAUDE_MAR
 
 ## Current status
 
-C0 was approved by the maintainer on 2026-08-11 with “go with C0”. Genuine specimen collection is in progress on branch `codex/claude-c0-specimens`. At the time this file was created, the available Claude web session required the maintainer to sign in. Claude Code 2.1.220 reported an authenticated first-party `claude.ai` account, but the organization policy disabled subscription access from Claude Code and required an API key; no key was requested or inspected. No substitute, fabricated Anthropic assertion, converted download, or unrelated public file is accepted as a genuine specimen.
+C0 was approved by the maintainer on 2026-08-11 with “go with C0”. Genuine specimen collection is in progress on branch `codex/claude-c0-specimens`. The maintainer then supplied three SVG candidates: daisy, tulip, and sunflower. Their byte-identical corpus copies and hashes are recorded below. The exact Claude surface, model identifier, generation time, and acquisition method still require maintainer confirmation, so those catalogue fields remain explicitly unknown rather than inferred.
+
+The available Claude web session required the maintainer to sign in. Claude Code 2.1.220 reported an authenticated first-party `claude.ai` account, but the organization policy disabled subscription access from Claude Code and required an API key; no key was requested or inspected. No substitute, fabricated Anthropic assertion, converted download, or unrelated public file is accepted as a genuine positive specimen.
 
 The local machine does not currently have `c2patool` installed. The production `lens` CLI and the pinned `c2pa` Rust library remain the required inspection path. `c2patool --info` and `c2patool --certs` are optional independent cross-checks if the maintainer separately approves installing the tool.
 
@@ -53,4 +55,36 @@ Record the tool version, validation statuses, active-manifest label, assertion l
 
 ## Inspection record
 
-No genuine specimen has been recorded yet. Replace this sentence with one subsection per immutable raw specimen after collection. Each subsection must link to its `manifest.tsv` row and include the exact command transcript or a checked-in, redaction-safe transcript file.
+### Shared result for the three flower SVG candidates
+
+The originals were supplied at `docs/flower-1-daisy.svg`, `docs/flower-2-tulip.svg`, and `docs/flower-3-sunflower.svg`. Each was hashed before parsing. The files were then moved into this directory's `raw/` corpus after byte-for-byte hash verification; the `docs/` staging copies were removed to avoid committing duplicates. All three parse as well-formed XML with root element `svg`, namespace `http://www.w3.org/2000/svg`, and `viewBox="0 0 100 100"`. A case-insensitive byte search found no `c2pa`, `manifest`, `jumbf`, `metadata`, `xmp`, `anthropic`, `claude`, `claim_generator`, or `trainedAlgorithmicMedia` string.
+
+The shipped CLI was run unchanged with the production trust bundle:
+
+    cargo run -q -p provenance-cli -- verify --json --trust-anchors extension/trust/anchors.pem crates/provenance-core/tests/vectors/claude/raw/flower-1-daisy.svg
+    cargo run -q -p provenance-cli -- verify --json --trust-anchors extension/trust/anchors.pem crates/provenance-core/tests/vectors/claude/raw/flower-2-tulip.svg
+    cargo run -q -p provenance-cli -- verify --json --trust-anchors extension/trust/anchors.pem crates/provenance-core/tests/vectors/claude/raw/flower-3-sunflower.svg
+
+Each command returned exit 20 and `Inconclusive`. The C2PA finding was `not_evaluated` with detail `unrecognized media type; cannot locate a manifest store`, proving the current CLI does not admit SVG by filename or sniffing.
+
+The pinned library was then exercised through the developer-only `inspect_with_mime` example, passing `image/svg+xml` explicitly:
+
+    cargo run -q -p provenance-core --example inspect_with_mime -- crates/provenance-core/tests/vectors/claude/raw/flower-1-daisy.svg image/svg+xml extension/trust/anchors.pem
+    cargo run -q -p provenance-core --example inspect_with_mime -- crates/provenance-core/tests/vectors/claude/raw/flower-2-tulip.svg image/svg+xml extension/trust/anchors.pem
+    cargo run -q -p provenance-core --example inspect_with_mime -- crates/provenance-core/tests/vectors/claude/raw/flower-3-sunflower.svg image/svg+xml extension/trust/anchors.pem
+
+The pinned C2PA reader successfully evaluated the SVG container in all three cases and returned `no_signal`: no manifest store is present. The combined verdict remained `Inconclusive`. There is therefore no active-manifest label, assertion inventory, signer certificate, certificate fingerprint, or trust-chain outcome to record for these files. Adding SVG admission in C1 will change the C2PA sub-state from `not_evaluated` to `no_signal` for these exact bytes, but it cannot turn them into cryptographic proof.
+
+Because the candidates contain no manifest, creating a “metadata-stripped” derivative would be meaningless: there is no metadata signal to strip. They are retained as genuine negative compatibility specimens. C0's positive acceptance gate remains open until a directly exported Claude file with a manifest is supplied and a stripped control can be derived from it.
+
+Individual immutable facts:
+
+* `raw/flower-1-daisy.svg`: 900 bytes; SHA-256 `83154a25b465f96e229554f7434679a37c16a2322b111992742f64e5105a2230`.
+* `raw/flower-2-tulip.svg`: 612 bytes; SHA-256 `c1e4cd83a949dd4f1fbd2f38a8f33b61eece30818359054231b1872c7fdba5f2`.
+* `raw/flower-3-sunflower.svg`: 1,154 bytes; SHA-256 `269b31a4325a351293fc650bb521bd2423d995854d52347b060b01c4712e0e3e`.
+
+## Validation
+
+The catalogue was parsed as ten tab-separated columns, every `raw/` filename had exactly one row, and every recorded SHA-256 matched the working bytes. The repository's `.gitattributes` marks only this raw directory `-text`; after re-staging, every index blob ID exactly matched `git hash-object --no-filters` for its source, proving Git did not normalize line endings. `cargo fmt -p provenance-core -- --check` passed. Targeted clippy for `claude_svg_compat` and `inspect_with_mime` passed with `-D warnings`. `cargo test -p provenance-core` passed all 40 tests, including the two new SVG compatibility tests and the existing vector/wording/certificate-policy suites.
+
+`cargo clippy -p provenance-core --all-targets -- -D warnings` still fails on pre-existing `unused_mut` warnings in `examples/calibrate.rs:36` and `examples/measure_fpr.rs:37`. C0 does not edit those unrelated calibration tools. The targeted C0 clippy surfaces are clean, and the complete core test run merely prints those two existing warnings while passing.

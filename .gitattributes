@@ -1,0 +1,2 @@
+# Externally supplied provenance specimens must survive checkout byte-for-byte.
+crates/provenance-core/tests/vectors/claude/raw/* -text
