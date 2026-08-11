@@ -21,6 +21,7 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 - [x] (2026-08-11) Maintainer opened the C0 gate with “go with C0”. Branch `codex/claude-c0-specimens` was created directly from clean `main`, then the approved plan commit was carried onto it; no temporary worktree was used.
 - [x] (2026-08-11) C0 inventory contract created at `crates/provenance-core/tests/vectors/claude/README.md` and `manifest.tsv`. Genuine specimen collection remains in progress; the available Claude browser session requires maintainer sign-in, Claude Code is organization-policy blocked, and no replacement specimen was fabricated.
 - [x] (2026-08-11) Three maintainer-supplied flower SVG candidates preserved byte-identically and catalogued. The shipped CLI returned C2PA `not_evaluated` because it does not admit SVG; the pinned reader with explicit `image/svg+xml` returned `no_signal` for all three. They are useful negative compatibility specimens but contain no manifest, so C0's positive-file and stripped-control acceptance gate remains open. Surface/model/acquisition facts are pending maintainer confirmation. Validation: all recorded hashes match; targeted clippy clean; all 40 `provenance-core` tests green including two new compatibility tests.
+- [x] (2026-08-11) Regenerated flower batch preserved with its `files2.zip` acquisition envelope. Claude explicitly added ordinary `<metadata>AI-generated image</metadata>` and visible `AI-generated` text. Hashes of all three archive entries match the separately supplied files; explicit-MIME C2PA inspection still returns `no_signal` and no credentials. A regression test pins that editable AI-generated labels never become C2PA proof.
 - [ ] C0 — Collect, hash, and inspect genuine, non-sensitive Claude specimens from supported surfaces. The maintainer gate is open; completion still requires at least one genuine file plus its stripped control and a recorded trust outcome.
 - [ ] C1 — Prove Claude file provenance end to end, add SVG as an explicitly supported C2PA input, and publish accurate product wording after cryptography review.
 - [ ] C2 — Open only after Anthropic publishes a usable third-party text-watermark detector contract; implement a CLI-first detector behind an explicit feature or connector and publish calibration before verdict influence.
@@ -72,6 +73,10 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 - Observation: The first real Claude SVG candidates are structurally valid but unsigned. With no MIME hint, Provenance Lens reports that C2PA was not evaluated; with `image/svg+xml`, the pinned C2PA reader evaluates them and reports no manifest store.
   Evidence: the three hashes and command transcripts in `crates/provenance-core/tests/vectors/claude/README.md`, pinned by `tests/claude_svg_compat.rs`.
   Consequence: C1's SVG admission work remains justified, because it changes “did not look” to “looked, found no manifest.” It will not, by itself, verify these Claude outputs. Availability truly varies by surface or export path, exactly as Anthropic's article warns; C0 still needs a positive signed export before any product support claim.
+
+- Observation: Asking Claude to label its SVG output produced a visible caption and a normal `<metadata>` element, not signed provenance. The regenerated archive and files are byte-distinct but still have no C2PA manifest or credentials.
+  Evidence: `files2.zip` and the three `*-labeled.svg` hashes, exact two-line diffs, explicit-MIME inspection, and `editable_ai_generated_labels_do_not_become_c2pa_proof`.
+  Consequence: plain producer self-declarations are useful context but cannot affect the proof verdict. Provenance Lens must not map arbitrary SVG metadata text to `Indication` or `Verified`; only a defined, independently evaluated evidence source may do so.
 
 ## Decision Log
 
@@ -315,3 +320,5 @@ Revision note (2026-08-11, planning session): initial plan authored from Anthrop
 Revision note (2026-08-11, C0 session): recorded the maintainer's C0 approval, the branch boundary, the specimen inventory contract, and the authenticated-session blocker. C0 remains open until genuine raw Claude bytes and a stripped control are hashed and inspected.
 
 Revision note (2026-08-11, C0 SVG inspection): catalogued three maintainer-supplied flower SVG candidates as negative compatibility specimens. The pinned library supports the container when explicitly hinted, but the files contain no C2PA manifest. Added a repeatable MIME-aware inspection helper and tests without changing production behavior.
+
+Revision note (2026-08-11, C0 labeled SVG inspection): preserved Claude's regenerated archive and labeled SVGs. Recorded that ordinary metadata and visible disclosure remain unsigned self-declarations, extended the compatibility tests, and left the positive signed-file gate open.

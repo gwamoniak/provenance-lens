@@ -5,10 +5,19 @@
 
 use provenance_core::{Asset, LayerFinding, Pipeline, Verdict};
 
-const SVG_CANDIDATES: [&[u8]; 3] = [
+const SVG_CANDIDATES: [&[u8]; 6] = [
     include_bytes!("vectors/claude/raw/flower-1-daisy.svg"),
     include_bytes!("vectors/claude/raw/flower-2-tulip.svg"),
     include_bytes!("vectors/claude/raw/flower-3-sunflower.svg"),
+    include_bytes!("vectors/claude/raw/flower-1-daisy-labeled.svg"),
+    include_bytes!("vectors/claude/raw/flower-2-tulip-labeled.svg"),
+    include_bytes!("vectors/claude/raw/flower-3-sunflower-labeled.svg"),
+];
+
+const LABELED_CANDIDATES: [&[u8]; 3] = [
+    include_bytes!("vectors/claude/raw/flower-1-daisy-labeled.svg"),
+    include_bytes!("vectors/claude/raw/flower-2-tulip-labeled.svg"),
+    include_bytes!("vectors/claude/raw/flower-3-sunflower-labeled.svg"),
 ];
 
 fn c2pa_finding(report: &provenance_core::Report) -> &LayerFinding {
@@ -46,5 +55,22 @@ fn current_hint_free_path_does_not_admit_svg() {
             LayerFinding::NotEvaluated { reason }
                 if reason == "unrecognized media type; cannot locate a manifest store"
         ));
+    }
+}
+
+#[test]
+fn editable_ai_generated_labels_do_not_become_c2pa_proof() {
+    for bytes in LABELED_CANDIDATES {
+        let text = std::str::from_utf8(bytes).expect("the SVG fixtures are UTF-8 XML");
+        assert!(text.contains("<metadata>AI-generated image</metadata>"));
+        assert!(text.contains(">AI-generated</text>"));
+
+        let report = Pipeline::standard().examine(&Asset {
+            bytes,
+            media_type: Some("image/svg+xml"),
+        });
+        assert_eq!(report.verdict, Verdict::Inconclusive);
+        assert_eq!(c2pa_finding(&report), &LayerFinding::NoSignal);
+        assert!(report.credentials.is_none());
     }
 }

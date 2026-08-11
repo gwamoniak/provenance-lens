@@ -1,0 +1,13 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <metadata>AI-generated image</metadata>
+  <rect x="47" y="55" width="4" height="35" fill="#3a8a3a"/>
+  <path d="M49,80 Q30,75 25,60 Q40,65 49,80" fill="#4caf50"/>
+  <path d="M49,85 Q68,80 73,65 Q58,70 49,85" fill="#4caf50"/>
+  <g transform="translate(49,45)">
+    <path d="M0,-30 C-14,-25 -14,5 0,15 C14,5 14,-25 0,-30 Z" fill="#e0457b"/>
+    <path d="M0,-25 C-7,-20 -7,3 0,10 C7,3 7,-20 0,-25 Z" fill="#f06a97"/>
+    <path d="M-8,-22 C-15,-15 -14,3 -3,12 C-10,2 -10,-15 -8,-22 Z" fill="#c8386a"/>
+    <path d="M8,-22 C15,-15 14,3 3,12 C10,2 10,-15 8,-22 Z" fill="#c8386a"/>
+  </g>
+  <text x="50" y="98" font-family="sans-serif" font-size="6" fill="#999999" text-anchor="middle">AI-generated</text>
+</svg>

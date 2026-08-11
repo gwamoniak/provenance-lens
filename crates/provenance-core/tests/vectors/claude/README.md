@@ -4,7 +4,7 @@ This directory is the C0 compatibility inventory for `PROVENANCE_LENS_CLAUDE_MAR
 
 ## Current status
 
-C0 was approved by the maintainer on 2026-08-11 with “go with C0”. Genuine specimen collection is in progress on branch `codex/claude-c0-specimens`. The maintainer then supplied three SVG candidates: daisy, tulip, and sunflower. Their byte-identical corpus copies and hashes are recorded below. The exact Claude surface, model identifier, generation time, and acquisition method still require maintainer confirmation, so those catalogue fields remain explicitly unknown rather than inferred.
+C0 was approved by the maintainer on 2026-08-11 with “go with C0”. Genuine specimen collection is in progress on branch `codex/claude-c0-specimens`. The maintainer first supplied three SVG candidates: daisy, tulip, and sunflower. Claude then regenerated them with an editable metadata tag and visible AI-generated label; the second delivery arrived in `files2.zip`, which is preserved with its extracted entries. Their byte-identical corpus copies and hashes are recorded below. The exact Claude surface, model identifier, and generation time still require maintainer confirmation, so those catalogue fields remain explicitly unknown rather than inferred.
 
 The available Claude web session required the maintainer to sign in. Claude Code 2.1.220 reported an authenticated first-party `claude.ai` account, but the organization policy disabled subscription access from Claude Code and required an API key; no key was requested or inspected. No substitute, fabricated Anthropic assertion, converted download, or unrelated public file is accepted as a genuine positive specimen.
 
@@ -83,8 +83,25 @@ Individual immutable facts:
 * `raw/flower-2-tulip.svg`: 612 bytes; SHA-256 `c1e4cd83a949dd4f1fbd2f38a8f33b61eece30818359054231b1872c7fdba5f2`.
 * `raw/flower-3-sunflower.svg`: 1,154 bytes; SHA-256 `269b31a4325a351293fc650bb521bd2423d995854d52347b060b01c4712e0e3e`.
 
+### Regenerated self-labeled batch
+
+The maintainer supplied Claude's explanation: “Updated — each SVG now has a small gray ‘AI-generated’ label in the bottom corner plus an `<metadata>` tag.” The acquisition envelope `raw/files2.zip` is 1,533 bytes with SHA-256 `ea3cd47f403919b372b31a8aa35b34b66331fe84916550340502d601ed6ae9c1`. Its three entries match the separately supplied regenerated SVG bytes exactly.
+
+Relative to the first batch, each regenerated file adds only these two lines:
+
+    <metadata>AI-generated image</metadata>
+    <text x="50" y="98" font-family="sans-serif" font-size="6" fill="#999999" text-anchor="middle">AI-generated</text>
+
+The first line is ordinary, unsigned SVG metadata; the second is ordinary visible artwork. Either can be added, removed, or changed by anyone. Neither is a C2PA manifest, signature, hard binding, certificate chain, or embedded text-watermark detector result. The files remain valuable negative specimens because they pin the distinction between a producer's editable self-declaration and cryptographic provenance.
+
+The shipped CLI again returned exit 20, `Inconclusive`, and C2PA `not_evaluated` because it does not yet admit SVG. The pinned reader with explicit `image/svg+xml` evaluated each container and returned `no_signal`; no credentials were present. Individual facts:
+
+* `raw/flower-1-daisy-labeled.svg`: 1,059 bytes; SHA-256 `eafd1fed7428dc9d725ef1c54a0f8ccba8361786e75485442975b4aa143674a6`.
+* `raw/flower-2-tulip-labeled.svg`: 771 bytes; SHA-256 `fa1d0c60522359b7afd5d1d6222fc86286a1c3a084b3025f99ca61edff6a1193`.
+* `raw/flower-3-sunflower-labeled.svg`: 1,313 bytes; SHA-256 `369c0aeedb76121baaca70412e3fc3290a442b268718c62f36b389ce90bb33b7`.
+
 ## Validation
 
-The catalogue was parsed as ten tab-separated columns, every `raw/` filename had exactly one row, and every recorded SHA-256 matched the working bytes. The repository's `.gitattributes` marks only this raw directory `-text`; after re-staging, every index blob ID exactly matched `git hash-object --no-filters` for its source, proving Git did not normalize line endings. `cargo fmt -p provenance-core -- --check` passed. Targeted clippy for `claude_svg_compat` and `inspect_with_mime` passed with `-D warnings`. `cargo test -p provenance-core` passed all 40 tests, including the two new SVG compatibility tests and the existing vector/wording/certificate-policy suites.
+The catalogue was parsed as ten tab-separated columns, every `raw/` filename had exactly one row, and every recorded SHA-256 matched the working bytes. The repository's `.gitattributes` marks only this raw directory `-text`; after re-staging, every index blob ID exactly matched `git hash-object --no-filters` for its source, proving Git did not normalize line endings. `cargo fmt -p provenance-core -- --check` passed. Targeted clippy for `claude_svg_compat` and `inspect_with_mime` passed with `-D warnings`. `cargo test -p provenance-core` passed all 41 tests, including the three SVG compatibility tests and the existing vector/wording/certificate-policy suites.
 
 `cargo clippy -p provenance-core --all-targets -- -D warnings` still fails on pre-existing `unused_mut` warnings in `examples/calibrate.rs:36` and `examples/measure_fpr.rs:37`. C0 does not edit those unrelated calibration tools. The targeted C0 clippy surfaces are clean, and the complete core test run merely prints those two existing warnings while passing.
