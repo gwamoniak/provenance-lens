@@ -53,7 +53,12 @@ createServer((req, res) => {
     res.end("not found");
     return;
   }
-  const headers = { "content-type": name.endsWith(".png") ? "image/png" : "image/jpeg" };
+  const contentType = name.endsWith(".png")
+    ? "image/png"
+    : name.endsWith(".svg")
+      ? "image/svg+xml"
+      : "image/jpeg";
+  const headers = { "content-type": contentType };
   if (!noCors) headers["access-control-allow-origin"] = "*";
   res.writeHead(200, headers);
   res.end(readFileSync(new URL(name, vectors)));

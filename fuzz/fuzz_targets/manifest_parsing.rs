@@ -7,8 +7,10 @@
 //!
 //!     cargo +nightly fuzz run manifest_parsing fuzz/corpus fuzz/corpus_seed
 //!
-//! `fuzz/corpus_seed/` holds the committed vector corpus as read-only
-//! seeds; the first directory (`fuzz/corpus/`, gitignored) is where
+//! Every input is exercised both through normal binary sniffing and through
+//! the explicit SVG MIME path, so the XML-backed SVG handler receives hostile
+//! bytes too. `fuzz/corpus_seed/` holds the committed vector corpus as
+//! read-only seeds; the first directory (`fuzz/corpus/`, gitignored) is where
 //! libFuzzer accumulates its evolved corpus — never point the run at
 //! `corpus_seed` alone or the generated inputs land in the seed dir.
 //!
@@ -26,14 +28,16 @@ use libfuzzer_sys::fuzz_target;
 use provenance_core::{Asset, LayerFinding, Pipeline};
 
 fuzz_target!(|data: &[u8]| {
-    let report = Pipeline::standard().examine(&Asset {
-        bytes: data,
-        media_type: None,
-    });
-    for (name, finding) in &report.findings {
-        assert!(
-            !matches!(finding, LayerFinding::Proof { .. }),
-            "layer {name} minted a Proof with no trust anchors configured"
-        );
+    for media_type in [None, Some("image/svg+xml")] {
+        let report = Pipeline::standard().examine(&Asset {
+            bytes: data,
+            media_type,
+        });
+        for (name, finding) in &report.findings {
+            assert!(
+                !matches!(finding, LayerFinding::Proof { .. }),
+                "layer {name} minted a Proof with no trust anchors configured"
+            );
+        }
     }
 });

@@ -23,8 +23,12 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 - [x] (2026-08-11) Three maintainer-supplied flower SVG candidates preserved byte-identically and catalogued. The shipped CLI returned C2PA `not_evaluated` because it does not admit SVG; the pinned reader with explicit `image/svg+xml` returned `no_signal` for all three. They are useful negative compatibility specimens but contain no manifest, so C0's positive-file and stripped-control acceptance gate remains open. Surface/model/acquisition facts are pending maintainer confirmation. Validation: all recorded hashes match; targeted clippy clean; all 40 `provenance-core` tests green including two new compatibility tests.
 - [x] (2026-08-11) Regenerated flower batch preserved with its `files2.zip` acquisition envelope. Claude explicitly added ordinary `<metadata>AI-generated image</metadata>` and visible `AI-generated` text. Hashes of all three archive entries match the separately supplied files; explicit-MIME C2PA inspection still returns `no_signal` and no credentials. A regression test pins that editable AI-generated labels never become C2PA proof.
 - [x] (2026-08-11) Recorded Claude's maintainer-supplied explanation of the unsigned files. Its file-specific conclusion matches inspection, but its general claims were bounded against primary documentation: SVG embedding is already specified and supported by the pinned SDK, and creating a development-signed manifest is distinct from earning production trust. Locally signing or converting the files cannot satisfy the genuine Anthropic-signed specimen gate.
+- [x] (2026-08-13) Maintainer directed “continue with upgrading and new feature implementation.” Interpreted as authorization for vendor-neutral C1 SVG plumbing and the C2PA SDK upgrade while preserving the unmet genuine Anthropic-signed specimen gate. Branch `codex/claude-c1-svg-support` was created directly from clean, current `main`, then fast-forwarded to the reviewed C0 records; no temporary worktree was used.
+- [x] (2026-08-13) C2PA upgraded from the 0.89.x line to 0.90.13. The existing API compiled unchanged; certificate expiry/algorithm policy tests, ordinary JPEG/PNG C2PA tests, and the conservative trust mapping remained green. Direct dependencies removed `mp4`, patched `id3`, and moved `sha1` to 0.11. The known SaltHash underflow uses checked subtraction, so the scheduled fuzz smoke is now enforcing; the broad panic guard remains defense in depth. Human cryptography sign-off is still required before merge.
+- [x] (2026-08-13) Generic SVG implementation complete: `.svg` supplies `image/svg+xml` case-insensitively; unlabelled XML remains unsniffed; the self-verifying corpus grew from eight to eleven vectors with signed/unsigned/post-signing-edited SVG; native/WASM parity, the rebuilt WebAssembly artifact, and explicit hostile-SVG tests pass; fuzzing now exercises both sniffed input and the explicit SVG parser path. All six Claude specimens now reach C2PA `no_signal` through the production CLI.
+- [x] (2026-08-13) Local fuzz validation reached the known Windows tooling boundary recorded in the wedge plan: the ASAN target compiled but could not launch because `clang_rt.asan_dynamic-x86_64.dll` is absent; `--sanitizer none` then reproduced the documented MSVC `__start_/__stop___sancov_*` link failure. No workaround or machine mutation was introduced. The stable workspace/hostile-input suites are green, and the Ubuntu CI fuzz smoke is enforcing for the merge review.
 - [ ] C0 — Collect, hash, and inspect genuine, non-sensitive Claude specimens from supported surfaces. The maintainer gate is open; completion still requires at least one genuine file plus its stripped control and a recorded trust outcome.
-- [ ] C1 — Prove Claude file provenance end to end, add SVG as an explicitly supported C2PA input, and publish accurate product wording after cryptography review.
+- [ ] C1 — Generic SVG/C2PA implementation and conservative product wording are complete on the implementation branch. Completion remains blocked on a genuine Anthropic-signed positive specimen and the maintainer's cryptography sign-off; the branch does not claim Claude interoperability from locally signed vectors.
 - [ ] C2 — Open only after Anthropic publishes a usable third-party text-watermark detector contract; implement a CLI-first detector behind an explicit feature or connector and publish calibration before verdict influence.
 - [ ] C3 — After C2 is accepted, add selected-text browser verification only if its detector and privacy model fit the extension; automatic page-text scanning remains out of scope.
 - [ ] C4 — Complete cross-surface documentation, compatibility fixtures, release checks, and the final capability matrix.
@@ -83,6 +87,10 @@ The observable outcome is intentionally asymmetric. For supported signed image a
   Evidence: the maintainer-supplied Claude reply; C2PA 2.4 SVG embedding rules; upstream `docs/supported-formats.md`; pinned `c2pa-0.89.3/src/asset_handlers/svg_io.rs`; and CAI signing-certificate guidance.
   Consequence: model self-report is retained as acquisition context but does not override primary specifications, SDK behavior, or Anthropic's official cross-platform article. C1 can use a clearly identified development-signed SVG to prove generic format handling, while only a directly exported Anthropic-signed file can establish Claude interoperability.
 
+- Observation: The registry advanced from the project's resolved `c2pa` 0.89.3 to 0.90.13 before C1 started. Releases in this line include the SaltHash checked-subtraction fix, out-of-range GeneralizedTime panic handling, and validation of `inputTo` ingredient manifests against tampering. The older automated `bump-c2pa-0.90.7` branch is therefore superseded by the version tested here.
+  Evidence: crates.io resolution to 0.90.13; upstream release notes for 0.90.11 and 0.90.12; local 0.90.13 source at `src/jumbf/boxes.rs` and `src/store.rs`; before/after `cargo tree -p c2pa --depth 1`; and the complete project policy/vector suite.
+  Consequence: C1 carries the newer SDK as an explicit upgrade rather than silently inheriting it. The supply-chain delta and validation behavior are part of the cryptography review packet, and no trust anchor or verdict mapping changed.
+
 ## Decision Log
 
 - Decision: Treat signed file provenance and embedded text watermarking as separate evidence sources with separate gates.
@@ -113,6 +121,14 @@ The observable outcome is intentionally asymmetric. For supported signed image a
   Rationale: SVG has no simple binary magic like PNG or JPEG. CLI filenames and browser response MIME types cover the normal Claude export path without making an unsafe content guess.
   Date/Author: 2026-08-11 / planning session.
 
+- Decision: Treat the maintainer's 2026-08-13 instruction as a go for generic C1 implementation, not as evidence that C0's genuine Anthropic-positive acceptance condition was met.
+  Rationale: useful SVG support and deterministic conformance vectors can be completed without fabricating vendor evidence. Product copy names the generic capability and the observed negative specimens while leaving positive Claude interoperability unclaimed.
+  Date/Author: 2026-08-13 / C1 implementation session.
+
+- Decision: Upgrade the C2PA SDK requirement from 0.89.2 (resolved 0.89.3) to 0.90.13, retaining `default-features = false` and `rust_native_crypto` only; keep `C2paLayer`'s panic guard.
+  Rationale: the new line fixes known parser and validation weaknesses, compiles with the existing API, removes the direct `mp4` dependency, and keeps HTTP/OpenSSL features absent. The guard remains useful defense in depth against other parser panics. This is signature-validation surface and is pending the maintainer's human cryptography sign-off before merge.
+  Date/Author: 2026-08-13 / C1 implementation session.
+
 - Decision: Trust changes remain a human cryptography-review surface. A real Claude sample can demonstrate a chain but cannot authorize its own root.
   Rationale: accepting a root bundled inside the artifact under test would make verification circular. The existing sign-off rule in `PROVENANCE_LENS_EXECPLAN.md` continues to bind C1.
   Date/Author: 2026-08-11 / planning session.
@@ -127,7 +143,7 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 
 ## Outcomes & Retrospective
 
-At plan-authoring time, no product capability was changed. The useful outcome is a bounded path that can improve Claude coverage without weakening the project's evidence model. C1 is actionable after genuine specimens and trust behavior are known. C2 is intentionally blocked on Anthropic, with objective opening conditions instead of a vague “future detector” placeholder.
+At plan-authoring time, no product capability was changed. As of 2026-08-13, generic SVG C2PA support and the SDK upgrade are implemented and validated on a dedicated branch, without a vendor heuristic or trust relaxation. The six supplied Claude SVGs remain useful negative specimens; no genuine Anthropic-signed positive has been obtained, so C1 cannot yet make or close that interoperability claim. C2 remains intentionally blocked on Anthropic, with objective opening conditions instead of a vague “future detector” placeholder.
 
 Update this section after every milestone. Record the exact specimen surfaces and models that worked, the certificate-chain result, whether SVG survived browser/CLI/WASM parity, the detector version and calibration numbers if C2 opens, and any deviation from this plan. If Anthropic's forthcoming documentation contradicts an assumption here, revise the plan before changing code.
 
@@ -279,6 +295,8 @@ The release is rejected if any of these occur: an issuer-name match changes a ve
 
 All malformed-input and hostile-content tests must terminate without panic. No new default network request is allowed. Native and WASM outputs must stay semantically identical for supported file inputs. Every edit to C2PA validation or trust handling requires the standing human cryptography review.
 
+C1 pre-review evidence (2026-08-13): `cargo test --workspace` passes the complete workspace suite, including all eleven corpus vectors, SVG hostile-input tests, certificate-policy pins, wording synchronization, and native/WASM parity. Strict Clippy passes for every touched Rust component; the workspace-wide command still stops on two pre-existing `provenance-log` lints (`unused_mut` and `manual_is_multiple_of`) outside this branch. The wasm32 target check passes, `wasm-pack build` succeeds, and `node scripts/wasm_smoke.mjs` passes all eleven vectors through the real artifact. The production CLI returns C2PA `no_signal` and exit 20 for all six Claude SVGs against the production anchors. JavaScript syntax, targeted rustfmt, `git diff --check`, and the no-HTTP/no-OpenSSL dependency-tree check pass. `cargo-audit` is not installed locally, so the advisory scheduled CI job remains the audit evidence source. The local fuzz execution limitation and enforcing Ubuntu CI fallback are recorded in Progress above.
+
 ## Idempotence and Recovery
 
 Specimen collection is append-only: preserve raw bytes, compute hashes first, and put every derived file under a clearly named `controls/` directory. Re-running inspection must not rewrite originals. If specimen terms forbid committing bytes, remove only the working copy after verifying its recorded hash and keep the test env-gated; never fabricate a replacement.
@@ -301,7 +319,7 @@ The phrase “may have been processed by Claude” is central to interpretation.
 
 ## Interfaces and Dependencies
 
-C1 should not add a runtime dependency. It uses the existing `c2pa = 0.89.3` library and extends admitted MIME hints and test vectors. If implementing SVG reveals that a dependency bump is necessary, stop, update this plan with the exact blocker and release notes, and follow the existing c2pa bump/fuzz/cryptography-review process instead of folding the bump into format support silently.
+C1 adds no new runtime dependency. The maintainer explicitly asked to continue with upgrading as well as feature implementation on 2026-08-13, so the existing `c2pa` dependency moved from the 0.89.x line to 0.90.13 in the same review branch. The Progress, Surprises, and Decision Log above record the release/security rationale, direct dependency delta, fuzz enforcement change, and pending cryptography sign-off. SVG support itself did not require the bump and remains separately proven by the vector suite.
 
 The existing file boundary remains:
 
@@ -333,3 +351,5 @@ Revision note (2026-08-11, C0 SVG inspection): catalogued three maintainer-suppl
 Revision note (2026-08-11, C0 labeled SVG inspection): preserved Claude's regenerated archive and labeled SVGs. Recorded that ordinary metadata and visible disclosure remain unsigned self-declarations, extended the compatibility tests, and left the positive signed-file gate open.
 
 Revision note (2026-08-11, Claude self-report review): accepted the reply's description of the preserved bytes, corrected its broader SVG-support and certificate-trust claims against primary sources, and prohibited locally signed derivatives from satisfying the genuine Claude specimen gate.
+
+Revision note (2026-08-13, C1 implementation): recorded the maintainer's go for generic upgrading/feature work, the clean main-based branch, c2pa 0.90.13 security upgrade, explicit SVG admission, eleven-vector corpus, SVG-aware parity/fuzzing, and the continuing positive-Claude and human-sign-off gates.

@@ -28,9 +28,9 @@ let failures = 0;
 for (const row of rows) {
   const [file, expected] = row.split("\t");
   const bytes = readFileSync(new URL(file, vectors));
-  // No content-type hint: the artifact must sniff the container (JPEG + PNG
-  // corpus since U3), same as the corpus test does natively.
-  const report = JSON.parse(verify_bytes(bytes, undefined, caPem));
+  // Raster vectors stay hint-free; SVG requires an explicit MIME hint.
+  const mediaType = file.endsWith(".svg") ? "image/svg+xml" : undefined;
+  const report = JSON.parse(verify_bytes(bytes, mediaType, caPem));
   const ok = report.verdict === expected;
   if (!ok) failures++;
   console.log(`${ok ? "PASS" : "FAIL"} ${file}: ${report.verdict} (expected ${expected})`);

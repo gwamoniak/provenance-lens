@@ -42,7 +42,7 @@ fn claude_svg_candidates_have_no_c2pa_manifest_with_explicit_mime() {
     }
 }
 #[test]
-fn current_hint_free_path_does_not_admit_svg() {
+fn core_without_mime_does_not_sniff_svg() {
     for bytes in SVG_CANDIDATES {
         let report = Pipeline::standard().examine(&Asset {
             bytes,

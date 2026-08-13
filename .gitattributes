@@ -1,2 +1,7 @@
 # Externally supplied provenance specimens must survive checkout byte-for-byte.
 crates/provenance-core/tests/vectors/claude/raw/* -text
+
+# Signed SVG fixtures are text-shaped binary evidence: newline conversion breaks
+# their C2PA hard bindings, so Git must preserve their exact bytes.
+crates/provenance-core/tests/vectors/*.svg -text
+fuzz/corpus_seed/*.svg -text

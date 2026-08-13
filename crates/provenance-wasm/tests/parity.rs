@@ -36,18 +36,19 @@ fn wrapper_matches_native_pipeline_on_every_vector() {
 
         // Both sides get identical inputs, each with and without anchors.
         for anchors in [Some(ca_pem.clone()), None] {
-            // No MIME hint on either side: parity must hold for the sniffing
-            // path too (the corpus is JPEG + PNG since U3).
+            // Raster vectors stay hint-free; SVG receives the explicit MIME
+            // hint on both sides because arbitrary XML is not sniffed.
+            let media_type = media_type_for(file);
             let native = match &anchors {
                 Some(pem) => Pipeline::with_trust_anchors(pem.as_str()),
                 None => Pipeline::standard(),
             }
             .examine(&Asset {
                 bytes: &bytes,
-                media_type: None,
+                media_type,
             });
 
-            let json = verify_bytes(&bytes, None, anchors.clone());
+            let json = verify_bytes(&bytes, media_type.map(str::to_string), anchors.clone());
             let parsed: Value = serde_json::from_str(&json).expect("wrapper emits valid JSON");
 
             assert_eq!(
@@ -109,4 +110,8 @@ fn wrapper_matches_native_pipeline_on_every_vector() {
         checked >= 5,
         "expected the full corpus, checked only {checked}"
     );
+}
+
+fn media_type_for(file: &str) -> Option<&'static str> {
+    file.ends_with(".svg").then_some("image/svg+xml")
 }

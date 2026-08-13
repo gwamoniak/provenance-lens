@@ -8,7 +8,9 @@
 //! ```
 //!
 //! Catalogue and corpus must agree bidirectionally: a row without a file or
-//! an unexpected .jpg without a row fails the suite.
+//! an unexpected supported vector without a row fails the suite. Raster
+//! vectors remain hint-free; SVG uses its explicit MIME type because arbitrary
+//! XML is intentionally not sniffed as an image.
 
 use std::path::PathBuf;
 
@@ -32,11 +34,11 @@ fn every_committed_vector_matches_its_recorded_verdict() {
         catalogued.push(file.to_string());
 
         let bytes = std::fs::read(dir.join(file)).expect("read vector file");
-        // No MIME hint on purpose: the corpus doubles as the sniffing test
-        // (U3) — every vector must reach its verdict from bytes alone.
+        // Raster vectors stay hint-free so the corpus remains their sniffing
+        // test (U3). SVG intentionally requires an explicit MIME hint.
         let report = Pipeline::with_trust_anchors(ca_pem.as_str()).examine(&Asset {
             bytes: &bytes,
-            media_type: None,
+            media_type: media_type_for(file),
         });
         let expected = match expected {
             "verified" => Verdict::Verified,
@@ -67,11 +69,15 @@ fn every_committed_vector_matches_its_recorded_verdict() {
             .file_name()
             .to_string_lossy()
             .into_owned();
-        if name.ends_with(".jpg") || name.ends_with(".png") {
+        if name.ends_with(".jpg") || name.ends_with(".png") || name.ends_with(".svg") {
             assert!(
                 catalogued.contains(&name),
                 "vector {name} on disk but not in manifest.tsv"
             );
         }
     }
+}
+
+fn media_type_for(file: &str) -> Option<&'static str> {
+    file.ends_with(".svg").then_some("image/svg+xml")
 }

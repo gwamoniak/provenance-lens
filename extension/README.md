@@ -14,6 +14,8 @@ Build the engine into `pkg/` (gitignored, never committed) — full steps and wa
 
 The engine exports `verify_bytes(bytes, mediaType?, trustAnchorsPem?)` → JSON report; the extension passes its bundled trust-anchor PEM as the third argument (M3).
 
+The worker passes the fetched response's MIME type to the engine, so C2PA-bearing SVG images are supported when the server identifies them as `image/svg+xml`; JPEG, PNG, WebP, GIF, and AVIF can also be recognized from their binary containers. Signed Claude exports follow this same generic path. If a Claude export has no C2PA manifest, the result is Inconclusive—not an authorship judgment—and the extension does not claim to detect Claude's separate text watermark.
+
 Rules for this directory (enforced in review):
 
 - Verdict wording comes verbatim from `provenance-core/src/verdict.rs` / the `verdict-language` skill — no paraphrasing in UI strings.

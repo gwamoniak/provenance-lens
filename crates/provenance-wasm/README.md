@@ -36,12 +36,14 @@ Browser / bundler:
 
     verify_bytes(bytes: Uint8Array, mediaType?: string, trustAnchorsPem?: string) -> string (JSON)
 
-- `mediaType` is an optional MIME hint (`"image/jpeg"`, …). Omit it and the engine sniffs the container (JPEG, PNG, WebP, GIF, AVIF).
+- `mediaType` is an optional MIME hint (`"image/jpeg"`, …). Omit it and the engine sniffs binary JPEG, PNG, WebP, GIF, and AVIF containers. For SVG, pass `"image/svg+xml"`; arbitrary XML is intentionally not sniffed as an image.
 - `trustAnchorsPem` is a PEM bundle of root certificates that signature chains may validate against. **Without it, nothing can verify as trusted** — cryptographically valid but unanchored provenance reports as Tampered (unverifiable), which is the conservative reading. The [C2PA conformance trust list](https://github.com/c2pa-org/conformance-public) is the ecosystem's canonical anchor set.
 - The returned JSON: `{ "verdict": "verified"|"indicated"|"inconclusive"|"tampered", "phrase": <the tier phrase verbatim>, "credentials": { … only on Verified: issuer, claim_generator, signing_time, digital_source_type, source_type_note … }, "findings": [ { "layer", "status", "detail" } … ] }`. Report what the `phrase` says; do not soften it.
 
 ## Privacy and scope
 
 Verification is sans-IO: this module never fetches anything, and image bytes never leave the process. Layer 1 (C2PA cryptographic validation) is the only layer that runs today; watermark, registry, and heuristic layers report `not_evaluated` honestly rather than pretending to run.
+
+Signed Claude file exports require no vendor-specific path: they are checked as ordinary C2PA assets. A missing manifest remains Inconclusive, and this package does not detect Claude's separate embedded text watermark.
 
 Part of [Provenance Lens](https://github.com/gwamoniak/provenance-lens). MIT OR Apache-2.0.

@@ -208,9 +208,9 @@ fn describe(finding: &LayerFinding) -> String {
     }
 }
 
-/// Extension-based hint; recognizes exactly the set `sniff_media_type` in
-/// the core recognizes from bytes (U3 alignment), so hinted and hint-free
-/// verification cover the same formats.
+/// Extension-based hint. Raster formats align with `sniff_media_type`; SVG is
+/// hint-only because treating arbitrary XML as an image would be unsafe and
+/// surprising.
 fn guess_media_type(path: &str) -> Option<&'static str> {
     let lower = path.to_ascii_lowercase();
     if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
@@ -223,6 +223,8 @@ fn guess_media_type(path: &str) -> Option<&'static str> {
         Some("image/gif")
     } else if lower.ends_with(".avif") {
         Some("image/avif")
+    } else if lower.ends_with(".svg") {
+        Some("image/svg+xml")
     } else {
         None
     }
@@ -251,5 +253,12 @@ mod tests {
         assert!(VerifyArgs::parse(&strings(&["--jsn", "a.jpg"])).is_none());
         assert!(VerifyArgs::parse(&strings(&["a.jpg", "--trust-anchors"])).is_none());
         assert!(VerifyArgs::parse(&[]).is_none());
+    }
+
+    #[test]
+    fn svg_extension_supplies_the_explicit_mime_hint_case_insensitively() {
+        assert_eq!(guess_media_type("flower.svg"), Some("image/svg+xml"));
+        assert_eq!(guess_media_type("FLOWER.SVG"), Some("image/svg+xml"));
+        assert_eq!(guess_media_type("flower.svgz"), None);
     }
 }

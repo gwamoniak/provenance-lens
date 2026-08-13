@@ -1,12 +1,11 @@
 # CI baseline (U4). The push/PR job is the hard gate and runs the exact
 # loop every implementer runs locally, plus the wasm32 type-check that
-# protects the extension surface. The scheduled job is ADVISORY for now:
-# cargo-audit because failing on advisories is a maintainer decision, and
-# the fuzz smoke because it re-finds the known upstream c2pa JUMBF panic
-# (unchecked subtraction, boxes.rs:2148, still in 0.90.0 — see the wedge
-# ExecPlan's Surprises) — flip it to enforcing once the upstream fix ships
-# in a version bump. No third-party actions beyond actions/checkout; the
-# runner's rustup honors rust-toolchain.toml on the first cargo call.
+# protects the extension surface. Cargo-audit remains ADVISORY because failing
+# on advisories is a maintainer decision. The fuzz smoke is enforcing after
+# the c2pa 0.90.13 upgrade fixed the known SaltHash JUMBF underflow; it now
+# also exercises the explicit SVG parser path. No third-party actions beyond
+# actions/checkout; the runner's rustup honors rust-toolchain.toml on the
+# first cargo call.
 name: ci
 
 on:
@@ -40,8 +39,7 @@ jobs:
         run: |
           cargo install cargo-audit --locked
           cargo audit
-      - name: Fuzz smoke, 5 minutes (advisory until the upstream c2pa panic fix ships)
-        continue-on-error: true
+      - name: Fuzz smoke, 5 minutes (enforcing)
         run: |
           rustup toolchain install nightly --profile minimal
           cargo install cargo-fuzz --locked

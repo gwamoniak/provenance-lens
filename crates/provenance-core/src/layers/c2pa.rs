@@ -163,11 +163,11 @@ impl Layer for C2paLayer {
             }
         };
 
-        // The c2pa crate can panic on malformed manifests (the fuzz target
-        // found a debug-build subtraction overflow in its JUMBF box parser,
-        // still present in 0.90.0). A panic while parsing hostile bytes
-        // degrades to NotEvaluated — the same honesty rule as any other
-        // parse failure — instead of crashing the caller. On wasm32
+        // The fuzz target found a debug-build JUMBF subtraction overflow in
+        // c2pa 0.89.x. The pinned 0.90.13 fixes that site, but hostile format
+        // parsers remain a broad surface, so this guard stays as defense in
+        // depth. A panic degrades to NotEvaluated — the same honesty rule as
+        // any other parse failure — instead of crashing the caller. On wasm32
         // (panic=abort) this guard cannot catch; the extension already
         // renders engine failures as errors, never as verdicts.
         let bytes = asset.bytes;
@@ -268,8 +268,9 @@ fn examine_manifest(
     }
 }
 
-/// Byte-signature sniffing for the formats the wedge cares about. Used only
-/// when the caller supplied no MIME hint; never overrides an explicit hint.
+/// Bounded byte-signature sniffing for binary image formats. Used only when
+/// the caller supplied no MIME hint; never overrides an explicit hint. SVG is
+/// deliberately absent: XML bytes need an explicit `image/svg+xml` hint.
 pub(crate) fn sniff_media_type(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
         Some("image/jpeg")
@@ -313,6 +314,10 @@ mod tests {
             Some("image/avif")
         );
         assert_eq!(sniff_media_type(b"not an image"), None);
+        assert_eq!(
+            sniff_media_type(b"<svg xmlns=\"http://www.w3.org/2000/svg\"/>"),
+            None
+        );
         assert_eq!(sniff_media_type(&[]), None);
     }
 

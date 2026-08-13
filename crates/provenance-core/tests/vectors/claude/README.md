@@ -65,7 +65,7 @@ The shipped CLI was run unchanged with the production trust bundle:
     cargo run -q -p provenance-cli -- verify --json --trust-anchors extension/trust/anchors.pem crates/provenance-core/tests/vectors/claude/raw/flower-2-tulip.svg
     cargo run -q -p provenance-cli -- verify --json --trust-anchors extension/trust/anchors.pem crates/provenance-core/tests/vectors/claude/raw/flower-3-sunflower.svg
 
-Each command returned exit 20 and `Inconclusive`. The C2PA finding was `not_evaluated` with detail `unrecognized media type; cannot locate a manifest store`, proving the current CLI does not admit SVG by filename or sniffing.
+During C0, before the C1 SVG change, each command returned exit 20 and `Inconclusive`. The C2PA finding was `not_evaluated` with detail `unrecognized media type; cannot locate a manifest store`, proving that the then-current CLI did not admit SVG by filename or sniffing.
 
 The pinned library was then exercised through the developer-only `inspect_with_mime` example, passing `image/svg+xml` explicitly:
 
@@ -94,7 +94,7 @@ Relative to the first batch, each regenerated file adds only these two lines:
 
 The first line is ordinary, unsigned SVG metadata; the second is ordinary visible artwork. Either can be added, removed, or changed by anyone. Neither is a C2PA manifest, signature, hard binding, certificate chain, or embedded text-watermark detector result. The files remain valuable negative specimens because they pin the distinction between a producer's editable self-declaration and cryptographic provenance.
 
-The shipped CLI again returned exit 20, `Inconclusive`, and C2PA `not_evaluated` because it does not yet admit SVG. The pinned reader with explicit `image/svg+xml` evaluated each container and returned `no_signal`; no credentials were present. Individual facts:
+The C0 CLI again returned exit 20, `Inconclusive`, and C2PA `not_evaluated` because it did not yet admit SVG. The pinned reader with explicit `image/svg+xml` evaluated each container and returned `no_signal`; no credentials were present. Individual facts:
 
 * `raw/flower-1-daisy-labeled.svg`: 1,059 bytes; SHA-256 `eafd1fed7428dc9d725ef1c54a0f8ccba8361786e75485442975b4aa143674a6`.
 * `raw/flower-2-tulip-labeled.svg`: 771 bytes; SHA-256 `fa1d0c60522359b7afd5d1d6222fc86286a1c3a084b3025f99ca61edff6a1193`.
@@ -112,6 +112,12 @@ Two broader parts of the reply are not accepted as authoritative product or SDK 
 Authoritative references are Anthropic's [content-marking support article](https://support.claude.com/en/articles/16266773-how-claude-marks-ai-generated-content), the C2PA specification's [SVG embedding rules](https://spec.c2pa.org/specifications/specifications/2.4/specs/C2PA_Specification.html#_embedding_manifests_into_svg), upstream `c2pa-rs` [supported formats](https://github.com/contentauth/c2pa-rs/blob/main/docs/supported-formats.md), and the CAI guidance for [test certificates](https://opensource.contentauthenticity.org/docs/signing/test-certs/) and [production signing certificates](https://opensource.contentauthenticity.org/docs/signing/get-cert/). Anthropic's article says supported output types can include SVG while availability varies by platform and feature. The Claude reply is therefore recorded as surface-specific collection context, not as a contradiction of Anthropic's platform documentation.
 
 Converting these files to PNG and signing the result locally would test PNG ingestion, manifest construction, and trust policy. It would prove only that the local signer processed and declared the converted file; it would not prove that Anthropic signed it or that Claude authored the SVG. Such a file may be created later as a clearly labelled generic C1 conformance vector, but it cannot satisfy C0's genuine positive Claude-specimen gate.
+
+### C1 reinspection after explicit SVG admission
+
+On 2026-08-13, branch `codex/claude-c1-svg-support` upgraded the pinned C2PA SDK to 0.90.13 and taught the CLI to pass `image/svg+xml` for `.svg` filenames. Re-running all six raw SVG files through the production CLI now returns exit 20, `Inconclusive`, and C2PA `no_signal`, matching the earlier explicit-MIME inspection. The product now distinguishes “looked and found no manifest” from “did not recognize the container.” It does not strengthen the evidence in these files.
+
+The separate generated conformance corpus now includes `plain.svg`, `valid_signed.svg`, and `content_tampered.svg`, signed by the repository's ephemeral test CA. With that test CA explicitly injected, the signed SVG is `Verified`, its post-signing artwork edit is `Tampered`, and the unsigned SVG is `Inconclusive`; without the test CA, the signed SVG is never `Verified`. These vectors prove generic SVG plumbing only. They do not count as Anthropic-signed specimens, and C0's genuine positive-file gate remains open.
 
 ## Validation
 

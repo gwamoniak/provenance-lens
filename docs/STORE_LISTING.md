@@ -21,7 +21,7 @@ Right-click any image and choose "Verify provenance with Provenance Lens". You g
 - Inconclusive: no provenance data was found. This does NOT mean the asset is authentic.
 - Tampered: provenance data is present but fails validation. Treat this asset with suspicion.
 
-What it does: validates C2PA Content Credentials (the open provenance standard) directly on your device, against the official C2PA conformance trust list. What it does not do: guess from pixels, score "AI likelihood", or call anything authentic. Most genuine images on the web carry no provenance data — for them the honest answer is Inconclusive, and that is what you will see.
+What it does: validates C2PA Content Credentials (the open provenance standard) directly on your device, against the official C2PA conformance trust list. Supported image containers include JPEG, PNG, WebP, GIF, AVIF, and correctly identified SVG. Signed files from Claude or any other producer use the same generic verification path. What it does not do: guess from pixels, score "AI likelihood", detect Claude's separate text watermark, or call anything authentic. Most genuine images on the web carry no provenance data — for them the honest answer is Inconclusive, and that is what you will see.
 
 Verification runs locally in WebAssembly. Your images never leave your device. The only network request the extension ever makes is fetching the image you explicitly asked it to verify. No analytics, no accounts, no remote code.
 

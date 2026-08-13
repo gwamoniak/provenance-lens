@@ -1,11 +1,9 @@
-# Watch for the c2pa release that carries the SaltHash JUMBF underflow fix,
-# then open a review PR bumping the dependency. Same discipline as the
-# trust-list refresh: this NEVER merges — bumping c2pa is signature-validation
-# surface and needs the maintainer's cryptography sign-off. The bug: every
-# c2pa release through 0.90.3 has `bytes_left -= header.size;` in the SaltHash
-# box parser (sdk/src/jumbf/boxes.rs); the fix (`checked_sub`) is on c2pa-rs
-# main, unreleased as of 2026-07-27. Only actions/checkout + gh (built-in
-# token) — no third-party actions, matching the trust-list workflow.
+# Watch for newer stable c2pa releases and open a review PR. Same discipline
+# as the trust-list refresh: this NEVER merges — bumping c2pa is signature-
+# validation surface and needs the maintainer's cryptography sign-off. The
+# SaltHash `checked_sub` fix first required by this workflow is now in the
+# 0.90.13 baseline; every later candidate must retain it. Only
+# actions/checkout + gh (built-in token) — no third-party actions.
 name: c2pa-bump-check
 
 on:
@@ -81,11 +79,11 @@ jobs:
           fi
 
           cat > /tmp/pr-body.md <<EOF
-          Automated bump: c2pa **$PIN → $LATEST**. The \`$LATEST\` release contains the SaltHash JUMBF integer-underflow fix (\`sdk/src/jumbf/boxes.rs\`: \`bytes_left -= header.size;\` → \`bytes_left.checked_sub(header.size)\`), which every release through 0.90.3 lacked.
+          Automated bump: c2pa **$PIN → $LATEST**. The \`$LATEST\` release retains the SaltHash JUMBF integer-underflow fix (\`sdk/src/jumbf/boxes.rs\`: checked subtraction with no raw \`bytes_left -= header.size;\`).
 
           $NOTE
 
-          **This is signature-validation surface — it merges only with the maintainer's cryptography sign-off recorded in the ExecPlan Decision Log.** Before merging, review any code changes for validation-semantics impact. After merging: flip the fuzz job in \`.github/workflows/ci.yml\` from \`continue-on-error: true\` to enforcing (the panic that job kept re-finding is now fixed upstream), and decide whether to keep the panic guard in \`layers/c2pa.rs\`.
+          **This is signature-validation surface — it merges only with the maintainer's cryptography sign-off recorded in the ExecPlan Decision Log.** Before merging, review any code changes for validation-semantics impact and keep the scheduled fuzz job enforcing. The panic guard in \`layers/c2pa.rs\` remains defense in depth unless a separate reviewed decision removes it.
           EOF
 
           gh pr create --base main --head "$BRANCH" $DRAFT \

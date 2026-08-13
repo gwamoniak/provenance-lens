@@ -1,6 +1,6 @@
 //! Vector-corpus generator (dev tool, not product code — file I/O is fine
 //! here). Regenerates `tests/vectors/` from `tests/fixtures/plain.jpg` and
-//! `tests/fixtures/plain.png`:
+//! `tests/fixtures/plain.png`, and `tests/fixtures/plain.svg`:
 //!
 //!   plain.jpg              never signed                      → inconclusive
 //!   valid_signed.jpg       ephemeral-CA signed               → verified (with test_ca.pem)
@@ -11,6 +11,9 @@
 //!   stripped.png           signed, caBX chunk removed        → inconclusive   coverage is
 //!   manifest_corrupted.png signed, byte flipped in caBX      → tampered       proven, not
 //!                          (chunk CRC refreshed so the container parses)      assumed)
+//!   plain.svg              never signed                      → inconclusive
+//!   valid_signed.svg       ephemeral-CA signed               → verified (explicit SVG MIME)
+//!   content_tampered.svg   signed, visible SVG content edited → tampered
 //!   test_ca.pem            the run's ephemeral CA root (no private key is ever written)
 //!   manifest.tsv           catalogue: file, expected verdict, provenance of each byte change
 //!
@@ -54,11 +57,15 @@ fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let fixtures = root.join("tests/fixtures");
     let vectors = root.join("tests/vectors");
+    let fuzz_seeds = root.join("../../fuzz/corpus_seed");
     std::fs::create_dir_all(&vectors).expect("create tests/vectors");
+    std::fs::create_dir_all(&fuzz_seeds).expect("create fuzz/corpus_seed");
 
     let plain = std::fs::read(fixtures.join("plain.jpg")).expect("read tests/fixtures/plain.jpg");
     let plain_png =
         std::fs::read(fixtures.join("plain.png")).expect("read tests/fixtures/plain.png");
+    let plain_svg =
+        std::fs::read(fixtures.join("plain.svg")).expect("read tests/fixtures/plain.svg");
 
     // Sign with a fresh ephemeral CA + end-entity chain; only the CA root
     // certificate (public) is persisted. One chain signs both containers.
@@ -67,6 +74,7 @@ fn main() {
 
     let signed = sign(&signer, "image/jpeg", &plain);
     let signed_png = sign(&signer, "image/png", &plain_png);
+    let signed_svg = sign(&signer, "image/svg+xml", &plain_svg);
 
     let stripped = strip_app11(&signed);
     let (manifest_corrupted, corrupt_note) = corrupt_manifest(&signed, &ca_pem);
@@ -74,6 +82,7 @@ fn main() {
 
     let stripped_png = strip_cabx(&signed_png);
     let (manifest_corrupted_png, corrupt_png_note) = corrupt_png_manifest(&signed_png, &ca_pem);
+    let (content_tampered_svg, tamper_svg_note) = tamper_svg_content(&signed_svg, &ca_pem);
 
     // Self-verification: the corpus must prove its own manifest.tsv.
     let rows = [
@@ -125,6 +134,25 @@ fn main() {
             Verdict::Tampered,
             corrupt_png_note,
         ),
+        (
+            "plain.svg",
+            &plain_svg,
+            Verdict::Inconclusive,
+            "source SVG, never signed; explicit image/svg+xml hint required".to_string(),
+        ),
+        (
+            "valid_signed.svg",
+            &signed_svg,
+            Verdict::Verified,
+            "plain.svg signed by the same ephemeral chain; explicit image/svg+xml hint required"
+                .to_string(),
+        ),
+        (
+            "content_tampered.svg",
+            &content_tampered_svg,
+            Verdict::Tampered,
+            tamper_svg_note,
+        ),
     ];
     for (name, bytes, expected, _) in &rows {
         let got = verdict_of(bytes, media_type_of(name), &ca_pem);
@@ -134,6 +162,7 @@ fn main() {
     let mut tsv = String::from("file\texpected_verdict\tnotes\n");
     for (name, bytes, expected, note) in &rows {
         std::fs::write(vectors.join(name), bytes).expect("write vector");
+        std::fs::write(fuzz_seeds.join(name), bytes).expect("write fuzz seed");
         tsv.push_str(&format!("{name}\t{}\t{note}\n", expected.id()));
     }
     std::fs::write(vectors.join("test_ca.pem"), &ca_pem).expect("write test_ca.pem");
@@ -148,6 +177,8 @@ fn main() {
 fn media_type_of(name: &str) -> &'static str {
     if name.ends_with(".png") {
         "image/png"
+    } else if name.ends_with(".svg") {
+        "image/svg+xml"
     } else {
         "image/jpeg"
     }
@@ -346,4 +377,35 @@ fn corrupt_png_manifest(signed: &[u8], ca_pem: &str) -> (Vec<u8>, String) {
         }
     }
     panic!("no caBX byte-flip produced a Tampered verdict");
+}
+
+/// Change visible SVG artwork after signing while preserving well-formed XML
+/// and the embedded manifest. The C2PA hard binding must reject the edit.
+fn tamper_svg_content(signed: &[u8], ca_pem: &str) -> (Vec<u8>, String) {
+    const MARKER: &[u8] = b"#4c8bf5";
+    let offsets: Vec<usize> = signed
+        .windows(MARKER.len())
+        .enumerate()
+        .filter_map(|(offset, window)| (window == MARKER).then_some(offset))
+        .collect();
+    assert_eq!(
+        offsets.len(),
+        1,
+        "signed SVG must preserve exactly one visible fill marker"
+    );
+
+    let offset = offsets[0] + 1;
+    let mut edited = signed.to_vec();
+    edited[offset] = b'5';
+    assert_eq!(
+        verdict_of(&edited, "image/svg+xml", ca_pem),
+        Verdict::Tampered,
+        "post-signing SVG artwork edit must break the hard binding"
+    );
+    (
+        edited,
+        format!(
+            "valid_signed.svg with visible fill byte at offset {offset} changed from 0x34 to 0x35 (content-hash mismatch); explicit image/svg+xml hint required"
+        ),
+    )
 }
