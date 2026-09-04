@@ -1,8 +1,8 @@
 # Development status — Provenance Lens
 
-**TL;DR (2026-08-13): the C1 SVG implementation is prepared on `codex/claude-c1-svg-support`. It upgrades the C2PA SDK to 0.90.13, adds explicit-hint SVG verification and an eleven-vector JPEG/PNG/SVG corpus, and keeps all six available Claude SVG specimens honestly at no signal. Automated validation is green; merge still requires maintainer cryptography sign-off, and C1 cannot be declared complete without a genuine signed Claude positive specimen. The released product remains 0.2.0.**
+**TL;DR (2026-09-04): the maintainer approved the C1 SVG/C2PA 0.90.13 implementation at commit `8a0e689` for merge. It adds explicit-hint SVG verification and an eleven-vector JPEG/PNG/SVG corpus while keeping all six available Claude SVG specimens honestly at no signal. Positive Claude interoperability still requires a genuine Anthropic-signed specimen; the released product remains 0.2.0 until the branch is merged and released.**
 
-Snapshot dashboard, last updated **2026-08-13 (C1 pre-review stopping point)**. This file is a *derived view* for humans skimming the repo: the authoritative record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
+Snapshot dashboard, last updated **2026-09-04 (C1 cryptography review complete)**. This file is a *derived view* for humans skimming the repo: the authoritative record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
 
 ## Where we are, in one paragraph
 
@@ -45,12 +45,12 @@ Previous (0.1.0):
 
 ## Blockers
 
-C1 is blocked from merge by the standing maintainer cryptography review. Its generic SVG implementation is testable now, but the Claude-specific positive acceptance gate also requires a genuine Claude file carrying a verifiable C2PA manifest; the six current specimens contain only non-cryptographic disclosures.
+The generic C1 implementation is no longer blocked from merge: maintainer cryptography approval is recorded. The Claude-specific positive compatibility claim remains blocked on a genuine Claude file carrying a verifiable C2PA manifest; the six current specimens contain only non-cryptographic disclosures. C2 text-watermark detection remains vendor-gated because Anthropic has not published a usable detector contract.
 
 ## Next actions
 
 1. ~~Release + submissions~~ — **done 2026-07-18**: 0.2.0 submitted to the Chrome Web Store and Firefox AMO (maintainer; both awaiting store review) and published to npm (`@provenance-lens/verify-wasm`). Watch for reviewer questions — permission justifications and reviewer notes are in `docs/STORE_LISTING.md`.
-2. **Review C1 / C2PA 0.90.13**: the release containing the SaltHash fix is now integrated on `codex/claude-c1-svg-support`; the feature boundary remains sans-IO, the panic guard remains as defense in depth, and CI fuzzing is enforcing. The maintainer must review the dependency/security packet and record cryptography sign-off before merge. The stale automated 0.90.7 remote branch is superseded and has not been deleted.
+2. **Merge C1 when requested**: C2PA 0.90.13 and explicit SVG admission on `codex/claude-c1-svg-support` have maintainer cryptography approval. The feature boundary remains sans-IO, the panic guard remains as defense in depth, and CI fuzzing is enforcing. The stale automated 0.90.7 remote branch is superseded and has not been deleted.
 3. ~~Make the repo public~~ — **done 2026-07-18**: https://github.com/gwamoniak/provenance-lens is public.
 4. **Roadmap plan (2026-07-31, maintainer-approved)**: `PROVENANCE_LENS_ROADMAP_EXECPLAN.md`, authored from an external technical review of 0.2.0 — **R1, R2, W1, and W2 all done** (docs honesty + EU AI Act positioning; trust-list staleness defenses with crypto sign-off; the SD invisible-watermark detector, FPR gate passed 0/2,861; the IMATAG bzh classifier via tract + the calibration corpus, with measured TPR/FPR published in `docs/CALIBRATION.md` — zero false positives observed anywhere). **W4 done (2026-08-02)**: the M6 registry scoping plan exists — `PROVENANCE_LENS_REGISTRY_EXECPLAN.md` (PDQ-256 + RFC 6962 log, client-verified proofs, git-backed pilot vs single-binary service; G1–G4 gated). **Maintainer decision pending: G0** — accept the registry plan and pick the deployment shape; that opens the wedge plan's M6 gate. W3 SynthID stays vendor-gated (`lens-research` watches Google's Content Detection API). The roadmap plan is otherwise fully executed.
 5. **Gated milestones** (wedge plan): M5 watermark (gate revised 2026-07-31 — satisfied by the open SD detector; execution = roadmap W1–W2) / M6 registry / M7 heuristics; `lens-research` tracks availability.
