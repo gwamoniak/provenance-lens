@@ -1,64 +1,58 @@
 # Development status — Provenance Lens
 
-**TL;DR (2026-09-04): the maintainer approved the C1 SVG/C2PA 0.90.13 implementation at commit `8a0e689` for merge. It adds explicit-hint SVG verification and an eleven-vector JPEG/PNG/SVG corpus while keeping all six available Claude SVG specimens honestly at no signal. Positive Claude interoperability still requires a genuine Anthropic-signed specimen; the released product remains 0.2.0 until the branch is merged and released.**
+Snapshot: **2026-09-16**, based on local code and checks at main `5f1dcb6`, not a new release. The consolidated next-step plan is [PROVENANCE_LENS_NEXT_EXECPLAN.md](PROVENANCE_LENS_NEXT_EXECPLAN.md). Historical approvals and trust rules remain in [PROVENANCE_LENS_EXECPLAN.md](PROVENANCE_LENS_EXECPLAN.md); this dashboard is a derived view.
 
-Snapshot dashboard, last updated **2026-09-04 (C1 cryptography review complete)**. This file is a *derived view* for humans skimming the repo: the authoritative record is the `Progress` / `Decision Log` / `Surprises & Discoveries` sections of `PROVENANCE_LENS_EXECPLAN.md`. Update this dashboard at milestone boundaries; if it ever disagrees with the ExecPlan, the ExecPlan wins.
+## Current position
 
-## Where we are, in one paragraph
+C1's generic SVG/C2PA 0.90.13 implementation is approved and already merged into **local main**. A read-only remote check on this date confirmed remote main at `4445872`; local main is seven commits ahead. No push, merge, release, or runtime-code change was performed during the September planning review. The new plan is on `codex/development-roadmap-refresh`, created from local main in the real project folder.
 
-The shipped wedge exists, works, and is proven. On the C1 branch, Layer 1 uses C2PA 0.90.13 with no OpenSSL or HTTP clients compiled in and now accepts SVG only when a trusted caller supplies `image/svg+xml` (the CLI derives that hint from `.svg`; the core deliberately does not sniff XML). Generic signed SVGs verify against the test anchor, edits become Tampered, and unsigned or hostile SVGs remain Inconclusive/not-evaluated without panics. A visible “AI-generated” label or free-form `<metadata>` is not cryptographic provenance. The released 0.2.0 behavior remains unchanged until the maintainer reviews and merges this signature-validation change.
+The latest code has a working cryptographic verifier, native watermark detectors, a browser extension, and a registry prototype. It is not a universal AI-content detector. Current priorities are a clean reproducible build, honest detector failure reporting, and browser badges that cannot retain results for an earlier image.
 
-## Proposal deliverables → current state
+## Capabilities and evidence boundaries
 
-| Proposal deliverable | Here | State |
+| Area | Verified current state | Remaining boundary |
 |---|---|---|
-| `verify-core` (Rust crate, native + WASM + C API) | `crates/provenance-core` | **Done for the wedge**: Layer 1 real, three layers honestly gated; 4-layer pipeline, verdict model with pinned wording. C API: post-wedge, not started. |
-| `verify-wasm` (JS/TS bindings, npm) | `crates/provenance-wasm` | **Done for the wedge**: `verify_bytes(bytes, mediaType?, trustAnchorsPem?)` → JSON; parity + true-artifact smoke green; 6.41 MB raw / 2.15 MB gz (budget 7 / 2.5). npm package: post-wedge. |
-| `provenance-lens` (WebExtension MV3) | `extension/` | **Working end-to-end** (maintainer-smoked in real Chrome): context menu → fetch → engine → badge + popup; honest failure states; permissions only `contextMenus` + `activeTab` + `storage`. |
-| `verify-registry` (transparency-log service) | — | Not started; GATED (M6). Design knowledge in the `provenance-registry` skill. |
-| CLI (`verify image.png`) | `crates/provenance-cli` → `lens` | **Working**: `lens verify [--trust-anchors <PEM>] <file>`, verdict exit codes 0/10/20/30. |
+| C2PA | Local main resolves c2pa 0.90.13; eleven JPEG/PNG/SVG corpus vectors pass. SVG requires an explicit MIME/filename hint. | Only trusted validated provenance becomes Proof; valid-but-untrusted remains Tampered under existing policy. Dependency/trust changes need human sign-off. |
+| Claude files | Six original/labeled SVG negative controls contain no C2PA credentials. | No genuine Anthropic-signed positive specimen has been validated. Visible labels/free-form metadata are not signatures. |
+| Claude text / actual SynthID | No implemented detector in this tree. | Older research snapshots are dated August; usable vendor contract, fixtures/calibration, and any privacy exception must be established before implementation. |
+| Native watermark analysis | SD DWT-DCT decoder; CLI compiles IMATAG bzh support by default but uses it only with a supplied ONNX model. Historical calibration is in `docs/CALIBRATION.md`. | Runtime detector failure can currently collapse into NoSignal; model-backed inference was not exercised in this review. Neither scheme covers AI images generally. |
+| WASM / extension | Fresh standalone WASM passes eleven vectors. No pixel-watermark detector is compiled into that standalone build. Context-menu verification and opt-in page scanning exist. | No new real-browser smoke this review. Source changes, URL caching, cache concurrency, consent lifecycle, and resource bounds need the N2 work. |
+| W3-M signed watermark declarations | Implementation exists on `codex/w3-synthid-context` at `30e52c8`, outside main. | Needs reconciliation with C1 and its own maintainer review/sign-off. It reports a signed declaration, not pixel detection. |
+| Registry | G0 approved; G1 PDQ implemented/calibrated; `provenance-log`/`plog` prototype exists on main. | Product Layer 3 remains NotEvaluated. Live deployment/client not verified; parser/operator hardening, independently pinned trust, and G3 approval remain. |
+| Heuristics | Stub. | Optional; no expansion proposed before stronger evidence work. |
 
-## Pipeline layers
+The four canonical verdict phrases and precedence remain unchanged. No data is not proof of authenticity. No successful check should be implied when a detector could not run.
 
-| Layer | State | Gate |
-|---|---|---|
-| 1 — C2PA proof | **Released for JPEG/PNG and other proven containers; C1 SVG update prepared**: Trusted→Proof(issuer) / unanchored-or-invalid→TamperEvidence / absent→NoSignal / unparseable→NotEvaluated. SVG requires an explicit MIME/filename hint and is covered by signed, unsigned, tampered, and hostile vectors. | Maintainer cryptography sign-off before merging C2PA 0.90.13/SVG; genuine signed Claude SVG still needed for the vendor-positive gate. |
-| 2 — Watermark | **Real for two schemes, calibration published (W1+W2, 2026-08-01)**: `WatermarkDetector` trait; the SD invisible-watermark decoder (exact-payload dwtDct, default-on `watermark-dwt` feature, native only) and IMATAG's Stable Signature bzh classifier (opt-in `stable-signature` feature via pure-Rust tract; model runtime-supplied with `lens verify --watermark-model <ONNX>`). Ceiling `Indication`. Measured behavior in `docs/CALIBRATION.md`: 0 false positives observed anywhere; DWT TPR 45% pristine / 0% after any transform (the scheme's fragility, measured); bzh TPR 30–85% across the battery. | Further schemes need a public spec/weights + measured FPR (revised M5 gate); SynthID impossible without vendor access (W3). |
-| 3 — Registry | **M6 gate open (2026-08-02)**: scoping plan accepted (`PROVENANCE_LENS_REGISTRY_EXECPLAN.md`), git-backed pilot chosen. **G1 done**: PDQ-256 in core (`layers/pdq.rs`, bit-for-bit against the reference, canonical packing), calibrated — threshold ≤ 31 inside a 78-bit measured margin, 100% nomination recall, crops a documented miss class (`docs/CALIBRATION.md`). Layer still honestly reports not-evaluated. | Next: G2a (build the git-backed log; maintainer deploys), then G3 (client; inclusion-proof verifier under crypto sign-off). |
-| 4 — Heuristics | Honest stub. | OPTIONAL; may never ship. |
+## Fresh verification results
 
-Verdict model (Tampered > Verified > Indicated > Inconclusive; only Layer 1 proves; "no data ≠ authentic"): **implemented, green, and wording-audited by CI** — `tests/wording_sync.rs` fails the suite if README, popup legend, or the verdict-language skill drift from the canonical phrases in `verdict.rs`.
+| Check | Result on 2026-09-16 |
+|---|---|
+| Workspace tests | 55 reported passed; the bzh known-answer test skipped inference because no model environment variable was set. |
+| Core without default features | 34 passed. |
+| WASM target compilation | Passed. |
+| Fresh compiled-WASM smoke | All eleven vectors passed; built into ignored `target/plan-review-wasm`, without replacing the extension's engine. |
+| Node scan helper tests | Passed; additional copied-storage concurrency probe reproduced one lost cache entry. |
+| Format check | Failed in the existing `provenance-log` sources. |
+| Strict workspace lint | Failed on `unused_mut` and `manual_is_multiple_of` in `provenance-log`; rerun after repair to uncover any further warnings. |
 
-## Release state (0.2.0 — submitted to both stores and published to npm, 2026-07-18)
+Fresh release-profile WASM, without the separate wasm-opt pass: **6,946,939 raw bytes / 2,333,698 gzip bytes**, within the existing 7,000,000 / 2,500,000 budgets. The new ExecPlan records artifact/dependency hashes and commands. This is a local build check, not a packaged release or comprehensive security audit.
 
-- Extension: `dist/provenance-lens-0.2.0.zip` — 2,301,127 bytes, sha256 `e666b30c…a0817b12` (rebuild: `sh scripts/package_extension.sh`; refuses to package a test CA). Chrome + Firefox ≥ 128; **submitted to the Chrome Web Store and AMO, both in store review**. Trust list verified current upstream at packaging time (2026-07-18, 28 certs, unchanged since 2026-07-10).
-- npm: `dist/provenance-lens-verify-wasm-0.2.0.tgz` — 2,441,384 bytes, sha256 `867447b9…7c7e8889` (rebuild: `sh scripts/package_npm.sh`). **Published.**
-- Release notes: CHANGELOG.md `0.2.0`. Versions in lockstep (root `Cargo.toml`, `extension/manifest.json`, both packaged artifacts).
+Not refreshed here: Chrome/Firefox interaction, fuzzing, advisory audit, upstream certificate contents, store/npm publication state, full calibration, or genuine positive vendor specimens. Earlier evidence remains historical, not a substitute for these checks on a release candidate.
 
-Previous (0.1.0):
+## Recommended next sequence
 
-- Artifact: `dist/provenance-lens-0.1.0.zip` — 2,299,035 bytes, sha256 `9687a5d25553125ee5a94b73d080bc5dccaaaa3fe177c5ccf33d21bbe07980e2`.
-- Trust anchors: official C2PA conformance list, 28 certificates, sha256 `b1f399a7…7cdb46c1`, provenance header in `extension/trust/anchors.pem`; refresh via `sh scripts/update_trust_list.sh` — **the diff is trust-model data; maintainer reviews every change.**
-- Collateral: `CHANGELOG.md` (0.1.0), `docs/STORE_LISTING.md` (listing copy, permission justifications, privacy policy, pre-submission checklist).
-- Remote: https://github.com/gwamoniak/provenance-lens (**public** as of 2026-07-18, `origin`; `main` in sync).
-- Test evidence: 20/20 tests, clippy `-D warnings` clean; corpus verified natively, through the WASM wrapper, through the compiled artifact in Node, and by the maintainer's browser smoke.
+1. **N0 — Green reproducible baseline.** Repair formatting/lint, preserve reviewed dependency resolution, and add actual WASM/Node checks to CI.
+2. **N1–N2 — Evidence reliability.** Distinguish detector failures from negatives; bound resource use; correct image/cache/permission lifecycle and accessibility.
+3. **N3 — Recover W3-M and finish useful Claude documentation.** Reuse existing implementation, reconcile fixtures, seek its separate sign-off, and publish an honest capability matrix.
+4. **N4 — Local evidence workbench.** File inspection, an unsigned downloadable evidence receipt, then two-file comparison using the existing verifier.
+5. **N5–N6 — Safe registry pilot and stronger measurement/release evidence.** Reuse the prototype, keep deployment/client gates explicit, and release smaller completed slices without waiting for vendor access.
 
-## Blockers
+These are proposals with acceptance criteria in the new plan, not approval to implement every item. No new hosted service, general AI classifier, upload connector, or blockchain feature is proposed.
 
-The generic C1 implementation is no longer blocked from merge: maintainer cryptography approval is recorded. The Claude-specific positive compatibility claim remains blocked on a genuine Claude file carrying a verifiable C2PA manifest; the six current specimens contain only non-cryptographic disclosures. C2 text-watermark detection remains vendor-gated because Anthropic has not published a usable detector contract.
+## Release and workflow cautions
 
-## Next actions
+Source version fields still say `0.2.0`; July's historical records report store submissions and npm publication. Their current external status was not checked. Local main's C1 code must not be described as a newly published release.
 
-1. ~~Release + submissions~~ — **done 2026-07-18**: 0.2.0 submitted to the Chrome Web Store and Firefox AMO (maintainer; both awaiting store review) and published to npm (`@provenance-lens/verify-wasm`). Watch for reviewer questions — permission justifications and reviewer notes are in `docs/STORE_LISTING.md`.
-2. **Merge C1 when requested**: C2PA 0.90.13 and explicit SVG admission on `codex/claude-c1-svg-support` have maintainer cryptography approval. The feature boundary remains sans-IO, the panic guard remains as defense in depth, and CI fuzzing is enforcing. The stale automated 0.90.7 remote branch is superseded and has not been deleted.
-3. ~~Make the repo public~~ — **done 2026-07-18**: https://github.com/gwamoniak/provenance-lens is public.
-4. **Roadmap plan (2026-07-31, maintainer-approved)**: `PROVENANCE_LENS_ROADMAP_EXECPLAN.md`, authored from an external technical review of 0.2.0 — **R1, R2, W1, and W2 all done** (docs honesty + EU AI Act positioning; trust-list staleness defenses with crypto sign-off; the SD invisible-watermark detector, FPR gate passed 0/2,861; the IMATAG bzh classifier via tract + the calibration corpus, with measured TPR/FPR published in `docs/CALIBRATION.md` — zero false positives observed anywhere). **W4 done (2026-08-02)**: the M6 registry scoping plan exists — `PROVENANCE_LENS_REGISTRY_EXECPLAN.md` (PDQ-256 + RFC 6962 log, client-verified proofs, git-backed pilot vs single-binary service; G1–G4 gated). **Maintainer decision pending: G0** — accept the registry plan and pick the deployment shape; that opens the wedge plan's M6 gate. W3 SynthID stays vendor-gated (`lens-research` watches Google's Content Detection API). The roadmap plan is otherwise fully executed.
-5. **Gated milestones** (wedge plan): M5 watermark (gate revised 2026-07-31 — satisfied by the open SD detector; execution = roadmap W1–W2) / M6 registry / M7 heuristics; `lens-research` tracks availability.
+The bundled anchors' header says fetched 2026-07-27. Since the scheduled refresher ignores date-only differences, that alone does not establish an outdated certificate set or failed refresh. Production anchors were not changed during this review.
 
-## Risks being tracked
-
-- Trust-list staleness: new conformance roots appear over time; a stale bundle turns fresh legitimate credentials into "Tampered / unverifiable". Mitigation implemented on `post-wedge-hardening`: monthly refresh workflow opening a review PR (active once the branch merges and GitHub Actions is enabled on the repo).
-- Store review friction (permission justifications, privacy policy) — mitigated by the minimal-permission design and the prepared listing; still an unknown until first submission.
-- Cross-origin images without `Access-Control-Allow-Origin` can't be fetched under the no-host-permissions design; the extension says so honestly. If it bites users at scale, the recorded alternative is an explicit opt-in "grant site access" flow (Decision Log).
-- Layer 2/3 gates may stay closed for a long time — acceptable by design; docs must keep saying "not evaluated" plainly.
-- Single-maintainer bus factor: the crypto sign-off role and store account are one person.
+Use a named `codex/` branch from the agreed main tip in `D:\sandbox\projects\provenance-lens`. Preserve the separate W3 worktree. Keep commits, local merges, pushes, cryptography approvals, deployment, and publication as distinct actions. Human approval recorded for C1 does not approve W3-M, a registry verifier, or a later SDK upgrade.

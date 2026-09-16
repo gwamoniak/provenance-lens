@@ -4,6 +4,8 @@ This ExecPlan is a living document. The sections `Progress`, `Surprises & Discov
 
 This plan was written on 2026-08-11 from Anthropic's official explanation of Claude content marking, the European Commission's Article 50 materials, the current Provenance Lens source tree, and the capabilities of the repository's pinned `c2pa` crate. It deliberately separates work that can be proved today from work that is blocked on detector documentation. Nothing in this plan is legal advice.
 
+Current-state reconciliation (2026-09-16): approved generic C1 is already in local `main` at `5f1dcb6`; remote `main` was checked at `4445872`, seven commits behind local main. The vendor-positive specimen gate remains open. The consolidated next implementation sequence and fresh validation evidence now live in `PROVENANCE_LENS_NEXT_EXECPLAN.md`; this document remains the detailed Claude gate/decision record. Vendor documentation statements below describe the dated August research, not a fresh September availability check. C4's useful capability documentation can proceed independently, while its conditional text-integration acceptance remains gated.
+
 ## Purpose / Big Picture
 
 After this plan is implemented, Provenance Lens can examine supported files exported by Claude through the same generic C2PA verification path it uses for any other producer, including Claude SVG output once that format is admitted by the project. A valid, trusted Content Credential can produce the existing `Verified` verdict and show exactly what the credential declares. The product will say that the verified signer or claim generator processed the file; it will not turn that fact into an unsupported claim that Claude originated every idea, word, or pixel.
@@ -14,6 +16,7 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 
 ## Progress
 
+- [x] (2026-09-16) Reconciled plan status against local main and remote branch tips. Generic C1 is locally merged; fresh workspace/reduced-feature/real-WASM checks pass, while format/lint failures remain in the registry prototype. The successor plan records these limits and does not claim positive Claude interoperability or newly available text detection.
 - [x] (2026-08-11) Read Anthropic's official “How Claude marks AI-generated content” article and recorded its exact product claims and limitations in this plan.
 - [x] (2026-08-11) Checked the European Commission's Article 50 timing and the role of the Code of Practice on marking and detection of AI-generated content.
 - [x] (2026-08-11) Audited the current core, CLI, WASM wrapper, extension, tests, trust bundle, manual, and pinned `c2pa` 0.89.3 source against Claude's file and text marking paths.
@@ -360,3 +363,5 @@ Revision note (2026-08-11, Claude self-report review): accepted the reply's desc
 Revision note (2026-08-13, C1 implementation): recorded the maintainer's go for generic upgrading/feature work, the clean main-based branch, c2pa 0.90.13 security upgrade, explicit SVG admission, eleven-vector corpus, SVG-aware parity/fuzzing, and the continuing positive-Claude and human-sign-off gates.
 
 Revision note (2026-09-04, C1 review): recorded the maintainer's cryptography approval for implementation commit `8a0e689`; generic SVG/C2PA may merge, while positive Claude interoperability and C2 text detection retain their independent evidence gates.
+
+Revision note (2026-09-16, development review): reconciled local merge versus publication and linked the consolidated successor plan. Historical milestones and approvals are preserved; no vendor gate was opened and no runtime code changed.
