@@ -5,3 +5,6 @@ crates/provenance-core/tests/vectors/claude/raw/* -text
 # their C2PA hard bindings, so Git must preserve their exact bytes.
 crates/provenance-core/tests/vectors/*.svg -text
 fuzz/corpus_seed/*.svg -text
+
+# The reviewed dependency snapshot must have the same byte hash on every OS.
+Cargo.lock -text
