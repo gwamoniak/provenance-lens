@@ -22,7 +22,8 @@ The strongest next investment is not another detector. It is repairing the relea
 - [x] (2026-09-16) Reproduced a lost-update bug in the extension session cache using storage semantics that copy values, as real extension storage does.
 - [x] (2026-09-16) Created this documentation branch, `codex/development-roadmap-refresh`, directly from clean local main in the real project folder; reconciled the status dashboard and plan entry points.
 - [x] (2026-09-16) N0 implementation prepared on `codex/n0-reproducible-baseline` from local main. Formatter and strict workspace lint pass; the original 91,029-byte lockfile is now tracked with the same SHA-256 as the planning review, c2pa remains 0.90.13 with an exact requirement, Rust 1.97.1 and wasm-pack 0.15.0 are pinned, and CI now covers reduced-feature Rust, Node helpers, and a real standalone WASM build. Default model tests report one ignored test; the opt-in run fails if its model is absent.
-- [ ] N0 branch acceptance remaining: clean-checkout test, GitHub push/PR job on the candidate branch, and maintainer review of the exact C2PA dependency pin before any merge. The CI job cannot run remotely until the branch is pushed.
+- [x] (2026-09-16) N0 clean-checkout validation: a local clone of the committed branch retains the original Cargo.lock SHA-256 and passes `cargo test --workspace --locked --offline` (54 passed, one explicitly ignored). The first clone exposed Windows newline conversion; `Cargo.lock -text` in `.gitattributes` fixes its bytes across checkouts.
+- [ ] N0 branch acceptance remaining: GitHub push/PR job on the candidate branch and maintainer review of the exact C2PA dependency pin before any merge. The CI job cannot run remotely until the branch is pushed.
 - [ ] N1 — Preserve unavailable/failed detector states and bound resource use.
 - [ ] N2 — Make page scanning refer to the current image and current consent.
 - [ ] N3 — Reconcile and review the existing W3-M implementation; finish the ungated portion of Claude C4 documentation.
@@ -286,7 +287,7 @@ Registry operator experiments use newly created, explicitly named test directori
 
 The planning milestone is complete: the current implementation was checked against the latest plans, reproducible issues were separated from source-derived risks, a fresh native/WASM baseline was recorded, and the next work is staged with user-visible acceptance criteria. Runtime defects identified here remain unfixed intentionally. No new detector, permission, remote upload, or trust decision was introduced. The most important change in direction is to improve evidence quality and usability while treating vendor-specific coverage as separately demonstrable work.
 
-N0 local implementation (2026-09-16): the previously failing formatter/linter now pass; native and reduced-feature suites and the freshly built WASM vector smoke pass. The root lockfile was made a tracked build input without changing its checksum. A reviewed model is still required for the optional model-inference result. Online GitHub CI and the human dependency review remain separate acceptance steps.
+N0 local implementation (2026-09-16): the previously failing formatter/linter now pass; native and reduced-feature suites and the freshly built WASM vector smoke pass. The root lockfile was made a tracked build input without changing its checksum, and a new `.gitattributes` rule preserves those bytes in a fresh Windows clone. That clone passed the locked, offline workspace suite. A reviewed model is still required for the optional model-inference result. Online GitHub CI and the human dependency review remain separate acceptance steps.
 
 ## Artifacts and Notes
 
@@ -298,6 +299,8 @@ Observed on 2026-09-16: workspace 55 tests reported passed, including one bzh te
 Fresh WASM SHA-256: `44cdeef03b739bd1e20772119b2ce29fc1c99cd9a99e98538f22bb54aa2efd9f`. Output: `target/plan-review-wasm/provenance_wasm_bg.wasm`, 6,946,939 raw bytes, 2,333,698 gzip bytes. Production anchors were not modified. The original W3 worktree and all historical fixture files were left untouched.
 
 N0 local result: Rust 1.97.1, wasm-pack 0.15.0, Node 24.18.0; workspace 54 tests passed and one model test ignored; reduced-feature core 34 tests passed; `cargo fmt --all -- --check`, strict workspace clippy, Node helper assertions, WASM target check, and all eleven vectors through fresh `target/n0-wasm` passed. That WASM artifact has SHA-256 `44cdeef03b739bd1e20772119b2ce29fc1c99cd9a99e98538f22bb54aa2efd9f`, 6,946,939 raw bytes and 2,333,698 gzip bytes. The explicit `--ignored` model command without `PROVENANCE_LENS_BZH_ONNX` exited nonzero as intended. Production anchors, proof mapping, and vector contents were not changed.
+
+N0 clean-checkout result: local clone at commit `fce9ca2` checked out tracked `Cargo.lock` with SHA-256 `30ae9b4dbf53f1da9fc0a659076f735c40147ae76bd3593ca229707f73d752ff` and passed `cargo test --workspace --locked --offline` with 54 passing tests and one explicitly ignored model test. This used an already populated offline compiler/crate cache, not an empty machine; no remote CI has run yet.
 
 ## Interfaces and Dependencies
 

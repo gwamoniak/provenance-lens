@@ -8,7 +8,7 @@ C1's generic SVG/C2PA 0.90.13 implementation is approved and already merged into
 
 The latest code has a working cryptographic verifier, native watermark detectors, a browser extension, and a registry prototype. It is not a universal AI-content detector. Current priorities are a clean reproducible build, honest detector failure reporting, and browser badges that cannot retain results for an earlier image.
 
-N0 is now implemented locally on `codex/n0-reproducible-baseline` (from local main, carrying the reviewed plan). Its locked Rust/wasm-pack/C2PA baseline, formatter, strict lint, reduced-feature suite, and actual WASM smoke pass. The C2PA version did not change: its compatible range became an exact requirement for reviewed 0.90.13, and the committed lockfile's SHA-256 matches the pre-N0 file. The remaining checks are a clean-checkout validation, online CI after the branch is pushed, and maintainer review before merging the dependency-manifest change.
+N0 is now implemented locally on `codex/n0-reproducible-baseline` (from local main, carrying the reviewed plan). Its locked Rust/wasm-pack/C2PA baseline, formatter, strict lint, reduced-feature suite, and actual WASM smoke pass. The C2PA version did not change: its compatible range became an exact requirement for reviewed 0.90.13. A fresh clone passed the locked offline workspace tests and retained the pre-N0 lockfile SHA-256 after an explicit line-ending rule fixed Windows checkout conversion. The remaining checks are online CI after the branch is pushed and maintainer review before merging the dependency-manifest change.
 
 ## Capabilities and evidence boundaries
 
