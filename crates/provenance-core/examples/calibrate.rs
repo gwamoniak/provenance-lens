@@ -15,7 +15,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use provenance_core::layers::sd_dwt::SdInvisibleWatermark;
-use provenance_core::layers::watermark::{DecodedImage, WatermarkDetector};
+use provenance_core::layers::watermark::{
+    decode_rgb, DecodedImage, DetectorResult, WatermarkDetector,
+};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -37,7 +39,10 @@ fn main() {
     #[cfg(feature = "stable-signature")]
     if let Some(model_path) = &model {
         use provenance_core::layers::stable_signature::StableSignatureBzh;
-        match StableSignatureBzh::from_onnx_path(Path::new(model_path)) {
+        match std::fs::read(model_path)
+            .map_err(|e| e.to_string())
+            .and_then(|bytes| StableSignatureBzh::from_onnx_bytes(&bytes))
+        {
             Ok(det) => detectors.push(Box::new(det)),
             Err(err) => {
                 eprintln!("calibrate: cannot load model {model_path}: {err}");
@@ -51,8 +56,8 @@ fn main() {
         std::process::exit(2);
     }
 
-    // results[(set, transform, vendor)] = (hits, total)
-    let mut results: BTreeMap<(String, String, String), (u32, u32)> = BTreeMap::new();
+    // results[(set, transform, vendor)] = (hits, completed, unavailable)
+    let mut results: BTreeMap<(String, String, String), (u32, u32, u32)> = BTreeMap::new();
     let root = Path::new(&root);
     for set in list_dirs(root) {
         for transform in list_dirs(&root.join(&set)) {
@@ -72,10 +77,21 @@ fn main() {
                         transform.clone(),
                         detector.vendor().to_string(),
                     );
-                    let counter = results.entry(key).or_insert((0, 0));
-                    counter.1 += 1;
-                    if detector.probe(&image).is_some() {
-                        counter.0 += 1;
+                    let counter = results.entry(key).or_insert((0, 0, 0));
+                    match detector.probe(&image) {
+                        DetectorResult::Detected(_) => {
+                            counter.0 += 1;
+                            counter.1 += 1;
+                        }
+                        DetectorResult::NotDetected => counter.1 += 1,
+                        DetectorResult::Unavailable { reason } => {
+                            counter.2 += 1;
+                            eprintln!(
+                                "{} unavailable on {}: {reason}",
+                                detector.vendor(),
+                                path.display()
+                            );
+                        }
                     }
                 }
             }
@@ -100,7 +116,7 @@ fn main() {
         println!("\n### {vendor}\n");
         print!("| transform |");
         for set in &sets {
-            print!(" {set} (hits/total) |");
+            print!(" {set} (hits/completed; unavailable) |");
         }
         println!();
         print!("|---|");
@@ -112,12 +128,13 @@ fn main() {
             print!("| {transform} |");
             for set in &sets {
                 match results.get(&(set.clone(), transform.to_string(), vendor.clone())) {
-                    Some((hits, total)) => {
+                    Some((hits, total, unavailable)) if *total > 0 => {
                         print!(
-                            " {hits}/{total} ({:.1}%) |",
+                            " {hits}/{total} ({:.1}%); unavailable {unavailable} |",
                             *hits as f64 / *total as f64 * 100.0
                         )
                     }
+                    Some((_, _, unavailable)) => print!(" n/a; unavailable {unavailable} |"),
                     None => print!(" — |"),
                 }
             }
@@ -139,11 +156,5 @@ fn list_dirs(path: &Path) -> Vec<String> {
 
 fn load_rgb(path: &Path) -> Option<DecodedImage> {
     let bytes = std::fs::read(path).ok()?;
-    let decoded = image::load_from_memory(&bytes).ok()?.to_rgb8();
-    let (width, height) = (decoded.width() as usize, decoded.height() as usize);
-    Some(DecodedImage {
-        rgb: decoded.into_raw(),
-        width,
-        height,
-    })
+    decode_rgb(&bytes).ok()
 }

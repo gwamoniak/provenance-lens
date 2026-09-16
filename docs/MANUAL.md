@@ -34,7 +34,11 @@ Build it with `cargo build -p provenance-cli --release` (binary at `target/relea
 - `--json` — one JSON object per line per file (shape below) instead of the human report.
 - `--watermark-model <ONNX>` — adds the IMATAG Stable Signature "bzh" watermark classifier to the watermark probes for this run. The model is not bundled: IMATAG publishes the weights (MIT) as a PyTorch model, and `scripts/export_stable_signature_onnx.py` exports them to the ONNX file this flag consumes. Honest coverage note: this classifier recognizes ONLY images produced by IMATAG's own bzh-watermarked SDXL-VAE variants — it is not a general Stable Signature detector. Measured behavior under common transformations: `docs/CALIBRATION.md`.
 
-Exit code is the highest per-file code — the worst result wins:
+Only the calibrated ONNX export is accepted: SHA-256 `4f7d80027d5d7ecf5c176fabc3d86c8ccd791cc5c830d23a96114425cd1f3e57`. Unknown models fail at startup. An absent model, unsupported image size, or inference failure is an unavailable check, never a negative. A completed DWT hit can still yield Indicated when the optional model is absent. If no detector hits and any configured check is incomplete, the watermark finding is `not_evaluated`; only completed negative checks yield `no_signal`.
+
+Examinations accept at most 25 MiB of file bytes and 40 million decoded pixels for native watermark analysis. Oversized input is explicitly not examined; the shared native/WASM pipeline runs no layers on an input over the byte limit. CLI reads stop after one byte beyond that limit, even if file metadata is inaccurate. Image decoding also uses a 256 MiB decoder allocation budget. These are operational limits, not guarantees about total process memory or parser execution time.
+
+Exit code remains the highest per-file code (so a verdict code can outrank a file-read error code of 2):
 
     0 verified    10 indicated    20 inconclusive    30 tampered    2 usage-or-IO error
 
@@ -44,7 +48,7 @@ Example (against the repo's test corpus; `V=crates/provenance-core/tests/vectors
     crates/provenance-core/tests/vectors/valid_signed.jpg
       verdict: Verified: this asset carries a valid, cryptographically signed provenance chain.
       [c2pa] valid provenance chain, issuer: …
-      [watermark] ran, no signal
+      [watermark] not evaluated — unsupported dimensions or optional model unavailable (see reported reason)
       [registry] not evaluated — gated: no transparency-log registry deployed yet
       [heuristics] not evaluated — optional layer, not implemented
       credential claims:
@@ -91,25 +95,25 @@ One codebase for Chrome and Firefox (Firefox 128 or newer). Until the store list
 
 ### Verifying one image (no permissions beyond the click)
 
-Right-click any image → **"Verify provenance with Provenance Lens"**. The extension fetches that image's bytes — the only network request it ever makes on your behalf — runs the bundled engine locally, shows the verdict on the toolbar badge (VER green / IND amber / INC gray / TAM red; ERR black for errors), and opens the popup with the full report: the verbatim phrase, per-layer findings, credential claims when Verified, and a line stating whether trust anchors are loaded. Errors are shown as errors, never dressed as a verdict.
+Right-click any image → **"Verify provenance with Provenance Lens"**. The extension fetches that image file, checks it locally, shows the verdict on the toolbar badge (VER green / IND amber / INC gray / TAM red; ERR black for errors), and opens the popup with the full report and retrieval time. This checks the fetched file, not the page's displayed pixels: a server can return different bytes on another request. **Verify again** fetches anew. Image bytes are never uploaded. Fetching has a 15-second deadline and a streamed 25 MiB limit, including responses without a Content-Length header. Errors are shown as errors, never dressed as a verdict.
 
 ### Page scanning (opt-in, per site)
 
-Off by default, everywhere. To enable it for a site: open the popup on that site → **Page scanning** → "Scan images on \<host\>" → accept the browser's own consent prompt → reload the page. Every image shown on that site is then examined locally as it becomes visible; image bytes never leave your device.
+Off by default, everywhere. To enable it for a site: open the popup on that site → **Page scanning** → "Scan images on \<host\>" → accept the browser's consent prompt. It starts on the open page without reloading. Scanning consent is stored separately from permission to fetch that host. Existing host grants alone do not opt a site into scanning. Visible images rendered at least 64×64 pixels are queued; some images cannot be examined because of format, access, or resource limits.
 
 What you will see on the page, as small text pills on each examined image:
 
-- **VER / IND / INC / TAM** in the tier colors — hover for the exact phrase, click for the full report in the popup. Small icons/decoration images (under 64×64 as rendered) are skipped.
-- **· · ·** (gray, dashed) — *not examined*: the image is hosted somewhere your grant does not cover (a CDN, typically), so its bytes could not be read. Honest absence, never a guess. Clicking it opens the report with the reason; the popup then offers **"Allow access to \<image-host\> and verify"**, which re-examines the image under the new grant.
+- **VER / IND / INC / TAM** in the tier colors — hover for the exact phrase and retrieval time; activate the button with a click, Enter, or Space to verify again and show the full report. A changed image source invalidates its old badge; delayed results for an earlier source are discarded.
+- **· · ·** (gray, dashed) — *not examined*: missing image-host access, a fetch failure, an exceeded limit, or a full queue. The tooltip reports the reason. For missing access, the popup offers **"Allow access to \<image-host\> and verify"**. That grant permits fetching that host; it does not enable scanning its pages.
 - **ERR** (black) — an error other than access (e.g. the engine is missing). The report has the specifics.
 
 Expect a lot of gray INC pills — that is the point. Most images have no credentials, frequently because platforms strip them; seeing that plainly, at scale, is what this tool exists to show.
 
-To stop: popup → "Stop scanning \<host\>" → reload. Grants live in your browser's own permission store (also removable from the browser's extension settings); the extension keeps no list of its own, and its per-URL result cache clears when the browser closes.
+To stop: popup → "Stop scanning \<host\>". Badges disappear and active/queued page work is cancelled without a reload; the separate host-fetch grant remains. Revoking host access in browser settings also stops scanning and removes that site's scan choice. There are at most two active fetches and 50 waiting jobs. There is no persistent URL report cache; identical pending requests for the same document/source generation may share work.
 
 ### Permissions, plainly
 
-`contextMenus` (the right-click entry), `activeTab` (fetch the image you right-clicked, from the page you are on), `storage` (session-only: last result + verdict cache), `scripting` (register the page-scan script, only for sites you granted). Host access is exclusively opt-in per site at runtime — nothing at install. No analytics, no remote code.
+`contextMenus` (the right-click entry), `activeTab` (fetch the image you right-clicked, from the page you are on), `storage` (session last result and a local list of explicit scanning choices), `scripting` (register the script where scanning consent and host permission both exist). Host access is exclusively opt-in at runtime — nothing at install. No analytics, no remote code.
 
 ## The npm package
 

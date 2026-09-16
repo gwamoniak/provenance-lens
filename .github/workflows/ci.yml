@@ -41,7 +41,9 @@ jobs:
       - name: Core without default features
         run: cargo test -p provenance-core --no-default-features --locked
       - name: Extension JavaScript helpers
-        run: node scripts/scan_support_test.mjs
+        run: |
+          node scripts/scan_support_test.mjs
+          node scripts/background_test.mjs
       - name: wasm32 type-check (extension engine surface)
         run: cargo check -p provenance-wasm --target wasm32-unknown-unknown --locked
       - name: Install wasm-pack 0.15.0
@@ -51,6 +53,11 @@ jobs:
           wasm-pack build crates/provenance-wasm --target web --out-dir ../../target/ci-wasm --locked
           wasm-pack --version
           node scripts/wasm_smoke.mjs target/ci-wasm
+      - name: Chromium and Firefox image lifecycle
+        run: |
+          npm install --prefix target/browser-tests --no-save playwright@1.62.1
+          node target/browser-tests/node_modules/playwright/cli.js install --with-deps chromium firefox
+          NODE_PATH="$PWD/target/browser-tests/node_modules" node scripts/scan_browser_test.mjs target/ci-wasm
 
   model-test:
     if: github.event_name == 'workflow_dispatch' && inputs.bzh_model_url != ''
@@ -62,14 +69,14 @@ jobs:
           MODEL_URL: ${{ inputs.bzh_model_url }}
           MODEL_SHA256: ${{ inputs.bzh_model_sha256 }}
         run: |
-          test -n "$MODEL_SHA256"
+          test "$MODEL_SHA256" = '4f7d80027d5d7ecf5c176fabc3d86c8ccd791cc5c830d23a96114425cd1f3e57'
           case "$MODEL_URL" in https://*) ;; *) exit 1 ;; esac
       - name: Download and verify the supplied model
         env:
           MODEL_URL: ${{ inputs.bzh_model_url }}
           MODEL_SHA256: ${{ inputs.bzh_model_sha256 }}
         run: |
-          curl --fail --location --max-time 300 --proto '=https' --proto-redir '=https' --tlsv1.2 "$MODEL_URL" --output "$RUNNER_TEMP/bzh.onnx"
+          curl --fail --location --max-time 300 --max-filesize 67108864 --proto '=https' --proto-redir '=https' --tlsv1.2 "$MODEL_URL" --output "$RUNNER_TEMP/bzh.onnx"
           echo "$MODEL_SHA256  $RUNNER_TEMP/bzh.onnx" | sha256sum -c -
       - name: Run model known-answer test (no skip)
         env:

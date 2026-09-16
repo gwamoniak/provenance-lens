@@ -13,7 +13,7 @@
 use std::path::{Path, PathBuf};
 
 use provenance_core::layers::stable_signature::StableSignatureBzh;
-use provenance_core::layers::watermark::{DecodedImage, WatermarkDetector};
+use provenance_core::layers::watermark::{DecodedImage, DetectorResult, WatermarkDetector};
 
 fn load(path: &Path) -> DecodedImage {
     let decoded = image::open(path).expect("read example image").to_rgb8();
@@ -31,22 +31,30 @@ fn vendor_example_pair_classifies_exactly_as_the_vendor_says() {
     let model_path = std::env::var("PROVENANCE_LENS_BZH_ONNX")
         .expect("PROVENANCE_LENS_BZH_ONNX required when running the ignored model test");
     let detector =
-        StableSignatureBzh::from_onnx_path(Path::new(&model_path)).expect("load ONNX model");
+        StableSignatureBzh::from_onnx_bytes(&std::fs::read(&model_path).expect("read model"))
+            .expect("load ONNX model");
 
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/vectors/watermark/bzh");
     let hit = detector.probe(&load(&dir.join("watermarked.png")));
     match &hit {
-        Some(hit) => assert!(
+        DetectorResult::Detected(hit) => assert!(
             hit.source.contains("IMATAG Stable Signature"),
             "hit must name the scheme, got: {}",
             hit.source
         ),
-        None => panic!("the vendor's watermarked example must be detected"),
+        other => panic!("the vendor's watermarked example must be detected: {other:?}"),
     }
-    assert!(
-        detector
-            .probe(&load(&dir.join("not_watermarked.png")))
-            .is_none(),
+    assert_eq!(
+        detector.probe(&load(&dir.join("not_watermarked.png"))),
+        DetectorResult::NotDetected,
         "the vendor's clean example must not be detected"
     );
+    assert!(matches!(
+        detector.probe(&DecodedImage {
+            rgb: vec![0; 3],
+            width: 1,
+            height: 1
+        }),
+        DetectorResult::Unavailable { .. }
+    ));
 }

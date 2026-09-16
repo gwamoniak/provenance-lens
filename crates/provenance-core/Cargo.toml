@@ -26,7 +26,7 @@ registry-pdq = []
 # W2 (roadmap plan): the IMATAG Stable Signature (bzh) classifier via
 # pure-Rust ONNX inference. Opt-in and native-only; the model file itself is
 # never bundled — the caller supplies it at runtime (CLI --watermark-model).
-stable-signature = ["watermark-dwt", "dep:tract-onnx"]
+stable-signature = ["watermark-dwt", "dep:tract-onnx", "dep:sha2"]
 
 [dependencies]
 c2pa = { version = "=0.90.13", default-features = false, features = ["rust_native_crypto"] }
@@ -37,6 +37,8 @@ image = { version = "0.25", optional = true, default-features = false, features 
 # W2 dependency (roadmap plan Decision Log): pure-Rust ONNX runtime for the
 # Stable Signature classifier — no C++ runtime, no build-time downloads.
 tract-onnx = { version = "0.21", optional = true }
+# N1: identify the calibrated ONNX bytes before parsing (already in the lockfile).
+sha2 = { version = "=0.10.9", optional = true }
 
 [dev-dependencies]
 base64 = "0.22"

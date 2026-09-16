@@ -18,10 +18,10 @@ watermarked <=> logits[0] < 0).
 
 Usage (needs: pip install torch --index-url .../whl/cpu, transformers, onnx):
 
-    py scripts/export_stable_signature_onnx.py [MODEL_SRC] [OUT.onnx]
+    py scripts/export_stable_signature_onnx.py <LOCAL_MODEL_SRC> [OUT.onnx]
 
-MODEL_SRC defaults to the hub id; pass a local snapshot directory to run
-offline.
+Supply the local snapshot directory containing the reviewed weights. Both
+the upstream weights and the calibrated ONNX export are digest-checked.
 """
 
 import hashlib
@@ -34,6 +34,15 @@ from PIL import Image
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else "imatag/stable-signature-bzh-detector-resnet18"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "stable-signature-bzh-resnet18.onnx"
+EXPECTED_WEIGHTS = "d11e6f1a0a339c973ac3a433c43d67d2ddb2f37f26c456061d1778ea7bf9f70e"
+EXPECTED_ONNX = "4f7d80027d5d7ecf5c176fabc3d86c8ccd791cc5c830d23a96114425cd1f3e57"
+# Use an explicit local snapshot; a moving hub revision cannot inherit calibration.
+weights = os.path.join(SRC, "pytorch_model.bin")
+if not os.path.isfile(weights):
+    raise SystemExit("Supply a local snapshot containing the reviewed pytorch_model.bin")
+with open(weights, "rb") as handle:
+    if hashlib.file_digest(handle, "sha256").hexdigest() != EXPECTED_WEIGHTS:
+        raise SystemExit("Unrecognized weights: not the calibrated IMATAG bzh model")
 
 model = AutoModelForImageClassification.from_pretrained(SRC)
 model.eval()
@@ -64,6 +73,8 @@ except TypeError:  # older/newer torch without the dynamo kwarg
 sha = hashlib.sha256(open(OUT, "rb").read()).hexdigest()
 print(f"exported {OUT}  ({os.path.getsize(OUT)} bytes)")
 print(f"sha256   {sha}")
+if sha != EXPECTED_ONNX:
+    raise SystemExit("Export differs from the calibrated ONNX. Production loading refuses it; review and recalibrate before updating the pinned digest.")
 
 # BlipImageProcessor EXPLICITLY, as the vendor's demo does: transformers 5's
 # AutoImageProcessor maps this repo to a fast torchvision processor that

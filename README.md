@@ -35,6 +35,8 @@ Layer 1 accepts C2PA-bearing JPEG, PNG, WebP, GIF, AVIF, and SVG assets. Binary 
 
 The user manual — CLI reference, extension walkthrough including page scanning, JSON shape, troubleshooting — is **[docs/MANUAL.md](docs/MANUAL.md)**.
 
+N1/N2 development changes: incomplete watermark checks now remain `not_evaluated`; the optional IMATAG model must match the calibrated export's digest. Inputs are limited to 25 MiB, native pixel analysis to 40 million pixels, and image fetches to 15 seconds. Page scanning has a separate explicit site choice, removes badges when sources change or scanning stops, and offers keyboard-accessible **Verify again** buttons. Results name the retrieval time and apply to the fetched file, not the displayed pixels. There is no persistent URL verdict cache.
+
 ## Status
 
 The Layer-1 wedge shipped and has since been hardened and extended: real C2PA validation against the official conformance trust list (shipped as an updatable data file, refreshed by a monthly review PR), an eleven-vector self-verifying test corpus (JPEG + PNG + SVG) exercised natively and through the WASM boundary, cert-policy pinning tests, SVG-aware fuzzing, and CI on every push. The approved C2PA 0.90.13 and generic SVG work is merged into local main. A credential that fails validation can produce Tampered; a credential stripped completely leaves no C2PA signal and is Inconclusive. Comparing a known original with a re-saved copy can show that loss. The watermark layer became real on 2026-07-31 (roadmap W1): the Stable Diffusion invisible-watermark decoder, transcribed from the open reference implementation and tested against vectors that implementation generated. Detectors without a public spec, and the registry layer, stay gated; where a layer cannot run it honestly reports itself as not evaluated. The development sequence lives in `PROVENANCE_LENS_NEXT_EXECPLAN.md`, with detailed Claude, SynthID, registry, and historical wedge decisions in their respective ExecPlans.
@@ -50,6 +52,7 @@ Requires Rust 1.97.1 (pinned with the wasm32 target in `rust-toolchain.toml`), t
     cargo test --workspace --locked
     cargo test -p provenance-core --no-default-features --locked
     node scripts/scan_support_test.mjs
+    node scripts/background_test.mjs
     cargo check -p provenance-wasm --target wasm32-unknown-unknown --locked
     cargo run -p provenance-cli -- tiers
     cargo run -p provenance-cli -- verify photo.jpg     # exit: 0 verified / 10 indicated / 20 inconclusive / 30 tampered
@@ -62,6 +65,8 @@ Extension:
     # Firefox: about:debugging → This Firefox → Load Temporary Add-on → extension/manifest.json
 
 The model-backed IMATAG test is visibly ignored by default because the model is not bundled. To exercise it, set `PROVENANCE_LENS_BZH_ONNX` to an exported model path, then run `cargo test -p provenance-core --features stable-signature --test stable_signature --locked -- --ignored`. That command fails if the model is missing. CI also offers a manual model job that downloads an HTTPS model only when given its URL and SHA-256.
+
+The production loader accepts ONNX SHA-256 `4f7d80027d5d7ecf5c176fabc3d86c8ccd791cc5c830d23a96114425cd1f3e57`; other exports require review and calibration. Browser lifecycle checks run through Playwright 1.62.1 in Chromium and Firefox with `node scripts/scan_browser_test.mjs <wasm-pkg-directory>`. Setup and evidence are recorded in `docs/reviews/N1_N2_REVIEW.md`.
 
 ## Honesty rules
 

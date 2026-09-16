@@ -15,10 +15,16 @@ function render(entry) {
   const error = document.getElementById("error");
   report.hidden = true;
   error.hidden = true;
+  const again = document.getElementById("verify-again");
+  again.hidden = !entry?.srcUrl;
+  again.onclick = () => reverify(entry.srcUrl);
   if (!entry) return;
 
   if (entry.report) {
     document.getElementById("report-url").textContent = entry.srcUrl;
+    document.getElementById("report-retrieval").textContent = entry.retrievedAt
+      ? `Fetched at ${entry.retrievedAt}. This result checks the fetched file; it does not verify the displayed pixels.`
+      : "This is an earlier result without a recorded retrieval time. Verify again to fetch the current file.";
     const phrase = document.getElementById("report-phrase");
     phrase.textContent = entry.report.phrase;
     phrase.className = "phrase";
@@ -70,10 +76,15 @@ function render(entry) {
     const grantButton = document.getElementById("grant-image-host");
     grantButton.hidden = true;
     grantButton.onclick = null;
-    if (entry.notFetched && entry.srcUrl) {
+    if (entry.needsHostAccess && entry.srcUrl) {
       let host = "";
+      let pattern;
       try {
-        host = new URL(entry.srcUrl).hostname;
+        const url = new URL(entry.srcUrl);
+        if (["http:", "https:"].includes(url.protocol)) {
+          host = url.hostname;
+          pattern = `${url.protocol}//${host}/*`;
+        }
       } catch {
         /* unparseable srcUrl: no affordance */
       }
@@ -81,12 +92,12 @@ function render(entry) {
         grantButton.textContent = `Allow access to ${host} and verify`;
         grantButton.onclick = async () => {
           const granted = await api.permissions
-            .request({ origins: [`*://${host}/*`] })
+            .request({ origins: [pattern] })
             .catch(() => false);
           // Re-verify through the background; failures are not cached, so
           // this is a fresh examination under the new grant. The result
           // arrives via storage.onChanged and re-renders this popup.
-          if (granted) api.runtime.sendMessage({ type: "pl-show", url: entry.srcUrl }).catch(() => {});
+          if (granted) reverify(entry.srcUrl);
         };
         grantButton.hidden = false;
       }
@@ -95,10 +106,20 @@ function render(entry) {
   }
 }
 
+async function reverify(url) {
+  const button = document.getElementById("verify-again");
+  button.disabled = true;
+  try {
+    const entry = await api.runtime.sendMessage({ type: "pl-reverify", url });
+    render(entry?.srcUrl ? entry : { srcUrl: url, error: entry?.error || "verification failed" });
+  } catch (err) { render({ srcUrl: url, error: String(err.message || err) }); }
+  finally { button.disabled = false; }
+}
+
 // U7c: per-site scanning controls. Shown only when the active tab is an
 // http(s) page whose URL this popup may read (activeTab covers both the
-// action-click and context-menu paths). The browser's permission store is
-// the single source of truth; this UI only mirrors it.
+// action-click and context-menu paths). Scanning requires the explicit site
+// choice as well as browser host permission.
 async function initScanControls() {
   try {
     const [tab] = await api.tabs.query({ active: true, currentWindow: true });
@@ -106,28 +127,33 @@ async function initScanControls() {
     const url = new URL(tab.url);
     if (url.protocol !== "http:" && url.protocol !== "https:") return;
     const host = url.hostname;
-    const pattern = `*://${host}/*`;
+    const pattern = `${url.protocol}//${host}/*`;
     const status = document.getElementById("scan-status");
     const toggle = document.getElementById("scan-toggle");
     const note = document.getElementById("scan-reload-note");
 
     const refresh = async () => {
-      const enabled = await api.permissions.contains({ origins: [pattern] });
+      const { scanEnabledSites = [] } = await api.storage.local.get("scanEnabledSites");
+      const enabled = scanEnabledSites.includes(pattern) && await api.permissions.contains({ origins: [pattern] });
       if (enabled) {
         status.textContent = `Scanning enabled on ${host}.`;
         toggle.textContent = `Stop scanning ${host}`;
       } else {
         // Consent copy per the approved U7 design — understated, factual.
         status.textContent =
-          "Every image shown on this site is examined locally. Image bytes never leave your device.";
+          "Scan visible images of at least 64×64 pixels on this site. The extension fetches image files and checks them locally; it does not verify the page's displayed pixels. Some checks may be unavailable.";
         toggle.textContent = `Scan images on ${host}`;
       }
       toggle.onclick = async () => {
-        const changed = enabled
-          ? await api.permissions.remove({ origins: [pattern] }).catch(() => false)
-          : await api.permissions.request({ origins: [pattern] }).catch(() => false);
-        if (changed) note.hidden = false;
-        refresh();
+        const granted = enabled || await api.permissions.request({ origins: [pattern] }).catch(() => false);
+        if (!granted) return;
+        toggle.disabled = true;
+        try {
+          const result = await api.runtime.sendMessage({ type: "pl-set-scan", site: pattern, enabled: !enabled });
+          note.textContent = result?.error || "Changes apply to open pages immediately. Image-host access remains a separate permission.";
+          note.hidden = false;
+        } catch (err) { note.textContent = String(err.message || err); note.hidden = false; }
+        finally { toggle.disabled = false; await refresh(); }
       };
     };
     await refresh();

@@ -43,7 +43,7 @@ export function pillSpec(entry) {
       kind: "not-examined",
       text: "· · ·",
       color: "#757575",
-      title: `not examined — no access to ${host || "this image's host"}`,
+      title: entry.error || `not examined — no access to ${host || "this image's host"}`,
     };
   }
   return {
@@ -56,16 +56,23 @@ export function pillSpec(entry) {
 
 /// A concurrency limiter: at most `max` tasks run at once, the rest wait in
 /// FIFO order. `run(task)` resolves/rejects with the task's outcome.
-export function makeLimiter(max) {
+export function makeLimiter(max, maxWaiting = 50) {
   let inFlight = 0;
   const waiting = [];
   const runNext = () => {
     const next = waiting.shift();
     if (next) next();
   };
-  return function run(task) {
+  return function run(task, signal) {
     return new Promise((resolve, reject) => {
+      const cancel = () => {
+        const index = waiting.indexOf(start);
+        if (index >= 0) waiting.splice(index, 1);
+        reject(signal.reason || new Error("examination cancelled"));
+      };
       const start = () => {
+        signal?.removeEventListener("abort", cancel);
+        if (signal?.aborted) { cancel(); runNext(); return; }
         inFlight++;
         Promise.resolve()
           .then(task)
@@ -75,30 +82,83 @@ export function makeLimiter(max) {
             runNext();
           });
       };
-      if (inFlight < max) start();
-      else waiting.push(start);
+      if (signal?.aborted) cancel();
+      else if (inFlight < max) start();
+      else if (waiting.length >= maxWaiting) reject(new Error("page examination queue is full; not examined — try Verify again"));
+      else {
+        waiting.push(start);
+        signal?.addEventListener("abort", cancel, { once: true });
+      }
     });
   };
 }
 
-/// A capped FIFO cache persisted in an extension storage area (the caller
-/// passes api.storage.session; tests pass a fake). One storage key holds a
-/// plain object; JS object insertion order gives FIFO eviction.
-// ponytail: single-key read-modify-write — fine while one background context
-// is the only writer; revisit if that ever changes.
-export function makeSessionCache(storageArea, storageKey, cap) {
-  return {
-    async get(key) {
-      const { [storageKey]: cache = {} } = await storageArea.get(storageKey);
-      return cache[key];
-    },
-    async put(key, value) {
-      const { [storageKey]: cache = {} } = await storageArea.get(storageKey);
-      delete cache[key]; // re-inserting moves the key to the newest slot
-      cache[key] = value;
-      const keys = Object.keys(cache);
-      for (let i = 0; i < keys.length - cap; i++) delete cache[keys[i]];
-      await storageArea.set({ [storageKey]: cache });
-    },
+export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
+export const FETCH_TIMEOUT_MS = 15_000;
+
+// Exact scheme/host scope. Access to a CDN is not consent to scan its pages.
+export function sitePattern(value) {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password
+      ? `${url.protocol}//${url.hostname}/*` : null;
+  } catch { return null; }
+}
+
+// Only pending requests are shared. Settled results are never URL-cached.
+export function makeInFlight() {
+  const pending = new Map();
+  return function run(key, task) {
+    if (pending.has(key)) return pending.get(key);
+    const promise = Promise.resolve().then(task).finally(() => pending.delete(key));
+    pending.set(key, promise);
+    return promise;
   };
+}
+
+// Bound actual streamed bytes, including responses without Content-Length.
+export async function fetchBytes(url, {
+  signal, fetchImpl = fetch, maxBytes = MAX_ASSET_BYTES, timeoutMs = FETCH_TIMEOUT_MS,
+} = {}) {
+  const controller = new AbortController();
+  const abort = () => controller.abort(signal.reason || new Error("examination cancelled"));
+  if (signal?.aborted) abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(() => controller.abort(new Error("image fetch exceeded the 15-second deadline; not examined")), timeoutMs);
+  let rejectAborted;
+  const aborted = new Promise((_, reject) => { rejectAborted = reject; });
+  const onAbort = () => rejectAborted(controller.signal.reason);
+  controller.signal.addEventListener("abort", onAbort, { once: true });
+  let reader;
+  try {
+    if (controller.signal.aborted) throw controller.signal.reason;
+    const response = await Promise.race([
+      fetchImpl(url, { signal: controller.signal, cache: "no-store" }), aborted,
+    ]);
+    if (!response.ok) throw new Error(`image fetch failed (HTTP ${response.status}); not examined`);
+    if (Number(response.headers.get("content-length")) > maxBytes)
+      throw new Error("asset exceeds the 25 MiB examination limit; not examined");
+    if (!response.body) throw new Error("image response has no readable body; not examined");
+    reader = response.body.getReader();
+    let size = 0;
+    const chunks = [];
+    while (true) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) throw new Error("asset exceeds the 25 MiB examination limit; not examined");
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return { bytes, mediaType: (response.headers.get("content-type") || "").split(";")[0].trim() || undefined,
+      retrievedAt: new Date().toISOString() };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+    controller.signal.removeEventListener("abort", onAbort);
+    if (reader) reader.cancel().catch(() => {});
+    controller.abort();
+  }
 }

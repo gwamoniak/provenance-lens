@@ -22,7 +22,7 @@
 //! 4. Block k votes for payload bit `k mod wmLen`; a bit is 1 when
 //!    `mean(scores) * 255 > 127` (the reference's exact threshold).
 //! 5. The reference decoder refuses images with `rows * cols < 256 * 256`;
-//!    so do we (`None`, not an error).
+//!    so do we (an unavailable check, not a negative).
 //!
 //! A detection is claimed ONLY when every decoded bit equals a known Stable
 //! Diffusion payload — no partial matches, no similarity scores. Payloads
@@ -45,7 +45,7 @@
 //! decoder is tested against ground truth it did not produce. False-positive
 //! measurement: `cargo run -p provenance-core --example measure_fpr -- <dir>`.
 
-use crate::layers::watermark::{DecodedImage, WatermarkDetector, WatermarkHit};
+use crate::layers::watermark::{DecodedImage, DetectorResult, WatermarkDetector, WatermarkHit};
 
 /// Quantization scale the reference uses for the U channel (`scales[1]`).
 const SCALE: f64 = 36.0;
@@ -72,6 +72,7 @@ fn sdv1_bits() -> Vec<u8> {
 
 /// Steps 1–3: per-4×4-block scores in row-major order, payload-independent.
 fn block_scores(image: &DecodedImage) -> Option<Vec<u8>> {
+    image.validate().ok()?;
     // Reference guard: WatermarkDecoder.decode refuses r*c < 256*256.
     if image.width * image.height < 256 * 256 {
         return None;
@@ -169,8 +170,10 @@ impl WatermarkDetector for SdInvisibleWatermark {
         "stable-diffusion-invisible-watermark"
     }
 
-    fn probe(&self, image: &DecodedImage) -> Option<WatermarkHit> {
-        let scores = block_scores(image)?;
+    fn probe(&self, image: &DecodedImage) -> DetectorResult {
+        let Some(scores) = block_scores(image) else {
+            return DetectorResult::Unavailable { reason: "unsupported dimensions or invalid RGB buffer (requires at least 256×256 pixels of area, at most 40 million pixels)".into() };
+        };
         let payloads = [
             (
                 "the Stable Diffusion XL invisible watermark (48-bit dwtDct payload, \
@@ -183,14 +186,25 @@ impl WatermarkDetector for SdInvisibleWatermark {
                 sdv1_bits(),
             ),
         ];
+        let mut incomplete = false;
         for (source, expected) in payloads {
-            if vote(&scores, expected.len()).is_some_and(|bits| bits == expected) {
-                return Some(WatermarkHit {
+            let Some(bits) = vote(&scores, expected.len()) else {
+                incomplete = true;
+                continue;
+            };
+            if bits == expected {
+                return DetectorResult::Detected(WatermarkHit {
                     source: source.to_string(),
                 });
             }
         }
-        None
+        if incomplete {
+            DetectorResult::Unavailable {
+                reason: "insufficient blocks to examine every supported payload".into(),
+            }
+        } else {
+            DetectorResult::NotDetected
+        }
     }
 }
 
@@ -218,6 +232,9 @@ mod tests {
             height: 255,
         };
         assert!(block_scores(&image).is_none());
-        assert!(SdInvisibleWatermark.probe(&image).is_none());
+        assert!(matches!(
+            SdInvisibleWatermark.probe(&image),
+            DetectorResult::Unavailable { .. }
+        ));
     }
 }

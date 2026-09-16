@@ -3,6 +3,9 @@
 
 use crate::verdict::Verdict;
 
+/// Shared native/WASM input budget, checked before any parser runs.
+pub const MAX_ASSET_BYTES: usize = 25 * 1024 * 1024;
+
 /// An asset under examination. Bytes only — the core never does I/O; callers
 /// (CLI, WASM wrapper) read files or fetch URLs and hand the bytes in.
 pub struct Asset<'a> {
@@ -139,6 +142,25 @@ impl Pipeline {
     /// Run every layer and combine the findings. All layers always run —
     /// tamper evidence in a later layer must not be masked by an early exit.
     pub fn examine(&self, asset: &Asset) -> Report {
+        if asset.bytes.len() > MAX_ASSET_BYTES {
+            return Report {
+                verdict: Verdict::Inconclusive,
+                findings: self
+                    .layers
+                    .iter()
+                    .map(|layer| {
+                        (
+                            layer.name().into(),
+                            LayerFinding::NotEvaluated {
+                                reason: "asset exceeds the 25 MiB examination limit; not examined"
+                                    .into(),
+                            },
+                        )
+                    })
+                    .collect(),
+                credentials: None,
+            };
+        }
         let findings: Vec<(String, LayerFinding)> = self
             .layers
             .iter()
@@ -204,6 +226,28 @@ mod tests {
             Verdict::Inconclusive
         );
         assert_eq!(combine(&[f(LayerFinding::NoSignal)]), Verdict::Inconclusive);
+    }
+
+    #[test]
+    fn oversized_assets_never_reach_a_layer() {
+        struct MustNotRun;
+        impl Layer for MustNotRun {
+            fn name(&self) -> &'static str {
+                "guarded"
+            }
+            fn examine(&self, _: &Asset) -> LayerFinding {
+                panic!("oversized asset reached parser")
+            }
+        }
+        let report = Pipeline::with_layers(vec![Box::new(MustNotRun)]).examine(&Asset {
+            bytes: &vec![0; MAX_ASSET_BYTES + 1],
+            media_type: Some("image/jpeg"),
+        });
+        assert_eq!(report.verdict, Verdict::Inconclusive);
+        assert!(
+            matches!(&report.findings[0].1, LayerFinding::NotEvaluated { reason } if reason.contains("25 MiB"))
+        );
+        assert!(report.credentials.is_none());
     }
 
     #[test]

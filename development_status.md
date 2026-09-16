@@ -1,6 +1,6 @@
 # Development status — Provenance Lens
 
-Snapshot: **2026-09-16**, based on local code and checks at main `5f1dcb6`, not a new release. The consolidated next-step plan is [PROVENANCE_LENS_NEXT_EXECPLAN.md](PROVENANCE_LENS_NEXT_EXECPLAN.md). Historical approvals and trust rules remain in [PROVENANCE_LENS_EXECPLAN.md](PROVENANCE_LENS_EXECPLAN.md); this dashboard is a derived view.
+Snapshot: **2026-09-16**, updated for the N1/N2 candidate on `codex/n1-n2-evidence-reliability`, carrying N0; local main remains `5f1dcb6`. This is not a new release. The consolidated next-step plan is [PROVENANCE_LENS_NEXT_EXECPLAN.md](PROVENANCE_LENS_NEXT_EXECPLAN.md). Historical approvals and trust rules remain in [PROVENANCE_LENS_EXECPLAN.md](PROVENANCE_LENS_EXECPLAN.md); this dashboard is a derived view.
 
 ## Current position
 
@@ -12,13 +12,15 @@ N0 is now implemented locally on `codex/n0-reproducible-baseline` (from local ma
 
 ## Capabilities and evidence boundaries
 
+N1/N2 are now implemented and locally tested on `codex/n1-n2-evidence-reliability`, created from main and fast-forwarded to the N0 prerequisite before editing. Detector failures are explicit, the recovered model is identity-pinned, input/fetch/queue limits are enforced, and browser evidence follows current image generations with fresh fetches and explicit scan consent. See [the review packet](docs/reviews/N1_N2_REVIEW.md). No merge or push has occurred; the shared C2PA execution cutoff still needs human sign-off.
+
 | Area | Verified current state | Remaining boundary |
 |---|---|---|
 | C2PA | Local main resolves c2pa 0.90.13; eleven JPEG/PNG/SVG corpus vectors pass. SVG requires an explicit MIME/filename hint. | Only trusted validated provenance becomes Proof; valid-but-untrusted remains Tampered under existing policy. Dependency/trust changes need human sign-off. |
 | Claude files | Six original/labeled SVG negative controls contain no C2PA credentials. | No genuine Anthropic-signed positive specimen has been validated. Visible labels/free-form metadata are not signatures. |
 | Claude text / actual SynthID | No implemented detector in this tree. | Older research snapshots are dated August; usable vendor contract, fixtures/calibration, and any privacy exception must be established before implementation. |
-| Native watermark analysis | SD DWT-DCT decoder; CLI compiles IMATAG bzh support by default but uses it only with a supplied ONNX model. Historical calibration is in `docs/CALIBRATION.md`. | Runtime detector failure can currently collapse into NoSignal; model-backed inference was not exercised in this review. Neither scheme covers AI images generally. |
-| WASM / extension | Fresh standalone WASM passes eleven vectors. No pixel-watermark detector is compiled into that standalone build. Context-menu verification and opt-in page scanning exist. | No new real-browser smoke this review. Source changes, URL caching, cache concurrency, consent lifecycle, and resource bounds need the N2 work. |
+| Native watermark analysis | SD DWT-DCT and optional identity-pinned IMATAG bzh; explicit detected/negative/unavailable outcomes. Recovered model passes its positive/negative known-answer pair. | Full calibration was not rerun. Missing model or failed probe is NotEvaluated, not a negative. Neither scheme covers AI images generally. |
+| WASM / extension | Eleven vectors plus oversized-input/recovery checks pass. Chromium/Firefox DOM lifecycle tests and background consent/sender tests pass. No pixel-watermark detector is compiled into the standalone build. | Installed-extension permission dialogs and remote CI remain untested for this candidate. Limits do not guarantee total memory or adversarial parser time. |
 | W3-M signed watermark declarations | Implementation exists on `codex/w3-synthid-context` at `30e52c8`, outside main. | Needs reconciliation with C1 and its own maintainer review/sign-off. It reports a signed declaration, not pixel detection. |
 | Registry | G0 approved; G1 PDQ implemented/calibrated; `provenance-log`/`plog` prototype exists on main. | Product Layer 3 remains NotEvaluated. Live deployment/client not verified; parser/operator hardening, independently pinned trust, and G3 approval remain. |
 | Heuristics | Stub. | Optional; no expansion proposed before stronger evidence work. |
@@ -26,6 +28,10 @@ N0 is now implemented locally on `codex/n0-reproducible-baseline` (from local ma
 The four canonical verdict phrases and precedence remain unchanged. No data is not proof of authenticity. No successful check should be implied when a detector could not run.
 
 ## Fresh verification results
+
+**Latest N1/N2 candidate:** workspace tests **60 passed, one ignored**, optional model known-answer test **one passed**, reduced-feature suite **37 passed**, formatter and strict lint passed. Fresh WASM passes eleven vectors plus oversized-input/recovery and sampled hostile SVG checks; raw/gzip sizes are **6,947,729 / 2,334,154 bytes**. Node bounds/background tests and Chromium/Firefox content-script tests pass. The browser harness uses real DOM and WASM but substitutes extension messaging; the background harness separately substitutes browser APIs. Exact commands, hashes, and limits are in the review packet.
+
+The table below preserves the **earlier planning snapshot**, not current failures:
 
 | Check | Result on 2026-09-16 |
 |---|---|
@@ -41,12 +47,12 @@ N0 branch result: formatter and strict workspace lint now pass. The workspace su
 
 Fresh release-profile WASM, without the separate wasm-opt pass: **6,946,939 raw bytes / 2,333,698 gzip bytes**, within the existing 7,000,000 / 2,500,000 budgets. The new ExecPlan records artifact/dependency hashes and commands. This is a local build check, not a packaged release or comprehensive security audit.
 
-Not refreshed here: Chrome/Firefox interaction, fuzzing, advisory audit, upstream certificate contents, store/npm publication state, full calibration, or genuine positive vendor specimens. Earlier evidence remains historical, not a substitute for these checks on a release candidate.
+Not refreshed for the candidate: installed-extension permission dialogs, full fuzzing, advisory audit, upstream certificate contents, store/npm publication state, full calibration, or genuine positive vendor specimens. Earlier evidence remains historical, not a substitute for these checks on a release candidate.
 
 ## Recommended next sequence
 
 1. **N0 — Candidate ready locally.** Review the branch and review packet, push it when desired so the new GitHub checks can run, and obtain the maintainer's dependency-manifest sign-off before merge.
-2. **N1–N2 — Evidence reliability.** Distinguish detector failures from negatives; bound resource use; correct image/cache/permission lifecycle and accessibility.
+2. **N1–N2 — Candidate ready locally.** Review the bounded C2PA execution surface, run online CI after an authorized push, and complete installed-extension permission-dialog smoke before release.
 3. **N3 — Recover W3-M and finish useful Claude documentation.** Reuse existing implementation, reconcile fixtures, seek its separate sign-off, and publish an honest capability matrix.
 4. **N4 — Local evidence workbench.** File inspection, an unsigned downloadable evidence receipt, then two-file comparison using the existing verifier.
 5. **N5–N6 — Safe registry pilot and stronger measurement/release evidence.** Reuse the prototype, keep deployment/client gates explicit, and release smaller completed slices without waiting for vendor access.

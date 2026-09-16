@@ -1,5 +1,5 @@
 // Node test for extension/lib/scan_support.js (the U7 scan service logic):
-// the concurrency limiter and the capped FIFO session cache. Run:
+// bounded fetching/queueing, pending deduplication, and presentation. Run:
 //
 //   node scripts/scan_support_test.mjs
 //
@@ -9,7 +9,9 @@ import assert from "node:assert/strict";
 import {
   actionBadge,
   makeLimiter,
-  makeSessionCache,
+  makeInFlight,
+  fetchBytes,
+  sitePattern,
   pillSpec,
   TIER_BADGE,
 } from "../extension/lib/scan_support.js";
@@ -49,32 +51,59 @@ import {
   assert.equal(outcome[1].value, "after-failure");
 }
 
-// --- cache: get/put roundtrip, FIFO eviction at cap, re-put refreshes ------
+// No completed report cache: concurrent URLs cannot overwrite one another,
+// and reusing a URL after completion always examines the new response.
 {
-  // Fake storage area with the storage.get/set object shape.
-  const backing = {};
-  const area = {
-    async get(key) {
-      return key in backing ? { [key]: backing[key] } : {};
-    },
-    async set(obj) {
-      Object.assign(backing, obj);
-    },
-  };
-  const cache = makeSessionCache(area, "verdictCache", 3);
+  const pending = makeInFlight();
+  let calls = 0;
+  const task = async () => ++calls;
+  assert.deepEqual(await Promise.all([pending("doc:a:1", task), pending("doc:a:1", task), pending("doc:b:1", task)]), [1, 1, 2]);
+  assert.equal(await pending("doc:a:1", task), 3, "same URL is fetched again after completion");
+  await assert.rejects(pending("failure", () => { throw new Error("failed"); }));
+  assert.equal(await pending("failure", task), 4, "failed jobs leave no cached state");
+}
 
-  assert.equal(await cache.get("u1"), undefined, "miss before put");
-  await cache.put("u1", 1);
-  await cache.put("u2", 2);
-  await cache.put("u3", 3);
-  assert.equal(await cache.get("u1"), 1);
+{
+  const limit = makeLimiter(1, 1);
+  let release;
+  const active = limit(() => new Promise((resolve) => { release = resolve; }));
+  const controller = new AbortController();
+  let ran = false;
+  const waiting = limit(() => { ran = true; }, controller.signal);
+  const rejection = assert.rejects(waiting, /cancelled/);
+  await assert.rejects(limit(() => {}), /queue is full/);
+  controller.abort(new Error("cancelled"));
+  await rejection;
+  release(); await active;
+  assert.equal(ran, false, "revoked queued job never starts");
+  assert.equal(await limit(() => "recovered"), "recovered");
+}
 
-  await cache.put("u1", 11); // re-put: refresh, no eviction (still 3 keys)
-  await cache.put("u4", 4); // cap exceeded → evict the OLDEST (u2)
-  assert.equal(await cache.get("u2"), undefined, "oldest evicted at cap");
-  assert.equal(await cache.get("u1"), 11, "refreshed key survived");
-  assert.equal(await cache.get("u3"), 3);
-  assert.equal(await cache.get("u4"), 4);
+{
+  let cancelled = false;
+  const stream = new ReadableStream({
+    pull(controller) { controller.enqueue(new Uint8Array(8)); },
+    cancel() { cancelled = true; },
+  });
+  await assert.rejects(fetchBytes("https://example.com/a", { maxBytes: 10,
+    fetchImpl: async () => new Response(stream) }), /25 MiB/);
+  assert.equal(cancelled, true, "missing-length oversized stream is cancelled");
+  await assert.rejects(fetchBytes("https://example.com/a", { timeoutMs: 20,
+    fetchImpl: async () => new Promise(() => {}) }), /deadline/);
+  await assert.rejects(fetchBytes("https://example.com/a", { timeoutMs: 20,
+    fetchImpl: async () => new Response(new ReadableStream({})) }), /deadline/);
+  const next = await fetchBytes("https://example.com/a", {
+    fetchImpl: async (_url, options) => {
+      assert.equal(options.cache, "no-store");
+      return new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/png; charset=binary" } });
+    },
+  });
+  assert.deepEqual(next.bytes, new Uint8Array([1, 2, 3]));
+  assert.equal(next.mediaType, "image/png");
+  assert.ok(Date.parse(next.retrievedAt));
+  assert.equal(sitePattern("https://cdn.example:8443/a"), "https://cdn.example/*");
+  assert.equal(sitePattern("file:///a.jpg"), null);
+  assert.equal(sitePattern("https://user:password@example.com/a"), null);
 }
 
 // --- presentation: pillSpec / actionBadge cover every entry shape ----------
@@ -93,7 +122,7 @@ import {
   const blocked = { srcUrl: "https://cdn.example/b.jpg", notFetched: true, error: "could not fetch…" };
   const marker = pillSpec(blocked);
   assert.equal(marker.kind, "not-examined");
-  assert.ok(marker.title.includes("cdn.example"), "tooltip names the image host");
+  assert.equal(marker.title, blocked.error, "do not mislabel every network failure as missing permission");
   assert.equal(actionBadge(blocked).text, "ERR", "action badge stays honest on errors");
 
   const broken = { srcUrl: "not a url", error: "engine is not bundled…" };

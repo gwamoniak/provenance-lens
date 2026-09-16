@@ -3,7 +3,7 @@
 
 This ExecPlan is a living document, authored 2026-09-16. Maintain `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` at every stopping point, in accordance with `../solid-broccoli/PLANS.md`. The checkout is `D:\sandbox\projects\provenance-lens`.
 
-This is a proposed implementation sequence, not authorization to implement, merge, deploy, publish, or change the trust model. It consolidates the current roadmap without erasing the dated approvals in `PROVENANCE_LENS_EXECPLAN.md`. The Claude, SynthID, and registry plans remain the detailed records for their respective gates. The user requested code analysis and an updated plan; this milestone changes documentation only.
+This document began as a proposed implementation sequence following the user's code-review request. The user subsequently authorized N0 and then N1/N2 implementation. Their local candidates and validation are recorded below; merge, publication, and outstanding human trust-boundary review are separate. Historical approvals in `PROVENANCE_LENS_EXECPLAN.md` remain authoritative. The Claude, SynthID, and registry plans retain their own evidence gates.
 
 ## Purpose / Big Picture
 
@@ -24,8 +24,9 @@ The strongest next investment is not another detector. It is repairing the relea
 - [x] (2026-09-16) N0 implementation prepared on `codex/n0-reproducible-baseline` from local main. Formatter and strict workspace lint pass; the original 91,029-byte lockfile is now tracked with the same SHA-256 as the planning review, c2pa remains 0.90.13 with an exact requirement, Rust 1.97.1 and wasm-pack 0.15.0 are pinned, and CI now covers reduced-feature Rust, Node helpers, and a real standalone WASM build. Default model tests report one ignored test; the opt-in run fails if its model is absent.
 - [x] (2026-09-16) N0 clean-checkout validation: a local clone of the committed branch retains the original Cargo.lock SHA-256 and passes `cargo test --workspace --locked --offline` (54 passed, one explicitly ignored). The first clone exposed Windows newline conversion; `Cargo.lock -text` in `.gitattributes` fixes its bytes across checkouts.
 - [ ] N0 branch acceptance remaining: GitHub push/PR job on the candidate branch and maintainer review of the exact C2PA dependency pin before any merge. The CI job cannot run remotely until the branch is pushed.
-- [ ] N1 — Preserve unavailable/failed detector states and bound resource use.
-- [ ] N2 — Make page scanning refer to the current image and current consent.
+- [x] (2026-09-16) N1 implemented on `codex/n1-n2-evidence-reliability`, created from main and carrying N0: explicit detector outcomes, missing-model reporting, exact calibrated model identity, model shape/score checks, bounded native/WASM inputs and native decoding, streamed fetch limits/deadlines, and a bounded cancellable queue. Updated every probe caller and measurement denominator. The recovered pinned model passes the vendor known-answer pair.
+- [x] (2026-09-16) N2 implemented on that branch: source/document generations, native accessible buttons, fresh explicit re-verification, removal of persistent URL caching, retrieval-time/fetched-file context, explicit scan choices separate from grants, serialized consent writes, sender/document checks, and immediate stop/revocation cancellation. Node regressions and actual Chromium/Firefox DOM lifecycle tests pass.
+- [ ] N1/N2 acceptance before merge: maintainer review of the bounded C2PA execution entry, online CI after an authorized push, and installed-extension permission-dialog smoke. Concrete packet: `docs/reviews/N1_N2_REVIEW.md`. The DOM harness uses controlled extension messaging and actual WASM; it does not claim a refreshed store-installation test.
 - [ ] N3 — Reconcile and review the existing W3-M implementation; finish the ungated portion of Claude C4 documentation.
 - [ ] N4 — Add a local-file inspector, evidence receipt, and two-file comparison in small increments.
 - [ ] N5 — Harden the existing registry prototype before an approved pilot/client integration.
@@ -264,6 +265,9 @@ Registry operator experiments use newly created, explicitly named test directori
 
 ## Surprises & Discoveries
 
+- Observation (N1/N2, 2026-09-16): the calibrated ONNX export was in `D:\sandbox\corpus\bzh`, outside the repository. Its adjacent PyTorch weights match the earlier recorded hash, and the export at SHA-256 `4f7d80027d5d7ecf5c176fabc3d86c8ccd791cc5c830d23a96114425cd1f3e57` passes the vendor pair. Pinning that artifact closes the arbitrary-model claim gap without downloading or committing a model.
+- Observation (N2, 2026-09-16): Chromium can retain a cached larger srcset candidate when sizes shrinks. The correct badge follows actual currentSrc, not the test author's expected candidate. The browser test now uses distinct candidate URLs. Both Chromium 151.0.7922.34 and Firefox 153.0 pass source/srcset/sizes/viewport changes, delayed replies, same-URL new bytes, detach/reinsert, keyboard activation, and disable/resume. A separate regression prevents registration reconciliation from overwriting newer consent writes.
+
 
 - Observation: C1 is already in local main, although the latest plan/dashboard say “approved for merge.” Evidence: main `5f1dcb6` contains `8a0e689`; remote main still advertises `4445872`. Consequence: distinguish local completion from publication.
 - Observation: W3-M has two existing commits outside main. Evidence: `git log main..codex/w3-synthid-context` shows `bc2cc42` and `30e52c8`. Consequence: integrate/review existing work and reconcile test roots instead of starting again.
@@ -274,6 +278,10 @@ Registry operator experiments use newly created, explicitly named test directori
 
 ## Decision Log
 
+- Decision (N1/N2, 2026-09-16): implement the two user-requested milestones together on a new branch containing N0. Use `DetectorResult::{Detected, NotDetected, Unavailable}` and a byte-taking model loader; only the pinned calibrated ONNX may influence production verdicts. Add `sha2 =0.10.9` as an optional direct dependency already present in the lockfile; no resolved package versions change. The new detector/constructor Rust APIs are intentional source compatibility changes; JSON verdict/report shape and CLI exit precedence remain unchanged.
+- Decision (N1/N2, 2026-09-16): adopt the proposed 25 MiB, 40 million pixel, 15-second, two-active/50-waiting defaults, plus existing-decoder allocation limits and a 64 MiB model ceiling. Representative fixtures fit comfortably; direct-WASM oversized and nested/truncated SVG recovery checks pass. The slowest sampled WASM examination was 24.1 ms; this is not a worst-case bound. Do not add a killable product worker without evidence requiring it. The changed pre-parser execution boundary still requires the standing human review before merge.
+- Decision (N2, 2026-09-16): delete URL report persistence, keep only pending work sharing, and persist explicit scan choices separately from browser grants. Existing grants do not silently opt into scanning. The user's request to implement N2 authorizes this specified consent redesign; it is not approval to merge/publish. Playwright 1.62.1 is pinned test tooling only, with generated installs under ignored target output.
+
 
 - Decision: Treat this review as analysis and planning only; no runtime fixes, dependency updates, merges, or publication. Rationale: that is the current user request. Date/author: 2026-09-16 / plan author.
 - Decision: Recommend N0–N2 before expanding detection coverage. Rationale: correctness of evidence attachment and unavailable states matters more than another unsupported feature. Date/author: 2026-09-16 / proposed sequence, not maintainer implementation approval.
@@ -283,6 +291,8 @@ Registry operator experiments use newly created, explicitly named test directori
 - Decision (N0): commit the previously local lockfile unchanged, change the C2PA requirement from a compatible range to exactly the reviewed 0.90.13, and pin the installed Rust/wasm-pack versions. Keep the model inference test explicitly ignored by default and offer a manually triggered, SHA-256-checked CI job for a separately supplied model. Rationale: preserve the reviewed verification resolution while making both the default and opt-in validation outcomes observable. Date/author: 2026-09-16 / implementation author; dependency-manifest review before merge is pending.
 
 ## Outcomes & Retrospective
+
+N1/N2 local implementation (2026-09-16): unavailable detector states survive into reports, arbitrary models cannot inherit calibration, and input/queue/fetch limits reject unexamined work explicitly. Page badges follow the current source generation and current consent; report wording now identifies fetched-file scope. Local verification passes: 60 default workspace tests, 37 reduced-feature tests, the explicitly invoked model known-answer pair, strict lint/format, Node service regressions, all eleven real-WASM vectors, and Chromium/Firefox lifecycle cases. The review packet records hashes, commands, limitations, and the remaining human/remote-CI/installed-extension checks. Production C2PA validation code, anchors, and signed corpus are unchanged; the shared execution-entry guard is the trust-review surface.
 
 
 The planning milestone is complete: the current implementation was checked against the latest plans, reproducible issues were separated from source-derived risks, a fresh native/WASM baseline was recorded, and the next work is staged with user-visible acceptance criteria. Runtime defects identified here remain unfixed intentionally. No new detector, permission, remote upload, or trust decision was introduced. The most important change in direction is to improve evidence quality and usability while treating vendor-specific coverage as separately demonstrable work.
@@ -304,6 +314,8 @@ N0 clean-checkout result: local clone at commit `fce9ca2` checked out tracked `C
 
 ## Interfaces and Dependencies
 
+N1 implemented interface update: `WatermarkDetector::probe(&DecodedImage) -> DetectorResult`, where the result is Detected(WatermarkHit), NotDetected, or Unavailable { reason }. `StableSignatureBzh::from_onnx_bytes(&[u8])` replaces the file-reading constructor; the CLI owns bounded file reads. `MAX_ASSET_BYTES` is checked in `Pipeline::examine`, including direct WASM calls. N2 background entries add retrievedAt/evidenceScope; the core JSON shape is unchanged. The consent set is `storage.local.scanEnabledSites`; session storage retains only the selected last result, not a URL report cache.
+
 
 Keep `verify_bytes(bytes, media_type?, trust_anchors_pem?) -> JSON`, existing verdict identifiers/phrases, and the no-network core boundary. N1 needs an explicit detector outcome type because the current `Option` cannot express failure; update existing detectors, not a parallel interface. N3 reuses `CredentialSummary.declared_watermark` from the W3 branch after review. N4 adds an outer versioned receipt around the existing report and uses native file inputs/Web Crypto/download APIs. N5 reuses current Ed25519/SHA-256/PDQ code and existing dependencies under review; it does not justify a database, hosted API, blockchain, or new framework yet.
 
@@ -312,3 +324,5 @@ Defer PDF/audio/video claims until each has real supported-format vectors and pr
 Revision note (2026-09-16): initial consolidated successor plan from live code, Git state, executable checks, and the historical feature plans. Corrects the local-merge/W3/prototype status distinctions and prioritizes reproducibility, honest failure states, image-bound browser results, reusable evidence tooling, and gated registry/vendor expansion.
 
 Revision note (2026-09-16, N0): recorded the implemented reproducibility baseline, native/WASM evidence, unchanged dependency resolution, and the remaining remote-CI and human-review gates without declaring the later milestones complete.
+
+Revision note (2026-09-16, N1/N2): recorded both authorized local implementations, model identity recovery, bounds/consent decisions, full regression evidence, and remaining pre-merge checks. Historical planning findings remain as dated evidence; N3 and later work is unchanged.

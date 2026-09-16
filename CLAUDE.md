@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build
 
+**N1/N2 local candidate:** `codex/n1-n2-evidence-reliability` carries N0 and implements explicit detector failure outcomes, a pinned recovered bzh model, bounded examination, fresh image-generation-bound browser results, and separate scan consent. Workspace (60 passed, one ignored), reduced-feature (37), explicit model (one), strict lint, Node, real WASM, and Chromium/Firefox DOM checks pass. See `docs/reviews/N1_N2_REVIEW.md` for exact evidence and limitations. Main is unchanged; no push or merge. Human review of the new 25 MiB pre-parser boundary and online CI remain outstanding. N3 is the next proposed implementation milestone, not implicitly authorized.
+
     cargo fmt --all
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace

@@ -1,149 +1,192 @@
-// Page-scan content script (U7b). Registered by the background PER GRANTED
-// ORIGIN via scripting.registerContentScripts — it never appears in the
-// manifest, so its reach is exactly the user's grants at any moment.
-//
-// This script verifies NOTHING itself. It watches <img> elements, queues a
-// URL to the background only when an image becomes visible at a meaningful
-// size, and renders the pill spec the background answers with. All
-// presentation (text, colors, tooltips) is computed by the background from
-// extension/lib/scan_support.js, so page pills cannot drift from the action
-// badge. Pills are text-only by design rule: no checkmarks, no shields —
-// iconography smuggles safety semantics the wording rules exist to prevent.
-//
-// Message contract (background.js):
-//   { type: "pl-verify", url } → { entry, pill: { kind, text, color, title } }
-//   { type: "pl-show",   url } → surfaces the full report in badge + popup.
-//
-// Classic script (registerContentScripts js files are not modules); IIFE to
-// keep the page's global scope clean. A hostile page can remove the pills —
-// the extension never claims tamper-proof UI; the popup stays authoritative.
-
+// Registered only for explicitly enabled, currently granted sites. The page
+// never computes verdicts. Each response belongs to one image generation.
 (() => {
+  if (globalThis.__provenanceLensScanInstalled) return;
+  globalThis.__provenanceLensScanInstalled = true;
   const api = typeof browser !== "undefined" ? browser : chrome;
-
-  // Below this rendered size an image is treated as decoration (icons,
-  // sprites, trackers) and skipped. From the approved U7 design.
   const MIN_SIZE = 64;
-
-  // url → { pill: spec | null, imgs: Set<img> } — one verification per URL,
-  // however many <img> elements repeat it.
-  const byUrl = new Map();
-  // img → pill host element (for repositioning and cleanup).
-  const hosts = new Map();
-
-  const io = new IntersectionObserver(onIntersect, { rootMargin: "64px" });
-
+  const images = new Map();
+  let enabled = false;
+  let starting = false;
+  let lifecycle = 0;
+  let token;
+  let sequence = 0;
+  const source = (img) => img.currentSrc || img.src;
+  const io = new IntersectionObserver((entries) => {
+    if (!enabled) return;
+    for (const entry of entries) {
+      const rec = images.get(entry.target);
+      if (!rec) continue;
+      rec.visible = entry.isIntersecting;
+      if (rec.visible) examine(entry.target);
+    }
+  }, { rootMargin: "64px" });
+  const ro = new ResizeObserver((entries) => {
+    if (!enabled) return;
+    for (const { target } of entries) {
+      refresh(target);
+      if (images.get(target)?.visible) examine(target);
+    }
+    scheduleLayout();
+  });
+  function invalidate(img) {
+    const rec = images.get(img);
+    if (!rec) return;
+    rec.generation = ++sequence;
+    rec.host?.remove();
+    rec.host = null;
+    rec.requested = false;
+    rec.url = source(img);
+  }
   function watch(img) {
-    if (!hosts.has(img)) io.observe(img);
+    if (!enabled || images.has(img) || !img.isConnected) return;
+    images.set(img, { url: source(img), generation: ++sequence, requested: false, visible: false, host: null });
+    io.observe(img);
+    ro.observe(img);
   }
-
-  function onIntersect(entries) {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      const img = e.target;
-      const rect = e.boundingClientRect;
-      // Too small right now: leave it observed — it may lazy-load or grow,
-      // and it re-fires on the next intersection change.
-      if (rect.width < MIN_SIZE || rect.height < MIN_SIZE) continue;
-      const url = img.currentSrc || img.src;
-      if (!url) continue;
+  function forget(img) {
+    invalidate(img);
+    images.delete(img);
+    io.unobserve(img);
+    ro.unobserve(img);
+  }
+  function refresh(img, force = false) {
+    if (!enabled) return;
+    if (!img.isConnected) { forget(img); return; }
+    watch(img);
+    const rec = images.get(img);
+    if (force || rec.url !== source(img)) {
+      invalidate(img);
       io.unobserve(img);
-      enqueue(url, img);
+      io.observe(img);
     }
   }
-
-  function enqueue(url, img) {
-    let rec = byUrl.get(url);
-    if (!rec) {
-      rec = { pill: null, imgs: new Set() };
-      byUrl.set(url, rec);
-      api.runtime
-        .sendMessage({ type: "pl-verify", url })
-        .then((response) => {
-          rec.pill = (response && response.pill) || {
-            kind: "error",
-            text: "ERR",
-            color: "#000000",
-            title: "no response from the extension background",
-          };
-          for (const each of rec.imgs) placePill(each, url, rec.pill);
-        })
-        .catch(() => {
-          // Background unreachable (e.g. extension reloading): show nothing
-          // rather than a stale or invented state.
-          byUrl.delete(url);
-        });
-    }
-    rec.imgs.add(img);
-    if (rec.pill) placePill(img, url, rec.pill);
+  function current(img, rec, generation, url, session) {
+    return enabled && token === session && img.isConnected && images.get(img) === rec
+      && rec.generation === generation && rec.url === url && source(img) === url;
   }
-
-  function placePill(img, url, pill) {
-    if (hosts.has(img) || !img.isConnected) return;
+  function examine(img, show = false) {
+    const rec = images.get(img);
+    if (!rec || !enabled || !img.complete || !source(img)) return;
+    const rect = img.getBoundingClientRect();
+    if (rect.width < MIN_SIZE || rect.height < MIN_SIZE) {
+      if (rec.requested || rec.host) invalidate(img);
+      return;
+    }
+    if (rec.url !== source(img)) invalidate(img);
+    if (rec.requested && !show) return;
+    if (show) invalidate(img);
+    rec.requested = true;
+    const url = rec.url;
+    const generation = rec.generation;
+    const session = token;
+    api.runtime.sendMessage({ type: show ? "pl-show" : "pl-verify", url, generation, token: session })
+      .then((response) => {
+        if (!current(img, rec, generation, url, session)) return;
+        if (response?.stopped) { stop(); return; }
+        if (response?.pill) placePill(img, rec, response.pill, response.entry);
+      }).catch(() => {
+        if (current(img, rec, generation, url, session)) { rec.requested = false; rec.host?.remove(); rec.host = null; }
+      });
+  }
+  function placePill(img, rec, pill, entry) {
+    rec.host?.remove();
     const host = document.createElement("div");
-    host.style.cssText =
-      "position:absolute;z-index:2147483647;margin:0;padding:0;border:0;pointer-events:none;";
+    host.style.cssText = "position:absolute;z-index:2147483647;margin:0;padding:0;border:0;pointer-events:none;";
     const shadow = host.attachShadow({ mode: "closed" });
-    const el = document.createElement("span");
-    el.textContent = pill.text;
-    el.title = pill.title;
-    const common =
-      "pointer-events:auto;cursor:pointer;display:inline-block;" +
-      "font:700 10px/1.4 system-ui,sans-serif;padding:1px 5px;border-radius:3px;" +
-      "letter-spacing:.5px;user-select:none;";
-    el.style.cssText =
-      pill.kind === "not-examined"
-        ? common + `color:${pill.color};border:1px dashed ${pill.color};background:rgba(255,255,255,.75);`
-        : common + `color:#fff;background:${pill.color};`;
-    el.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      api.runtime.sendMessage({ type: "pl-show", url }).catch(() => {});
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = pill.text;
+    const scope = entry?.retrievedAt
+      ? ` Fetched file checked at ${entry.retrievedAt}; displayed pixels were not verified.` : "";
+    button.title = pill.title + scope;
+    button.setAttribute("aria-label", `Verify again and show details. ${button.title}`);
+    const common = "pointer-events:auto;cursor:pointer;font:700 10px/1.4 system-ui,sans-serif;padding:1px 5px;border-radius:3px;letter-spacing:.5px;";
+    button.style.cssText = pill.kind === "not-examined"
+      ? common + `color:${pill.color};border:1px dashed ${pill.color};background:#fff;`
+      : common + `color:#fff;background:${pill.color};border:1px solid #fff;`;
+    button.addEventListener("click", (event) => {
+      event.preventDefault(); event.stopPropagation();
+      if (images.get(img) === rec && img.isConnected) examine(img, true);
     });
-    shadow.appendChild(el);
+    shadow.appendChild(button);
     document.body.appendChild(host);
-    hosts.set(img, host);
+    rec.host = host;
     position(img, host);
-    scheduleReposition();
   }
-
   function position(img, host) {
     const rect = img.getBoundingClientRect();
     host.style.top = `${rect.top + window.scrollY + 4}px`;
     host.style.left = `${rect.left + window.scrollX + 4}px`;
   }
-
-  // Keep pills glued to their images across scroll/resize/layout changes;
-  // drop pills whose image left the DOM. rAF-throttled.
-  let repositionQueued = false;
-  function scheduleReposition() {
-    if (repositionQueued) return;
-    repositionQueued = true;
+  let queued = false;
+  function scheduleLayout() {
+    if (!enabled || queued) return;
+    queued = true;
     requestAnimationFrame(() => {
-      repositionQueued = false;
-      for (const [img, host] of hosts) {
-        if (!img.isConnected) {
-          host.remove();
-          hosts.delete(img);
-        } else {
-          position(img, host);
-        }
+      queued = false;
+      if (!enabled) return;
+      for (const [img, rec] of images) {
+        refresh(img);
+        if (rec.host) position(img, rec.host);
       }
     });
   }
-  addEventListener("scroll", scheduleReposition, { passive: true, capture: true });
-  addEventListener("resize", scheduleReposition, { passive: true });
-
-  // Existing images, then SPA-inserted ones.
-  document.querySelectorAll("img").forEach(watch);
-  new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      for (const node of mutation.addedNodes) {
-        if (node.nodeType !== Node.ELEMENT_NODE) continue;
-        if (node.tagName === "IMG") watch(node);
-        else if (node.querySelectorAll) node.querySelectorAll("img").forEach(watch);
-      }
+  function eachImage(node, fn) {
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    if (node.tagName === "IMG") fn(node);
+    node.querySelectorAll?.("img").forEach(fn);
+  }
+  const mutations = new MutationObserver((changes) => {
+    if (!enabled) return;
+    // Removal invalidates even if the node was reinserted in the same batch.
+    for (const change of changes) for (const node of change.removedNodes) eachImage(node, forget);
+    for (const change of changes) {
+      for (const node of change.addedNodes) eachImage(node, watch);
+      if (change.type === "attributes" && change.target.tagName === "IMG") refresh(change.target, true);
+      const picture = change.target.closest?.("picture");
+      if (picture) eachImage(picture, (img) => refresh(img, true));
     }
-    scheduleReposition();
-  }).observe(document.documentElement, { childList: true, subtree: true });
+    scheduleLayout();
+  });
+  function stop() {
+    enabled = false; starting = false; lifecycle++;
+    io.disconnect(); ro.disconnect(); mutations.disconnect();
+    for (const rec of images.values()) rec.host?.remove();
+    images.clear();
+  }
+  async function start() {
+    if (starting || enabled) return;
+    starting = true;
+    const version = ++lifecycle;
+    token = crypto.randomUUID();
+    try {
+      const response = await api.runtime.sendMessage({ type: "pl-scan-start", token });
+      if (version !== lifecycle) return;
+      starting = false;
+      if (!response?.enabled) return;
+      enabled = true;
+      document.querySelectorAll("img").forEach(watch);
+      mutations.observe(document.documentElement, { childList: true, subtree: true, attributes: true,
+        attributeFilter: ["src", "srcset", "sizes", "media", "type"] });
+    } catch { if (version === lifecycle) starting = false; }
+  }
+  document.addEventListener("load", (event) => {
+    if (enabled && event.target.tagName === "IMG") refresh(event.target, true);
+  }, true);
+  document.addEventListener("error", (event) => {
+    if (enabled && event.target.tagName === "IMG") invalidate(event.target);
+  }, true);
+  addEventListener("scroll", scheduleLayout, { passive: true, capture: true });
+  addEventListener("resize", scheduleLayout, { passive: true });
+  addEventListener("pagehide", stop);
+  addEventListener("pageshow", start);
+  api.runtime.onMessage.addListener((message, sender) => {
+    if (sender.id !== api.runtime.id) return;
+    if (message?.type === "pl-scan-control") { if (message.enabled) start(); else stop(); }
+    if (message?.type === "pl-scan-refresh" && enabled) {
+      for (const img of images.keys()) if (source(img) === message.url) refresh(img, true);
+    }
+  });
+  start();
 })();

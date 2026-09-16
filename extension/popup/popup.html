@@ -12,6 +12,7 @@
   <section id="report" hidden>
     <h2>Last verification</h2>
     <p id="report-url" class="url"></p>
+    <p id="report-retrieval" class="anchors-note"></p>
     <p id="report-phrase" class="phrase"></p>
     <ul id="report-findings" class="findings"></ul>
     <!-- What a Verified credential claims (engine JSON "credentials");
@@ -22,16 +23,18 @@
 
   <!-- U7c: per-site page scanning. Hidden unless the active tab is an
        http(s) page whose URL the popup may read. Granting goes through the
-       browser's own consent prompt; the browser's permission store is the
-       single source of truth. -->
+       browser's own consent prompt; the explicit scan choice is separate
+       from permission to fetch a host. -->
   <section id="scan-site" hidden>
     <h2>Page scanning</h2>
     <p id="scan-status" class="anchors-note"></p>
     <button id="scan-toggle" class="scan-button"></button>
     <p id="scan-reload-note" class="anchors-note" hidden>
-      Reload the page to apply the change.
+      Changes apply to open pages immediately. Image-host access is a separate permission.
     </p>
   </section>
+
+  <button id="verify-again" class="scan-button" hidden>Verify again</button>
 
   <!-- Error state: an error is an error, never a verdict tier. -->
   <section id="error" hidden>

@@ -66,10 +66,16 @@ fn clean_twin_of_the_base_image_stays_inconclusive() {
         "clean_base.png must not be Indicated; findings: {:?}",
         report.findings
     );
+    #[cfg(not(feature = "stable-signature"))]
     assert_eq!(
         watermark_finding(&report),
         &LayerFinding::NoSignal,
         "the detector ran and must report NoSignal, not a false hit"
+    );
+    #[cfg(feature = "stable-signature")]
+    assert!(
+        matches!(watermark_finding(&report), LayerFinding::NotEvaluated { reason }
+        if reason.contains("imatag-stable-signature-bzh: model file not provided"))
     );
 }
 

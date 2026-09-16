@@ -17,7 +17,9 @@
 use std::path::Path;
 
 use provenance_core::layers::sd_dwt::SdInvisibleWatermark;
-use provenance_core::layers::watermark::{DecodedImage, WatermarkDetector};
+use provenance_core::layers::watermark::{
+    decode_rgb, DecodedImage, DetectorResult, WatermarkDetector,
+};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -38,7 +40,10 @@ fn main() {
     #[cfg(feature = "stable-signature")]
     if let Some(model_path) = &model {
         use provenance_core::layers::stable_signature::StableSignatureBzh;
-        match StableSignatureBzh::from_onnx_path(Path::new(model_path)) {
+        match std::fs::read(model_path)
+            .map_err(|e| e.to_string())
+            .and_then(|bytes| StableSignatureBzh::from_onnx_bytes(&bytes))
+        {
             Ok(det) => detectors.push(Box::new(det)),
             Err(err) => {
                 eprintln!("measure_fpr: cannot load model {model_path}: {err}");
@@ -53,6 +58,8 @@ fn main() {
     }
     let (mut examined, mut skipped) = (0u64, 0u64);
     let mut hits_per: Vec<u64> = vec![0; detectors.len()];
+    let mut completed_per = vec![0u64; detectors.len()];
+    let mut unavailable_per = vec![0u64; detectors.len()];
 
     let mut stack = vec![std::path::PathBuf::from(&dir)];
     while let Some(current) = stack.pop() {
@@ -82,9 +89,21 @@ fn main() {
                 Some(image) => {
                     examined += 1;
                     for (idx, detector) in detectors.iter().enumerate() {
-                        if let Some(hit) = detector.probe(&image) {
-                            hits_per[idx] += 1;
-                            println!("FALSE POSITIVE  {}  ({})", path.display(), hit.source);
+                        match detector.probe(&image) {
+                            DetectorResult::Detected(hit) => {
+                                hits_per[idx] += 1;
+                                completed_per[idx] += 1;
+                                println!("FALSE POSITIVE  {}  ({})", path.display(), hit.source);
+                            }
+                            DetectorResult::NotDetected => completed_per[idx] += 1,
+                            DetectorResult::Unavailable { reason } => {
+                                unavailable_per[idx] += 1;
+                                eprintln!(
+                                    "{} unavailable on {}: {reason}",
+                                    detector.vendor(),
+                                    path.display()
+                                );
+                            }
                         }
                     }
                 }
@@ -97,10 +116,17 @@ fn main() {
     for (idx, detector) in detectors.iter().enumerate() {
         let hits = hits_per[idx];
         print!("{}: {hits} false positives", detector.vendor());
-        if examined > 0 {
-            print!(" ({:.4}%)", hits as f64 / examined as f64 * 100.0);
+        let completed = completed_per[idx];
+        if completed > 0 {
+            print!(
+                " ({:.4}% of {completed} completed checks)",
+                hits as f64 / completed as f64 * 100.0
+            );
         }
-        println!();
+        println!(", {} unavailable", unavailable_per[idx]);
+        if completed < 2000 {
+            println!("note: this detector has fewer than 2000 completed clean-image checks");
+        }
     }
     if examined < 2000 {
         println!("note: the gate wants >= 2000 clean images; this corpus has fewer.");
@@ -109,11 +135,5 @@ fn main() {
 
 fn load_rgb(path: &Path) -> Option<DecodedImage> {
     let bytes = std::fs::read(path).ok()?;
-    let decoded = image::load_from_memory(&bytes).ok()?.to_rgb8();
-    let (width, height) = (decoded.width() as usize, decoded.height() as usize);
-    Some(DecodedImage {
-        rgb: decoded.into_raw(),
-        width,
-        height,
-    })
+    decode_rgb(&bytes).ok()
 }

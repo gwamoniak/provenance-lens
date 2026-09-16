@@ -1,225 +1,250 @@
-// Background script. In Chrome this runs as a module service worker; in
-// Firefox as an MV3 event page (the manifest declares both background keys —
-// the documented cross-browser pattern; Firefox ≥121 required). It owns the
-// context-menu entry and the verification flow: fetch the right-clicked
-// image (the ONLY network request this extension ever makes on the user's
-// behalf — image bytes never leave the device), run the bundled WASM engine,
-// store the result for the popup, and reflect the verdict on the action
-// badge. No static imports and all listeners registered synchronously at top
-// level — both are event-page requirements.
-//
-// Honesty rules enforced here: errors are errors (never mapped onto a
-// verdict tier), a missing engine says so, and nothing is rendered that the
-// engine did not compute.
-
-// Firefox's chrome.* is callback-style; its promise-style APIs live on
-// browser.*. Chrome defines only chrome.* (promise-capable in MV3).
+// Chrome MV3 worker / Firefox event page: listeners register synchronously.
 const api = typeof browser !== "undefined" ? browser : chrome;
-
 const MENU_ID = "provenance-lens-verify";
+const SCAN_SCRIPT_ID = "provenance-lens-scan";
+const SCAN_SITES = "scanEnabledSites";
+const documents = new Map(); // current top-level documents, never reports
+let policyRevision = 0;
+let policyChanging = false;
+let syncQueue = Promise.resolve();
 
-api.runtime.onInstalled.addListener(() => {
-  api.contextMenus.create({
-    id: MENU_ID,
-    title: "Verify provenance with Provenance Lens",
-    contexts: ["image"],
-  });
-  syncScanRegistration(); // U7a: reconcile grants → registration on install/update
-});
-
-api.contextMenus.onClicked.addListener((info) => {
-  if (info.menuItemId !== MENU_ID || !info.srcUrl) return;
-  verifyImage(info.srcUrl);
-});
-
-// The service worker is killed and restarted constantly; the engine is
-// (re)initialized lazily on first use, never at worker start.
-let enginePromise = null;
+let enginePromise;
 function engine() {
-  if (!enginePromise) {
-    enginePromise = (async () => {
-      const mod = await import("./pkg/provenance_wasm.js");
-      await mod.default({
-        module_or_path: api.runtime.getURL("pkg/provenance_wasm_bg.wasm"),
-      });
-      return mod;
-    })().catch((err) => {
-      enginePromise = null; // allow retry after a failed init
-      throw err;
-    });
-  }
+  if (!enginePromise) enginePromise = (async () => {
+    const mod = await import("./pkg/provenance_wasm.js");
+    await mod.default({ module_or_path: api.runtime.getURL("pkg/provenance_wasm_bg.wasm") });
+    return mod;
+  })().catch((err) => { enginePromise = null; throw err; });
   return enginePromise;
 }
-
-// trust/anchors.pem ships as data so the trust list updates without
-// rebuilding the engine. A placeholder without certificates behaves exactly
-// like "no anchors": nothing can verify as trusted.
-async function loadAnchors() {
-  try {
-    const response = await fetch(api.runtime.getURL("trust/anchors.pem"));
-    const pem = await response.text();
-    return pem.includes("BEGIN CERTIFICATE") ? pem : undefined;
-  } catch {
-    return undefined;
-  }
+let servicePromise;
+function scanService() {
+  if (!servicePromise) servicePromise = import("./lib/scan_support.js").then((lib) => ({
+    lib, limit: lib.makeLimiter(2, 50), pending: lib.makeInFlight(),
+  }));
+  return servicePromise;
 }
-
-// Fetch + verify one image URL; returns the report entry and performs no UI
-// side effects (shared by the context-menu flow and the U7 scan service).
-async function examineUrl(srcUrl) {
-  const entry = { srcUrl, at: new Date().toISOString() };
+async function loadAnchors() {
+  const response = await fetch(api.runtime.getURL("trust/anchors.pem"));
+  if (!response.ok) throw new Error("could not load trust anchors; not examined");
+  const pem = await response.text();
+  return pem.includes("BEGIN CERTIFICATE") ? pem : undefined;
+}
+async function examineUrl(srcUrl, signal) {
+  const entry = { srcUrl, at: new Date().toISOString(), evidenceScope: "fetched-file" };
   try {
+    const { lib } = await scanService();
+    if (!lib.sitePattern(srcUrl)) throw new Error("only HTTP(S) image URLs can be fetched; not examined");
     let mod;
-    try {
-      mod = await engine();
-    } catch {
-      throw new Error(
-        "verification engine is not bundled — build extension/pkg/ per extension/README.md. The asset was NOT examined."
-      );
-    }
-
-    let response;
-    try {
-      response = await fetch(srcUrl);
-    } catch {
-      // Marked so page pills can show the neutral "not examined" state:
-      // this is where a non-granted image host lands (CORS/permission).
-      entry.notFetched = true;
-      throw new Error(
-        "could not fetch the image (network failure or cross-origin restrictions). The asset was NOT examined."
-      );
-    }
-    if (!response.ok) {
-      throw new Error(
-        `could not fetch the image (HTTP ${response.status}). The asset was NOT examined.`
-      );
-    }
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    const mediaType =
-      (response.headers.get("content-type") || "").split(";")[0].trim() || undefined;
-
+    try { mod = await engine(); }
+    catch { throw new Error("verification engine is not bundled or could not start; not examined"); }
     const anchors = await loadAnchors();
+    let fetched;
+    try { fetched = await lib.fetchBytes(srcUrl, { signal }); }
+    catch (err) {
+      entry.notFetched = true;
+      // Explicit right-click checks can fail before a CDN grant exists.
+      // Offer access without replacing the actual network/limit error.
+      entry.needsHostAccess = !signal?.aborted
+        && !await api.permissions.contains({ origins: [lib.sitePattern(srcUrl)] });
+      throw err;
+    }
+    if (signal?.aborted) throw signal.reason;
+    entry.retrievedAt = fetched.retrievedAt;
     entry.anchorsLoaded = Boolean(anchors);
-    entry.report = JSON.parse(mod.verify_bytes(bytes, mediaType, anchors));
-  } catch (err) {
-    entry.error = String((err && err.message) || err);
-  }
+    entry.report = JSON.parse(mod.verify_bytes(fetched.bytes, fetched.mediaType, anchors));
+  } catch (err) { entry.error = String(err?.message || err); }
   return entry;
 }
-
-async function verifyImage(srcUrl) {
-  const entry = await examineUrl(srcUrl);
-  await showEntry(entry);
-}
-
-// Surface an entry as "the" result: popup storage, action badge, popup.
-async function showEntry(entry) {
+async function showEntry(entry, signal) {
+  if (signal?.aborted) return;
   const { lib } = await scanService();
+  if (signal?.aborted) return;
   await api.storage.session.set({ lastResult: entry });
-  const badge = lib.actionBadge(entry);
-  api.action.setBadgeText({ text: badge.text });
-  api.action.setBadgeBackgroundColor({ color: badge.color });
-  try {
-    await api.action.openPopup();
-  } catch {
-    // openPopup needs a recent user gesture and is not available everywhere;
-    // the badge plus a manual click on the action icon is the fallback.
-  }
-}
-
-// ---------------------------------------------------------------------------
-// U7a: page-scan plumbing. The content script (content/scan.js) is registered
-// PER GRANTED ORIGIN — never in the manifest — so the extension's reach is
-// exactly the user's grants at any moment. The browser's permission store is
-// the single source of truth; this only mirrors it into script registration.
-
-const SCAN_SCRIPT_ID = "provenance-lens-scan";
-
-async function syncScanRegistration() {
-  const { origins = [] } = await api.permissions.getAll();
-  const existing = await api.scripting
-    .getRegisteredContentScripts({ ids: [SCAN_SCRIPT_ID] })
-    .catch(() => []);
-  if (origins.length === 0) {
-    if (existing.length > 0) {
-      await api.scripting.unregisterContentScripts({ ids: [SCAN_SCRIPT_ID] });
-    }
+  if (signal?.aborted) {
+    const { lastResult } = await api.storage.session.get("lastResult");
+    if (lastResult?.owner?.token === entry.owner?.token) await api.storage.session.remove("lastResult");
     return;
   }
-  const script = {
-    id: SCAN_SCRIPT_ID,
-    js: ["content/scan.js"],
-    matches: origins,
-    runAt: "document_idle",
-    persistAcrossSessions: true,
-  };
-  if (existing.length > 0) await api.scripting.updateContentScripts([script]);
-  else await api.scripting.registerContentScripts([script]);
+  const badge = lib.actionBadge(entry);
+  await api.action.setBadgeText({ text: badge.text });
+  await api.action.setBadgeBackgroundColor({ color: badge.color });
+  try { await api.action.openPopup(); } catch { /* toolbar click is the fallback */ }
 }
-
-api.permissions.onAdded.addListener(syncScanRegistration);
-api.permissions.onRemoved.addListener(syncScanRegistration);
-api.runtime.onStartup.addListener(syncScanRegistration);
-
-// The scan service for content scripts. Two message types (U7b contract):
-//   { type: "pl-verify", url } → { entry, pill }   — verify (cached, capped)
-//   { type: "pl-show",   url } → true              — surface the report in
-//     the popup/badge (the pill-click flow); the grant-more-hosts affordance
-//     for not-examined images lives in the popup (U7c), because
-//     permissions.request is unavailable to content scripts.
-// At most 2 verifications in flight (the rest queue FIFO) and a capped
-// per-URL session cache, so repeated images cost one verification.
-let scanServicePromise = null;
-function scanService() {
-  if (!scanServicePromise) {
-    scanServicePromise = (async () => {
-      const lib = await import("./lib/scan_support.js");
-      return {
-        lib,
-        limit: lib.makeLimiter(2),
-        cache: lib.makeSessionCache(api.storage.session, "verdictCache", 200),
-      };
-    })().catch((err) => {
-      scanServicePromise = null;
-      throw err;
-    });
-  }
-  return scanServicePromise;
-}
-
-async function verifyCached(url) {
-  const { limit, cache } = await scanService();
-  const cached = await cache.get(url);
-  if (cached) return cached;
-  const entry = await limit(() => examineUrl(url));
-  // Only successful examinations are cached: failures are transient (the
-  // user may grant the image's host a moment later — U7c's allow button —
-  // or the network may recover), and a cached failure would replay forever.
-  if (!entry.error) await cache.put(url, entry);
+async function verifyImage(url) {
+  const { limit } = await scanService();
+  const entry = await limit(() => examineUrl(url)).catch((err) => ({ srcUrl: url, error: err.message }));
+  await showEntry(entry);
   return entry;
 }
-
-api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!message || typeof message.url !== "string") return false;
-  if (message.type === "pl-verify") {
-    (async () => {
-      const { lib } = await scanService();
-      const entry = await verifyCached(message.url);
-      return { entry, pill: lib.pillSpec(entry) };
-    })().then(sendResponse, async (err) => {
-      const entry = { srcUrl: message.url, error: String((err && err.message) || err) };
-      const { lib } = await scanService();
-      sendResponse({ entry, pill: lib.pillSpec(entry) });
-    });
-    return true; // async sendResponse
+function stopDocument(tabId) {
+  documents.get(tabId)?.controller.abort(new Error("page scanning stopped; not examined"));
+  documents.delete(tabId);
+}
+async function enabledFor(url) {
+  const { lib } = await scanService();
+  const pattern = lib.sitePattern(url);
+  if (!pattern || policyChanging) return false;
+  const { [SCAN_SITES]: sites = [] } = await api.storage.local.get(SCAN_SITES);
+  return sites.includes(pattern) && await api.permissions.contains({ origins: [pattern] }) && !policyChanging;
+}
+// Consent is explicit and separate from host grants. Serialized reconciliation
+// prevents an older permission snapshot from re-registering a revoked site.
+function invalidatePolicy() {
+  const revision = ++policyRevision;
+  policyChanging = true;
+  for (const tabId of documents.keys()) stopDocument(tabId);
+  // Clear existing page UI even while an earlier registration call is pending.
+  api.tabs.query({}).then((tabs) => {
+    if (revision !== policyRevision || !policyChanging) return;
+    return Promise.all(tabs.map((tab) => api.tabs.sendMessage(tab.id,
+      { type: "pl-scan-control", enabled: false }).catch(() => {})));
+  }).catch(() => {});
+  return revision;
+}
+function syncScanRegistration() {
+  const revision = invalidatePolicy();
+  syncQueue = syncQueue.catch(() => {}).then(async () => {
+    const { lib } = await scanService();
+    const tabs = await api.tabs.query({});
+    await Promise.all(tabs.map((tab) => api.tabs.sendMessage(tab.id, { type: "pl-scan-control", enabled: false }).catch(() => {})));
+    const { lastResult } = await api.storage.session.get("lastResult");
+    if (lastResult?.owner) {
+      await api.storage.session.remove("lastResult");
+      await api.action.setBadgeText({ text: "" });
+    }
+    await api.storage.session.remove("verdictCache");
+    const { [SCAN_SITES]: stored = [] } = await api.storage.local.get(SCAN_SITES);
+    const sites = [];
+    for (const site of stored) {
+      if (lib.sitePattern(site) === site && await api.permissions.contains({ origins: [site] })) sites.push(site);
+    }
+    if (revision !== policyRevision) return;
+    const existing = await api.scripting.getRegisteredContentScripts({ ids: [SCAN_SCRIPT_ID] });
+    if (revision !== policyRevision) return;
+    if (sites.length) {
+      const script = { id: SCAN_SCRIPT_ID, js: ["content/scan.js"], matches: sites,
+        runAt: "document_idle", persistAcrossSessions: true };
+      if (existing.length) await api.scripting.updateContentScripts([script]);
+      else await api.scripting.registerContentScripts([script]);
+    } else if (existing.length) await api.scripting.unregisterContentScripts({ ids: [SCAN_SCRIPT_ID] });
+    if (revision !== policyRevision) return;
+    policyChanging = false;
+    for (const tab of tabs) {
+      if (revision !== policyRevision) return;
+      if (!sites.includes(lib.sitePattern(tab.url))) continue;
+      await api.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/scan.js"] }).catch(() => {});
+      if (revision === policyRevision)
+        await api.tabs.sendMessage(tab.id, { type: "pl-scan-control", enabled: true }).catch(() => {});
+    }
+  }).catch((err) => { console.warn("Page scanning remains stopped:", err); });
+  return syncQueue;
+}
+function isPopup(sender) {
+  return sender.id === api.runtime.id && sender.url === api.runtime.getURL("popup/popup.html") && !sender.tab;
+}
+async function currentDocument(sender, token, start = false) {
+  const revision = policyRevision;
+  if (sender.id !== api.runtime.id || !Number.isInteger(sender.tab?.id) || sender.frameId !== 0
+      || typeof token !== "string" || token.length > 100 || !token.length)
+    throw new Error("unauthorized page request");
+  const tab = await api.tabs.get(sender.tab.id);
+  const withoutHash = (url) => new URL(url).href.split("#")[0];
+  if (!sender.url || withoutHash(tab.url) !== withoutHash(sender.url) || !await enabledFor(sender.url)
+      || revision !== policyRevision) throw new Error("page scanning is not authorized for this document");
+  let doc = documents.get(tab.id);
+  if (start && (!doc || doc.token !== token || doc.documentId !== sender.documentId)) {
+    stopDocument(tab.id);
+    doc = { token, documentId: sender.documentId, url: withoutHash(sender.url), controller: new AbortController() };
+    documents.set(tab.id, doc);
   }
-  if (message.type === "pl-show") {
-    (async () => {
-      await showEntry(await verifyCached(message.url));
-      return true;
-    })().then(sendResponse, () => sendResponse(false));
-    return true;
+  if (!doc || doc.token !== token || doc.documentId !== sender.documentId || doc.url !== withoutHash(sender.url)
+      || doc.controller.signal.aborted) throw new Error("page request is no longer current");
+  return doc;
+}
+async function scanRequest(message, sender) {
+  const doc = await currentDocument(sender, message.token, !documents.has(sender.tab?.id));
+  const { lib, limit, pending } = await scanService();
+  if (!Number.isSafeInteger(message.generation) || message.generation < 0)
+    throw new Error("invalid image request");
+  if (typeof message.url !== "string" || message.url.length > 8192 || !lib.sitePattern(message.url)) {
+    const entry = { srcUrl: message.url, notFetched: true, error: "not examined — requires an HTTP(S) image URL of at most 8192 characters" };
+    return { entry, pill: lib.pillSpec(entry) };
   }
-  return false;
+  const signal = doc.controller.signal;
+  const key = JSON.stringify([sender.tab.id, doc.token, message.url, message.generation]);
+  const entry = await pending(key, () => limit(async () => {
+    await currentDocument(sender, message.token);
+    if (!await api.permissions.contains({ origins: [lib.sitePattern(message.url)] }))
+      return { srcUrl: message.url, notFetched: true, needsHostAccess: true,
+        error: `not examined — no access to ${new URL(message.url).host}` };
+    return examineUrl(message.url, signal);
+  }, signal)).catch((err) => ({ srcUrl: message.url, notFetched: true, error: String(err?.message || err) }));
+  await currentDocument(sender, message.token);
+  if (message.type === "pl-show") await showEntry({ ...entry, owner: { tabId: sender.tab.id, token: doc.token } }, signal);
+  return { entry, pill: lib.pillSpec(entry) };
+}
+let consentQueue = Promise.resolve();
+function permissionsRemoved() {
+  // All consent writes share the popup's queue. Registration reconciliation
+  // only reads it, so it cannot overwrite a newer Stop scanning choice.
+  invalidatePolicy();
+  consentQueue = consentQueue.catch(() => {}).then(async () => {
+    const { [SCAN_SITES]: sites = [] } = await api.storage.local.get(SCAN_SITES);
+    const retained = [];
+    for (const site of sites) if (await api.permissions.contains({ origins: [site] })) retained.push(site);
+    await api.storage.local.set({ [SCAN_SITES]: retained });
+    await syncScanRegistration();
+  });
+  return consentQueue;
+}
+async function handleMessage(message, sender) {
+  const { lib } = await scanService();
+  if (isPopup(sender)) {
+    if (message.type === "pl-set-scan") {
+      const site = message.site;
+      if (typeof message.enabled !== "boolean" || lib.sitePattern(site) !== site) throw new Error("invalid site choice");
+      consentQueue = consentQueue.catch(() => {}).then(async () => {
+        if (message.enabled && !await api.permissions.contains({ origins: [site] })) throw new Error("site access is required");
+        const { [SCAN_SITES]: sites = [] } = await api.storage.local.get(SCAN_SITES);
+        const updated = sites.filter((value) => value !== site);
+        if (message.enabled) updated.push(site);
+        await api.storage.local.set({ [SCAN_SITES]: updated });
+        await syncScanRegistration();
+        return { enabled: message.enabled };
+      });
+      return consentQueue;
+    }
+    if (message.type === "pl-reverify") {
+      const { lastResult } = await api.storage.session.get("lastResult");
+      const url = message.url || lastResult?.srcUrl;
+      if (!lib.sitePattern(url)) throw new Error("no HTTP(S) file is selected for verification");
+      if (lastResult?.owner) await api.tabs.sendMessage(lastResult.owner.tabId,
+        { type: "pl-scan-refresh", url }).catch(() => {});
+      return verifyImage(url);
+    }
+  }
+  if (message.type === "pl-scan-start") {
+    await currentDocument(sender, message.token, true);
+    return { enabled: true };
+  }
+  if (message.type === "pl-verify" || message.type === "pl-show") return scanRequest(message, sender);
+  throw new Error("unauthorized extension request");
+}
+api.runtime.onInstalled.addListener(() => {
+  api.contextMenus.create({ id: MENU_ID, title: "Verify provenance with Provenance Lens", contexts: ["image"] });
+  syncScanRegistration();
 });
-
+api.contextMenus.onClicked.addListener((info) => {
+  if (info.menuItemId === MENU_ID && info.srcUrl) verifyImage(info.srcUrl).catch(console.warn);
+});
+api.permissions.onAdded.addListener(syncScanRegistration);
+api.permissions.onRemoved.addListener(permissionsRemoved);
+api.runtime.onStartup.addListener(syncScanRegistration);
+api.tabs.onRemoved.addListener(stopDocument);
+api.tabs.onUpdated.addListener((tabId, change) => { if (change.status === "loading") stopDocument(tabId); });
+api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!message || typeof message.type !== "string" || !message.type.startsWith("pl-")) return false;
+  handleMessage(message, sender).then(sendResponse, (err) => sendResponse({ error: String(err?.message || err), stopped: true }));
+  return true;
+});

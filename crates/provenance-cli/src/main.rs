@@ -7,6 +7,7 @@
 //! worst result wins (a Tampered anywhere outranks everything, mirroring the
 //! pipeline's own precedence rule).
 
+use std::io::Read;
 use std::process::ExitCode;
 
 use provenance_core::{render_json, Asset, LayerFinding, Pipeline, Verdict};
@@ -113,7 +114,16 @@ fn verify_all(args: &VerifyArgs) -> ExitCode {
         #[cfg(feature = "stable-signature")]
         {
             use provenance_core::layers::stable_signature::StableSignatureBzh;
-            match StableSignatureBzh::from_onnx_path(std::path::Path::new(model_path)) {
+            let model = std::fs::File::open(model_path)
+                .and_then(|file| {
+                    read_bounded(
+                        file,
+                        provenance_core::layers::stable_signature::MAX_MODEL_BYTES,
+                    )
+                })
+                .map_err(|err| err.to_string())
+                .and_then(|bytes| StableSignatureBzh::from_onnx_bytes(&bytes));
+            match model {
                 Ok(detector) => watermark.push_detector(Box::new(detector)),
                 Err(err) => {
                     eprintln!("lens: cannot load watermark model {model_path}: {err}");
@@ -134,7 +144,9 @@ fn verify_all(args: &VerifyArgs) -> ExitCode {
 
     let mut worst = 0u8;
     for path in &args.files {
-        let code = match std::fs::read(path) {
+        let code = match std::fs::File::open(path)
+            .and_then(|file| read_bounded(file, provenance_core::pipeline::MAX_ASSET_BYTES))
+        {
             Ok(bytes) => {
                 let report = pipeline.examine(&Asset {
                     bytes: &bytes,
@@ -176,6 +188,14 @@ fn verify_all(args: &VerifyArgs) -> ExitCode {
         worst = worst.max(code);
     }
     ExitCode::from(worst)
+}
+
+// Read one extra byte so the shared pipeline can report a refused asset.
+// File metadata is not a reliable bound for pipes or concurrently changed files.
+fn read_bounded(reader: impl Read, max: usize) -> std::io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    reader.take(max as u64 + 1).read_to_end(&mut bytes)?;
+    Ok(bytes)
 }
 
 fn exit_code(verdict: &Verdict) -> u8 {
@@ -245,6 +265,12 @@ mod tests {
         assert!(parsed.json);
         assert_eq!(parsed.anchors_path, Some("ca.pem"));
         assert_eq!(parsed.files, vec!["a.jpg", "b.jpg"]);
+    }
+
+    #[test]
+    fn reads_are_bounded_without_file_metadata() {
+        assert_eq!(read_bounded(std::io::repeat(1), 10).unwrap().len(), 11);
+        assert_eq!(read_bounded(&b"abc"[..], 10).unwrap(), b"abc");
     }
 
     #[test]
