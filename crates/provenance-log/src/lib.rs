@@ -130,7 +130,7 @@ impl Entry {
             return Err("bad entry magic".to_string());
         }
         let pdq_hash: [u8; 32] = take(&mut offset, 32)?.try_into().unwrap();
-        let mut string_field = |offset: &mut usize| -> Result<String, String> {
+        let string_field = |offset: &mut usize| -> Result<String, String> {
             let len = take(offset, 1)?[0] as usize;
             String::from_utf8(take(offset, len)?).map_err(|_| "field is not UTF-8".to_string())
         };
@@ -257,8 +257,7 @@ pub fn verify_inclusion(
             ))
         }
     }
-    index < tree_size
-        && climb(leaf, index, tree_size, proof).is_some_and(|r| r == *expected_root)
+    index < tree_size && climb(leaf, index, tree_size, proof).is_some_and(|r| r == *expected_root)
 }
 
 // ---------- checkpoint notes ----------
@@ -280,7 +279,8 @@ impl Checkpoint {
 
     pub fn to_note(&self, key: &SigningKey) -> String {
         let body = self.body();
-        let sig = base64::engine::general_purpose::STANDARD.encode(key.sign(body.as_bytes()).to_bytes());
+        let sig =
+            base64::engine::general_purpose::STANDARD.encode(key.sign(body.as_bytes()).to_bytes());
         format!("{body}\n— {NOTE_KEY_NAME} {sig}\n")
     }
 
@@ -335,7 +335,7 @@ pub fn hex_encode(bytes: &[u8]) -> String {
 }
 
 pub fn hex_decode(hex: &str) -> Result<Vec<u8>, String> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err("odd hex length".to_string());
     }
     (0..hex.len())
@@ -414,10 +414,22 @@ mod tests {
                 "leaf {index} must verify"
             );
             // Wrong index, wrong leaf, wrong root: all rejected.
-            assert!(!verify_inclusion(leaf, (index + 1) % 7, leaves.len(), &proof, &tree_root));
+            assert!(!verify_inclusion(
+                leaf,
+                (index + 1) % 7,
+                leaves.len(),
+                &proof,
+                &tree_root
+            ));
             let mut bad_root = tree_root;
             bad_root[0] ^= 1;
-            assert!(!verify_inclusion(leaf, index, leaves.len(), &proof, &bad_root));
+            assert!(!verify_inclusion(
+                leaf,
+                index,
+                leaves.len(),
+                &proof,
+                &bad_root
+            ));
         }
     }
 

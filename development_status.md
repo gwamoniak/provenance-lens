@@ -8,6 +8,8 @@ C1's generic SVG/C2PA 0.90.13 implementation is approved and already merged into
 
 The latest code has a working cryptographic verifier, native watermark detectors, a browser extension, and a registry prototype. It is not a universal AI-content detector. Current priorities are a clean reproducible build, honest detector failure reporting, and browser badges that cannot retain results for an earlier image.
 
+N0 is now implemented locally on `codex/n0-reproducible-baseline` (from local main, carrying the reviewed plan). Its locked Rust/wasm-pack/C2PA baseline, formatter, strict lint, reduced-feature suite, and actual WASM smoke pass. The C2PA version did not change: its compatible range became an exact requirement for reviewed 0.90.13, and the committed lockfile's SHA-256 matches the pre-N0 file. The remaining checks are a clean-checkout validation, online CI after the branch is pushed, and maintainer review before merging the dependency-manifest change.
+
 ## Capabilities and evidence boundaries
 
 | Area | Verified current state | Remaining boundary |
@@ -35,13 +37,15 @@ The four canonical verdict phrases and precedence remain unchanged. No data is n
 | Format check | Failed in the existing `provenance-log` sources. |
 | Strict workspace lint | Failed on `unused_mut` and `manual_is_multiple_of` in `provenance-log`; rerun after repair to uncover any further warnings. |
 
+N0 branch result: formatter and strict workspace lint now pass. The workspace suite reports **54 passed, one explicitly ignored model test**; the reduced-feature core suite passes 34 tests. All eleven fixtures pass fresh standalone WASM smoke. A manual `--ignored` model run without the required file exits with a clear failure. The original planning snapshot above remains as dated evidence of what N0 repaired.
+
 Fresh release-profile WASM, without the separate wasm-opt pass: **6,946,939 raw bytes / 2,333,698 gzip bytes**, within the existing 7,000,000 / 2,500,000 budgets. The new ExecPlan records artifact/dependency hashes and commands. This is a local build check, not a packaged release or comprehensive security audit.
 
 Not refreshed here: Chrome/Firefox interaction, fuzzing, advisory audit, upstream certificate contents, store/npm publication state, full calibration, or genuine positive vendor specimens. Earlier evidence remains historical, not a substitute for these checks on a release candidate.
 
 ## Recommended next sequence
 
-1. **N0 — Green reproducible baseline.** Repair formatting/lint, preserve reviewed dependency resolution, and add actual WASM/Node checks to CI.
+1. **N0 — Candidate ready locally.** Review the branch and review packet, push it when desired so the new GitHub checks can run, and obtain the maintainer's dependency-manifest sign-off before merge.
 2. **N1–N2 — Evidence reliability.** Distinguish detector failures from negatives; bound resource use; correct image/cache/permission lifecycle and accessibility.
 3. **N3 — Recover W3-M and finish useful Claude documentation.** Reuse existing implementation, reconcile fixtures, seek its separate sign-off, and publish an honest capability matrix.
 4. **N4 — Local evidence workbench.** File inspection, an unsigned downloadable evidence receipt, then two-file comparison using the existing verifier.

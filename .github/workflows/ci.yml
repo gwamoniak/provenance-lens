@@ -1,16 +1,20 @@
-# CI baseline (U4). The push/PR job is the hard gate and runs the exact
-# loop every implementer runs locally, plus the wasm32 type-check that
-# protects the extension surface. Cargo-audit remains ADVISORY because failing
-# on advisories is a maintainer decision. The fuzz smoke is enforcing after
-# the c2pa 0.90.13 upgrade fixed the known SaltHash JUMBF underflow; it now
-# also exercises the explicit SVG parser path. No third-party actions beyond
-# actions/checkout; the runner's rustup honors rust-toolchain.toml on the
-# first cargo call.
+# Native, reduced-feature, and real-WASM checks run on each push/PR.
+# Cargo-audit remains advisory; scheduled fuzzing is enforcing.
 name: ci
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      bzh_model_url:
+        description: "Optional HTTPS URL of an exported IMATAG bzh ONNX model"
+        required: false
+        type: string
+      bzh_model_sha256:
+        description: "SHA-256 of that ONNX model (required when URL is set)"
+        required: false
+        type: string
   schedule:
     - cron: "43 5 * * 1" # weekly, Monday 05:43 UTC (audit + fuzz smoke)
 
@@ -20,14 +24,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - name: Source and dependency identity
+        run: |
+          git rev-parse HEAD
+          sha256sum Cargo.lock
+          rustc --version
       - name: Format check
         run: cargo fmt --all -- --check
       - name: Clippy (deny warnings)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests
-        run: cargo test --workspace
+        run: cargo test --workspace --locked
+      - name: Core without default features
+        run: cargo test -p provenance-core --no-default-features --locked
+      - name: Extension JavaScript helpers
+        run: node scripts/scan_support_test.mjs
       - name: wasm32 type-check (extension engine surface)
-        run: cargo check -p provenance-wasm --target wasm32-unknown-unknown
+        run: cargo check -p provenance-wasm --target wasm32-unknown-unknown --locked
+      - name: Install wasm-pack 0.15.0
+        run: cargo install wasm-pack --version 0.15.0 --locked
+      - name: Build and exercise standalone WASM
+        run: |
+          wasm-pack build crates/provenance-wasm --target web --out-dir ../../target/ci-wasm --locked
+          wasm-pack --version
+          node scripts/wasm_smoke.mjs target/ci-wasm
+
+  model-test:
+    if: github.event_name == 'workflow_dispatch' && inputs.bzh_model_url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require a model digest and HTTPS source
+        env:
+          MODEL_URL: ${{ inputs.bzh_model_url }}
+          MODEL_SHA256: ${{ inputs.bzh_model_sha256 }}
+        run: |
+          test -n "$MODEL_SHA256"
+          case "$MODEL_URL" in https://*) ;; *) exit 1 ;; esac
+      - name: Download and verify the supplied model
+        env:
+          MODEL_URL: ${{ inputs.bzh_model_url }}
+          MODEL_SHA256: ${{ inputs.bzh_model_sha256 }}
+        run: |
+          curl --fail --location --max-time 300 --proto '=https' --proto-redir '=https' --tlsv1.2 "$MODEL_URL" --output "$RUNNER_TEMP/bzh.onnx"
+          echo "$MODEL_SHA256  $RUNNER_TEMP/bzh.onnx" | sha256sum -c -
+      - name: Run model known-answer test (no skip)
+        env:
+          PROVENANCE_LENS_BZH_ONNX: ${{ runner.temp }}/bzh.onnx
+        run: cargo test -p provenance-core --features stable-signature --test stable_signature --locked -- --ignored
 
   audit-and-fuzz:
     if: github.event_name == 'schedule'

@@ -3,11 +3,11 @@
 //! tests/vectors/watermark/bzh/ATTRIBUTION.md).
 //!
 //! The model file is never committed (bare-machine rule), so this test is
-//! env-gated: export the model once with
+//! explicitly ignored by default. Export the model once with
 //!     py scripts/export_stable_signature_onnx.py <model-dir> <out.onnx>
 //! then run
-//!     PROVENANCE_LENS_BZH_ONNX=<out.onnx> cargo test -p provenance-core --test stable_signature
-//! Without the variable the test skips and everything else stays green.
+//!     PROVENANCE_LENS_BZH_ONNX=<out.onnx> cargo test -p provenance-core --features stable-signature --test stable_signature -- --ignored
+//! With --ignored, a missing model fails rather than silently passing.
 #![cfg(feature = "stable-signature")]
 
 use std::path::{Path, PathBuf};
@@ -26,17 +26,10 @@ fn load(path: &Path) -> DecodedImage {
 }
 
 #[test]
+#[ignore = "requires PROVENANCE_LENS_BZH_ONNX; run with --ignored"]
 fn vendor_example_pair_classifies_exactly_as_the_vendor_says() {
-    let model_path = match std::env::var("PROVENANCE_LENS_BZH_ONNX") {
-        Ok(path) => path,
-        Err(_) => {
-            eprintln!(
-                "skipping: PROVENANCE_LENS_BZH_ONNX not set (no model committed; \
-                 export one with scripts/export_stable_signature_onnx.py)"
-            );
-            return;
-        }
-    };
+    let model_path = std::env::var("PROVENANCE_LENS_BZH_ONNX")
+        .expect("PROVENANCE_LENS_BZH_ONNX required when running the ignored model test");
     let detector =
         StableSignatureBzh::from_onnx_path(Path::new(&model_path)).expect("load ONNX model");
 

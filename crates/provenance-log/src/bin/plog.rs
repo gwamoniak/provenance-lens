@@ -71,11 +71,8 @@ fn keygen(args: &[String]) -> Result<(), String> {
     getrandom::getrandom(&mut seed).map_err(|e| format!("OS randomness failed: {e}"))?;
     let key = ed25519_dalek::SigningKey::from_bytes(&seed);
     std::fs::write(priv_out, hex_encode(&seed) + "\n").map_err(|e| e.to_string())?;
-    std::fs::write(
-        pub_out,
-        hex_encode(key.verifying_key().as_bytes()) + "\n",
-    )
-    .map_err(|e| e.to_string())?;
+    std::fs::write(pub_out, hex_encode(key.verifying_key().as_bytes()) + "\n")
+        .map_err(|e| e.to_string())?;
     println!("wrote {priv_out} (KEEP PRIVATE) and {pub_out}");
     Ok(())
 }
@@ -102,14 +99,13 @@ fn append(args: &[String]) -> Result<(), String> {
         .map_err(|e| format!("decode {image_path}: {e}"))?
         .to_rgb8();
     let (width, height) = (decoded.width() as usize, decoded.height() as usize);
-    let pdq = provenance_core::layers::pdq::pdq_hash(
-        &provenance_core::layers::watermark::DecodedImage {
+    let pdq =
+        provenance_core::layers::pdq::pdq_hash(&provenance_core::layers::watermark::DecodedImage {
             rgb: decoded.into_raw(),
             width,
             height,
-        },
-    )
-    .ok_or("image too small for PDQ")?;
+        })
+        .ok_or("image too small for PDQ")?;
 
     let created_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let entry = Entry::sign(pdq.bits, registrant, source_type, &created_at, &key)?;
@@ -301,9 +297,9 @@ fn load_entries(log_dir: &str) -> Result<Vec<(PathBuf, Entry, [u8; 32])>, String
     entry_paths(log_dir)?
         .into_iter()
         .map(|path| {
-            let bytes = std::fs::read(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
-            let entry =
-                Entry::decode(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+            let bytes =
+                std::fs::read(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+            let entry = Entry::decode(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
             let leaf = leaf_hash(&bytes);
             Ok((path, entry, leaf))
         })

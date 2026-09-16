@@ -21,7 +21,8 @@ The strongest next investment is not another detector. It is repairing the relea
 - [x] (2026-09-16) Re-ran workspace tests, reduced-feature core tests, WASM target check, fresh real-WASM build/smoke, JavaScript helper tests, format check, and strict lint check. Results and limitations appear below.
 - [x] (2026-09-16) Reproduced a lost-update bug in the extension session cache using storage semantics that copy values, as real extension storage does.
 - [x] (2026-09-16) Created this documentation branch, `codex/development-roadmap-refresh`, directly from clean local main in the real project folder; reconciled the status dashboard and plan entry points.
-- [ ] N0 — Restore reproducible, green development and release checks.
+- [x] (2026-09-16) N0 implementation prepared on `codex/n0-reproducible-baseline` from local main. Formatter and strict workspace lint pass; the original 91,029-byte lockfile is now tracked with the same SHA-256 as the planning review, c2pa remains 0.90.13 with an exact requirement, Rust 1.97.1 and wasm-pack 0.15.0 are pinned, and CI now covers reduced-feature Rust, Node helpers, and a real standalone WASM build. Default model tests report one ignored test; the opt-in run fails if its model is absent.
+- [ ] N0 branch acceptance remaining: clean-checkout test, GitHub push/PR job on the candidate branch, and maintainer review of the exact C2PA dependency pin before any merge. The CI job cannot run remotely until the branch is pushed.
 - [ ] N1 — Preserve unavailable/failed detector states and bound resource use.
 - [ ] N2 — Make page scanning refer to the current image and current consent.
 - [ ] N3 — Reconcile and review the existing W3-M implementation; finish the ungated portion of Claude C4 documentation.
@@ -268,6 +269,7 @@ Registry operator experiments use newly created, explicitly named test directori
 - Observation: asynchronous cache writes race even with one writer context. Evidence: two concurrent puts yielded one persisted key. Consequence: remove unnecessary persistence first, or serialize the single shared implementation and test copied storage values.
 - Observation: the fresh browser artifact already fits the documented size budget without a separate wasm-opt pass. Evidence: 6,946,939 bytes raw and 2,333,698 gzip. Consequence: preserve the budget and measure future additions rather than assuming pixel detectors will fit.
 - Observation: the bzh known-answer test prints “skipping” but is counted as passed. Consequence: report model execution separately from test-process success.
+- Observation (N0, 2026-09-16): the original lockfile's SHA-256 stayed `30ae9b4dbf53f1da9fc0a659076f735c40147ae76bd3593ca229707f73d752ff` after exact-pinning c2pa and running the checks; `cargo tree` still selects 0.90.13. The only new source of a vendor-model result is the explicitly ignored test when run with a supplied model. Consequence: N0 makes the existing resolution reproducible without slipping in an SDK update or a vacuous green model test.
 
 ## Decision Log
 
@@ -277,11 +279,14 @@ Registry operator experiments use newly created, explicitly named test directori
 - Decision: Reuse W3-M and the existing registry prototype; prefer existing engine/rendering and browser APIs for new UX. Rationale: avoid duplicate implementations and speculative services. Date/author: 2026-09-16 / planning recommendation.
 - Decision: Split useful C4 documentation from vendor-dependent acceptance; retain C0-positive/C2/C3/W3-D gates. Rationale: documentation and local evidence tools can improve without inventing vendor detection. Date/author: 2026-09-16 / planning recommendation.
 - Decision: Any revised registry ordering, trust policy, permissions semantics, model acceptance policy, or compatibility-breaking CLI behavior requires explicit approval before implementation/merge as applicable. Rationale: planning must not erase earlier authority boundaries. Date/author: 2026-09-16 / gate clarification.
+- Decision (N0): commit the previously local lockfile unchanged, change the C2PA requirement from a compatible range to exactly the reviewed 0.90.13, and pin the installed Rust/wasm-pack versions. Keep the model inference test explicitly ignored by default and offer a manually triggered, SHA-256-checked CI job for a separately supplied model. Rationale: preserve the reviewed verification resolution while making both the default and opt-in validation outcomes observable. Date/author: 2026-09-16 / implementation author; dependency-manifest review before merge is pending.
 
 ## Outcomes & Retrospective
 
 
 The planning milestone is complete: the current implementation was checked against the latest plans, reproducible issues were separated from source-derived risks, a fresh native/WASM baseline was recorded, and the next work is staged with user-visible acceptance criteria. Runtime defects identified here remain unfixed intentionally. No new detector, permission, remote upload, or trust decision was introduced. The most important change in direction is to improve evidence quality and usability while treating vendor-specific coverage as separately demonstrable work.
+
+N0 local implementation (2026-09-16): the previously failing formatter/linter now pass; native and reduced-feature suites and the freshly built WASM vector smoke pass. The root lockfile was made a tracked build input without changing its checksum. A reviewed model is still required for the optional model-inference result. Online GitHub CI and the human dependency review remain separate acceptance steps.
 
 ## Artifacts and Notes
 
@@ -292,6 +297,8 @@ Observed on 2026-09-16: workspace 55 tests reported passed, including one bzh te
 
 Fresh WASM SHA-256: `44cdeef03b739bd1e20772119b2ce29fc1c99cd9a99e98538f22bb54aa2efd9f`. Output: `target/plan-review-wasm/provenance_wasm_bg.wasm`, 6,946,939 raw bytes, 2,333,698 gzip bytes. Production anchors were not modified. The original W3 worktree and all historical fixture files were left untouched.
 
+N0 local result: Rust 1.97.1, wasm-pack 0.15.0, Node 24.18.0; workspace 54 tests passed and one model test ignored; reduced-feature core 34 tests passed; `cargo fmt --all -- --check`, strict workspace clippy, Node helper assertions, WASM target check, and all eleven vectors through fresh `target/n0-wasm` passed. That WASM artifact has SHA-256 `44cdeef03b739bd1e20772119b2ce29fc1c99cd9a99e98538f22bb54aa2efd9f`, 6,946,939 raw bytes and 2,333,698 gzip bytes. The explicit `--ignored` model command without `PROVENANCE_LENS_BZH_ONNX` exited nonzero as intended. Production anchors, proof mapping, and vector contents were not changed.
+
 ## Interfaces and Dependencies
 
 
@@ -300,3 +307,5 @@ Keep `verify_bytes(bytes, media_type?, trust_anchors_pem?) -> JSON`, existing ve
 Defer PDF/audio/video claims until each has real supported-format vectors and product demand; defer a generic AI-text classifier, cloud upload connectors, detector marketplace, account system, signed receipts, blockchain anchoring, and broad background scanning. Revisit double-parsing of Verified C2PA summaries only if profiling identifies a material cost; correctness/resource limits come first. Creative features should explain existing evidence better, not manufacture more certainty.
 
 Revision note (2026-09-16): initial consolidated successor plan from live code, Git state, executable checks, and the historical feature plans. Corrects the local-merge/W3/prototype status distinctions and prioritizes reproducibility, honest failure states, image-bound browser results, reusable evidence tooling, and gated registry/vendor expansion.
+
+Revision note (2026-09-16, N0): recorded the implemented reproducibility baseline, native/WASM evidence, unchanged dependency resolution, and the remaining remote-CI and human-review gates without declaring the later milestones complete.

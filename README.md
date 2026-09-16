@@ -37,23 +37,31 @@ The user manual — CLI reference, extension walkthrough including page scanning
 
 ## Status
 
-The Layer-1 wedge shipped and has since been hardened and extended: real C2PA validation against the official conformance trust list (shipped as an updatable data file, refreshed by a monthly review PR), an eleven-vector self-verifying test corpus (JPEG + PNG + SVG) exercised natively and through the WASM boundary, cert-policy pinning tests, SVG-aware fuzzing, and CI on every push. The C2PA SDK is upgraded to 0.90.13; this branch remains subject to the standing human cryptography sign-off before merge. The build order is deliberate: a **Layer-1-only** tool first — small but provable — because surfacing "Tampered / credentials stripped" at scale is the wedge that pressures platforms to stop stripping Content Credentials. The watermark layer became real on 2026-07-31 (roadmap W1): the Stable Diffusion invisible-watermark decoder, transcribed from the open reference implementation and tested against vectors that implementation generated. Detectors without a public spec, and the registry layer, stay gated; where a layer cannot run it honestly reports itself as not evaluated. The plans live in `PROVENANCE_LENS_EXECPLAN.md` (the wedge), `PROVENANCE_LENS_UPGRADES_EXECPLAN.md` (the executed upgrade wave), `PROVENANCE_LENS_ROADMAP_EXECPLAN.md` (what's next), and `PROVENANCE_LENS_CLAUDE_MARKS_EXECPLAN.md` (Claude file/text compatibility gates).
+The Layer-1 wedge shipped and has since been hardened and extended: real C2PA validation against the official conformance trust list (shipped as an updatable data file, refreshed by a monthly review PR), an eleven-vector self-verifying test corpus (JPEG + PNG + SVG) exercised natively and through the WASM boundary, cert-policy pinning tests, SVG-aware fuzzing, and CI on every push. The approved C2PA 0.90.13 and generic SVG work is merged into local main. A credential that fails validation can produce Tampered; a credential stripped completely leaves no C2PA signal and is Inconclusive. Comparing a known original with a re-saved copy can show that loss. The watermark layer became real on 2026-07-31 (roadmap W1): the Stable Diffusion invisible-watermark decoder, transcribed from the open reference implementation and tested against vectors that implementation generated. Detectors without a public spec, and the registry layer, stay gated; where a layer cannot run it honestly reports itself as not evaluated. The development sequence lives in `PROVENANCE_LENS_NEXT_EXECPLAN.md`, with detailed Claude, SynthID, registry, and historical wedge decisions in their respective ExecPlans.
 
 Ecosystem context: the EU AI Act's Article 50 transparency obligations apply from 2 August 2026 (machine-readable marking for generative systems already on the market is deferred to 2 December 2026). The Act obliges *generators* to mark AI content; it asks nothing of verifiers. Provenance Lens is the independent verification side of that ecosystem — as marked content becomes the norm, checking those marks locally is exactly what this tool does.
 
 ## Build and run
 
-Requires Rust stable (pinned via `rust-toolchain.toml`; includes the wasm32 target) and, for the extension engine, wasm-pack.
+Requires Rust 1.97.1 (pinned with the wasm32 target in `rust-toolchain.toml`), the committed `Cargo.lock`, Node.js 24.18.0 for JavaScript checks, and wasm-pack 0.15.0 for the extension engine. An offline build still needs these tools and the locked crate dependencies installed locally.
 
-    cargo test --workspace
+    cargo fmt --all -- --check
+    cargo clippy --workspace --all-targets --locked -- -D warnings
+    cargo test --workspace --locked
+    cargo test -p provenance-core --no-default-features --locked
+    node scripts/scan_support_test.mjs
+    cargo check -p provenance-wasm --target wasm32-unknown-unknown --locked
     cargo run -p provenance-cli -- tiers
     cargo run -p provenance-cli -- verify photo.jpg     # exit: 0 verified / 10 indicated / 20 inconclusive / 30 tampered
 
 Extension:
 
     wasm-pack build crates/provenance-wasm --target web --out-dir ../../extension/pkg
+    node scripts/wasm_smoke.mjs
     # Chrome:  chrome://extensions → Developer mode → Load unpacked → extension/
     # Firefox: about:debugging → This Firefox → Load Temporary Add-on → extension/manifest.json
+
+The model-backed IMATAG test is visibly ignored by default because the model is not bundled. To exercise it, set `PROVENANCE_LENS_BZH_ONNX` to an exported model path, then run `cargo test -p provenance-core --features stable-signature --test stable_signature --locked -- --ignored`. That command fails if the model is missing. CI also offers a manual model job that downloads an HTTPS model only when given its URL and SHA-256.
 
 ## Honesty rules
 
