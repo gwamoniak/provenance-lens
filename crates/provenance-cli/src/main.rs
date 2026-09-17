@@ -176,6 +176,21 @@ fn verify_all(args: &VerifyArgs) -> ExitCode {
                         if let Some(note) = summary.source_type_note {
                             println!("    note: {note}");
                         }
+                        if let Some(watermark) = &summary.declared_watermark {
+                            println!("    note: {}", watermark.note);
+                            for action in &watermark.action_labels {
+                                println!("    watermark action: {action}");
+                            }
+                            if watermark.algorithms.is_empty() {
+                                println!(
+                                    "    signed soft-binding algorithms: none named; watermark scheme not established"
+                                );
+                            } else {
+                                for algorithm in &watermark.algorithms {
+                                    println!("    signed soft-binding algorithm (not necessarily the watermark): {algorithm}");
+                                }
+                            }
+                        }
                     }
                 }
                 exit_code(&report.verdict)

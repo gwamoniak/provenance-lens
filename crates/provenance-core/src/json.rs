@@ -80,7 +80,26 @@ fn credentials_json(summary: &CredentialSummary) -> String {
             fields.push(format!(r#""{key}":{}"#, json_string(value)));
         }
     }
+    if let Some(watermark) = &summary.declared_watermark {
+        fields.push(format!(
+            r#""declared_watermark":{{"action_labels":{},"algorithms":{},"note":{}}}"#,
+            json_string_array(&watermark.action_labels),
+            json_string_array(&watermark.algorithms),
+            json_string(watermark.note)
+        ));
+    }
     format!("{{{}}}", fields.join(","))
+}
+
+fn json_string_array(values: &[String]) -> String {
+    format!(
+        "[{}]",
+        values
+            .iter()
+            .map(|value| json_string(value))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
 }
 
 /// Minimal JSON string encoder (quotes, backslashes, control characters).
@@ -110,6 +129,14 @@ mod tests {
     #[test]
     fn json_string_escapes() {
         assert_eq!(json_string("a\"b\\c\nd"), r#""a\"b\\c\nd""#);
+        assert_eq!(
+            json_string_array(&["a".to_string(), "b\"c".to_string()]),
+            r#"["a","b\"c"]"#
+        );
+        assert_eq!(
+            json_string_array(&["<script>\n\\\"".into()]),
+            r#"["<script>\n\\\""]"#
+        );
     }
 
     #[test]
@@ -130,5 +157,33 @@ mod tests {
             with_file.starts_with(r#"{"file":"C:\\img\\a\"b.jpg","verdict":"#),
             "got: {with_file}"
         );
+    }
+
+    #[test]
+    fn declared_watermark_json_is_present_only_on_the_verified_declaring_vector() {
+        let vectors = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/vectors");
+        let anchors = std::fs::read_to_string(vectors.join("test_ca.pem")).expect("test CA");
+        let declaring =
+            std::fs::read(vectors.join("manifest_declares_watermark.jpg")).expect("vector");
+        let report = Pipeline::with_trust_anchors(anchors.as_str()).examine(&Asset {
+            bytes: &declaring,
+            media_type: None,
+        });
+        let json = render_json(&report, None);
+        assert!(json.contains(r#""declared_watermark":{"action_labels":["c2pa.watermarked.bound"],"algorithms":["com.example.provenance-lens.test-watermark"],"note":"the verified credential records an invisible watermark; the watermark was not independently detected"}"#));
+
+        let ordinary = std::fs::read(vectors.join("valid_signed.jpg")).expect("ordinary vector");
+        let ordinary_report = Pipeline::with_trust_anchors(anchors.as_str()).examine(&Asset {
+            bytes: &ordinary,
+            media_type: None,
+        });
+        assert!(!render_json(&ordinary_report, None).contains("declared_watermark"));
+
+        let untrusted_report = Pipeline::standard().examine(&Asset {
+            bytes: &declaring,
+            media_type: None,
+        });
+        assert!(untrusted_report.credentials.is_none());
+        assert!(!render_json(&untrusted_report, None).contains("declared_watermark"));
     }
 }

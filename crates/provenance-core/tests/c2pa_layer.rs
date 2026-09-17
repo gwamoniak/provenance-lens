@@ -27,8 +27,84 @@ const MANIFEST_DEF: &str = r#"{
     ]
 }"#;
 
+const WATERMARK_MANIFEST_DEF: &str = r#"{
+    "claim_generator_info": [{ "name": "provenance-lens tests", "version": "0.1.0" }],
+    "title": "watermark declaration test",
+    "assertions": [
+        {
+            "label": "c2pa.actions",
+            "data": {
+                "actions": [
+                    {
+                        "action": "c2pa.created",
+                        "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+                    },
+                    { "action": "c2pa.watermarked.bound" },
+                    { "action": "c2pa.watermarked.bound" },
+                    { "action": "c2pa.watermarked.unbound" },
+                    { "action": "c2pa.watermarked" }
+                ]
+            }
+        },
+        {
+            "label": "c2pa.soft-binding",
+            "data": {
+                "alg": "com.example.provenance-lens.test-watermark",
+                "blocks": [{ "scope": {}, "value": "dGVzdC0x" }]
+            }
+        },
+        {
+            "label": "c2pa.soft-binding",
+            "data": {
+                "alg": "com.example.provenance-lens.test-watermark",
+                "blocks": [{ "scope": {}, "value": "dGVzdC0y" }]
+            }
+        }
+    ]
+}"#;
+
+const UNBOUND_WATERMARK_MANIFEST_DEF: &str = r#"{
+    "claim_generator_info": [{ "name": "provenance-lens tests", "version": "0.1.0" }],
+    "title": "unbound watermark declaration test",
+    "assertions": [{
+        "label": "c2pa.actions",
+        "data": { "actions": [
+            {
+                "action": "c2pa.created",
+                "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+            },
+            { "action": "c2pa.watermarked.unbound" }
+        ] }
+    }]
+}"#;
+
+const SOFT_BINDING_ONLY_MANIFEST_DEF: &str = r#"{
+    "claim_generator_info": [{ "name": "provenance-lens tests", "version": "0.1.0" }],
+    "title": "soft binding without watermark action",
+    "assertions": [
+        {
+            "label": "c2pa.actions",
+            "data": { "actions": [{
+                "action": "c2pa.created",
+                "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+            }] }
+        },
+        {
+            "label": "c2pa.soft-binding",
+            "data": {
+                "alg": "com.example.perceptual-fingerprint",
+                "blocks": [{ "scope": {}, "value": "ZmluZ2VycHJpbnQ=" }]
+            }
+        }
+    ]
+}"#;
+
 /// Sign the fixture with a fresh ephemeral chain; return (signed bytes, CA root PEM).
 fn signed_asset() -> (Vec<u8>, String) {
+    signed_asset_with_manifest(MANIFEST_DEF)
+}
+
+fn signed_asset_with_manifest(manifest_def: &str) -> (Vec<u8>, String) {
     let signer = EphemeralSigner::new("provenance-lens.test").expect("ephemeral signer");
     let chain = signer.certs().expect("cert chain");
     let ca_der = chain.last().expect("CA root");
@@ -42,7 +118,7 @@ fn signed_asset() -> (Vec<u8>, String) {
 
     let mut signed = Cursor::new(Vec::new());
     Builder::from_context(Context::new())
-        .with_definition(MANIFEST_DEF)
+        .with_definition(manifest_def)
         .expect("manifest definition")
         .sign(
             &signer,
@@ -157,7 +233,12 @@ fn verified_report_says_what_the_credential_claims() {
     // the fixed descriptive note.
     let (signed, ca_pem) = signed_asset();
     let report = examine(&signed, Some(&ca_pem));
-    assert_eq!(report.verdict, Verdict::Verified);
+    assert_eq!(
+        report.verdict,
+        Verdict::Verified,
+        "findings: {:?}",
+        report.findings
+    );
     let summary = report.credentials.as_ref().expect("summary on Verified");
     assert!(!summary.issuer.is_empty());
     assert_eq!(
@@ -172,6 +253,102 @@ fn verified_report_says_what_the_credential_claims() {
         summary.source_type_note,
         Some("the credential declares this content AI-generated")
     );
+    assert!(summary.declared_watermark.is_none());
+}
+
+#[test]
+fn verified_watermark_declaration_is_context_not_a_pixel_detection() {
+    let (signed, ca_pem) = signed_asset_with_manifest(WATERMARK_MANIFEST_DEF);
+    let report = examine(&signed, Some(&ca_pem));
+    assert_eq!(
+        report.verdict,
+        Verdict::Verified,
+        "findings: {:?}",
+        report.findings
+    );
+    let summary = report.credentials.as_ref().expect("summary on Verified");
+    let declaration = summary
+        .declared_watermark
+        .as_ref()
+        .expect("explicit watermark action is reported");
+    assert_eq!(
+        declaration.action_labels,
+        [
+            "c2pa.watermarked.bound",
+            "c2pa.watermarked.unbound",
+            "c2pa.watermarked"
+        ]
+    );
+    assert_eq!(
+        declaration.algorithms,
+        ["com.example.provenance-lens.test-watermark"]
+    );
+    assert_eq!(
+        declaration.note,
+        "the verified credential records an invisible watermark; the watermark was not independently detected"
+    );
+    let watermark = report
+        .findings
+        .iter()
+        .find(|(name, _)| name == "watermark")
+        .expect("watermark layer ran");
+    assert!(matches!(
+        &watermark.1,
+        LayerFinding::NoSignal | LayerFinding::NotEvaluated { .. }
+    ));
+}
+
+#[test]
+fn unbound_watermark_declaration_may_leave_the_scheme_unnamed() {
+    let (signed, ca_pem) = signed_asset_with_manifest(UNBOUND_WATERMARK_MANIFEST_DEF);
+    let report = examine(&signed, Some(&ca_pem));
+    assert_eq!(
+        report.verdict,
+        Verdict::Verified,
+        "findings: {:?}",
+        report.findings
+    );
+    let declaration = report
+        .credentials
+        .as_ref()
+        .and_then(|summary| summary.declared_watermark.as_ref())
+        .expect("unbound action is an explicit declaration");
+    assert_eq!(declaration.action_labels, ["c2pa.watermarked.unbound"]);
+    assert!(declaration.algorithms.is_empty());
+}
+
+#[test]
+fn soft_binding_without_watermark_action_is_not_a_watermark_declaration() {
+    let (signed, ca_pem) = signed_asset_with_manifest(SOFT_BINDING_ONLY_MANIFEST_DEF);
+    let report = examine(&signed, Some(&ca_pem));
+    assert_eq!(
+        report.verdict,
+        Verdict::Verified,
+        "findings: {:?}",
+        report.findings
+    );
+    assert!(
+        report
+            .credentials
+            .as_ref()
+            .expect("summary on Verified")
+            .declared_watermark
+            .is_none(),
+        "a soft binding may be a fingerprint and cannot imply watermarking"
+    );
+}
+
+#[test]
+fn untrusted_watermark_declaration_never_gets_a_credential_summary() {
+    let (mut signed, ca_pem) = signed_asset_with_manifest(WATERMARK_MANIFEST_DEF);
+    let report = examine(&signed, None);
+    assert_eq!(report.verdict, Verdict::Tampered);
+    assert!(report.credentials.is_none());
+    let index = signed.len() - 8;
+    signed[index] ^= 1;
+    let edited = examine(&signed, Some(&ca_pem));
+    assert_eq!(edited.verdict, Verdict::Tampered);
+    assert!(edited.credentials.is_none());
 }
 
 #[test]

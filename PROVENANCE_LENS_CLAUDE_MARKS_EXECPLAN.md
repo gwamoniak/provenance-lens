@@ -35,9 +35,12 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 - [ ] C1 — Generic SVG/C2PA implementation and conservative product wording are complete and have maintainer cryptography approval. Positive Claude interoperability remains blocked on a genuine Anthropic-signed specimen; locally signed vectors and the six unsigned Claude specimens do not satisfy that evidence requirement.
 - [ ] C2 — Open only after Anthropic publishes a usable third-party text-watermark detector contract; implement a CLI-first detector behind an explicit feature or connector and publish calibration before verdict influence.
 - [ ] C3 — After C2 is accepted, add selected-text browser verification only if its detector and privacy model fit the extension; automatic page-text scanning remains out of scope.
-- [ ] C4 — Complete cross-surface documentation, compatibility fixtures, release checks, and the final capability matrix.
+- [x] (2026-09-17) C4 ungated documentation — `docs/CLAUDE_MARKS.md` and README/manual links separate parser support, generic positive fixtures, genuine vendor evidence, and detector availability across CLI/WASM/Chrome/Firefox. N4 offline tests examine the three labeled flowers without Claude-detection claims.
+- [ ] C4 remaining — Conditional text integration, genuine vendor-positive acceptance, and release checks remain open. The useful documentation does not close C2/C3 or authorize publication.
 
 ## Surprises & Discoveries
+
+- Observation (2026-09-17): useful cross-surface documentation and local-file evidence comparison need no Anthropic detector access. Offline browser checks preserve the six-specimen negative boundary; synthetic test-root positives remain generic evidence only.
 
 - Observation: Anthropic uses two complementary mechanisms, not one universal “Claude detector.” Supported text carries a model-level embedded watermark, while supported exported files can carry signed C2PA provenance metadata. A copied passage may retain some text signal after its file wrapper is gone; a resaved image may retain pixels while losing C2PA metadata.
   Evidence: Anthropic's official article, updated 2026-08-11, describes embedded text watermarks separately from signed Content Credentials for supported file types such as SVG, PNG, and JPEG.
@@ -97,6 +100,8 @@ The observable outcome is intentionally asymmetric. For supported signed image a
 
 ## Decision Log
 
+- Decision (2026-09-17): the user's N3/N4 request authorizes the ungated C4 matrix and local inspector, not text detection, uploads, or positive Claude attribution. Keep dated external-source claims labeled and leave vendor/release gates open. Rationale: documentation and usable evidence reporting can ship independently of vendor-dependent capability.
+
 - Decision: Treat signed file provenance and embedded text watermarking as separate evidence sources with separate gates.
   Rationale: one is a cryptographically validated manifest attached to a file; the other is an imperceptible statistical/model-level text signal whose detector contract is not public. Combining them would erase the distinction between `Proof` and `Indication`.
   Date/Author: 2026-08-11 / planning session.
@@ -150,6 +155,8 @@ The observable outcome is intentionally asymmetric. For supported signed image a
   Date/Author: 2026-08-11 / maintainer (gwamoniak).
 
 ## Outcomes & Retrospective
+
+N3/N4 (2026-09-17): the useful C4 documentation slice is delivered and linked from the README/manual. The offline inspector can compare exact files and export unsigned observations without changing trust or vendor claims. Review evidence is `docs/reviews/N3_N4_REVIEW.md`; conditional text integration, genuine positive Anthropic specimens, and publication remain outstanding.
 
 At plan-authoring time, no product capability was changed. As of 2026-09-04, generic SVG C2PA support and the SDK upgrade are implemented, validated, pushed, and approved by the maintainer for merge, without a vendor heuristic or trust relaxation. The six supplied Claude SVGs remain useful negative specimens; no genuine Anthropic-signed positive has been obtained, so C1 cannot yet make or close that interoperability claim. C2 remains intentionally blocked on Anthropic, with objective opening conditions instead of a vague “future detector” placeholder.
 
@@ -365,3 +372,5 @@ Revision note (2026-08-13, C1 implementation): recorded the maintainer's go for 
 Revision note (2026-09-04, C1 review): recorded the maintainer's cryptography approval for implementation commit `8a0e689`; generic SVG/C2PA may merge, while positive Claude interoperability and C2 text detection retain their independent evidence gates.
 
 Revision note (2026-09-16, development review): reconciled local merge versus publication and linked the consolidated successor plan. Historical milestones and approvals are preserved; no vendor gate was opened and no runtime code changed.
+
+Revision note (2026-09-17, N3/N4): recorded authorized implementation, coherent fixture regeneration, offline local evidence tools, and the successful N1/N2 push/CI. Human merge review and vendor/release gates remain open; details are in the successor plan and N3/N4 review packet.

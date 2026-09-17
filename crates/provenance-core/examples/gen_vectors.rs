@@ -53,6 +53,35 @@ const MANIFEST_DEF: &str = r#"{
     ]
 }"#;
 
+/// W3-M proof vector: the signed manifest explicitly records watermarking,
+/// but the underlying fixture pixels are unchanged. This proves that a
+/// credential declaration stays distinct from an independent pixel hit.
+const WATERMARK_MANIFEST_DEF: &str = r#"{
+    "claim_generator_info": [{ "name": "provenance-lens test vectors", "version": "0.1.0" }],
+    "title": "provenance-lens declared-watermark test vector",
+    "assertions": [
+        {
+            "label": "c2pa.actions",
+            "data": {
+                "actions": [
+                    {
+                        "action": "c2pa.created",
+                        "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+                    },
+                    { "action": "c2pa.watermarked.bound" }
+                ]
+            }
+        },
+        {
+            "label": "c2pa.soft-binding",
+            "data": {
+                "alg": "com.example.provenance-lens.test-watermark",
+                "blocks": [{ "scope": {}, "value": "dGVzdC1vbmx5" }]
+            }
+        }
+    ]
+}"#;
+
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let fixtures = root.join("tests/fixtures");
@@ -64,8 +93,12 @@ fn main() {
     let plain = std::fs::read(fixtures.join("plain.jpg")).expect("read tests/fixtures/plain.jpg");
     let plain_png =
         std::fs::read(fixtures.join("plain.png")).expect("read tests/fixtures/plain.png");
-    let plain_svg =
-        std::fs::read(fixtures.join("plain.svg")).expect("read tests/fixtures/plain.svg");
+    // Normalize only our unsigned source fixture before signing, so Windows
+    // checkout conversion does not change generated input bytes across hosts.
+    let plain_svg = std::fs::read_to_string(fixtures.join("plain.svg"))
+        .expect("read tests/fixtures/plain.svg")
+        .replace("\r\n", "\n")
+        .into_bytes();
 
     // Sign with a fresh ephemeral CA + end-entity chain; only the CA root
     // certificate (public) is persisted. One chain signs both containers.
@@ -73,6 +106,8 @@ fn main() {
     let ca_pem = ca_root_pem(&signer);
 
     let signed = sign(&signer, "image/jpeg", &plain);
+    let manifest_declares_watermark =
+        sign_with_definition(&signer, "image/jpeg", &plain, WATERMARK_MANIFEST_DEF);
     let signed_png = sign(&signer, "image/png", &plain_png);
     let signed_svg = sign(&signer, "image/svg+xml", &plain_svg);
 
@@ -91,6 +126,12 @@ fn main() {
             &plain,
             Verdict::Inconclusive,
             "source image, never signed".to_string(),
+        ),
+        (
+            "manifest_declares_watermark.jpg",
+            &manifest_declares_watermark,
+            Verdict::Verified,
+            "clean plain.jpg pixels signed with explicit c2pa.watermarked.bound action and test-only soft-binding algorithm; credential declaration is not a pixel detection".to_string(),
         ),
         (
             "valid_signed.jpg",
@@ -158,6 +199,39 @@ fn main() {
         let got = verdict_of(bytes, media_type_of(name), &ca_pem);
         assert_eq!(got, *expected, "self-verification failed for {name}");
     }
+    let declaration_report = Pipeline::with_trust_anchors(ca_pem.as_str()).examine(&Asset {
+        bytes: &manifest_declares_watermark,
+        media_type: Some("image/jpeg"),
+    });
+    let declaration = declaration_report
+        .credentials
+        .as_ref()
+        .and_then(|summary| summary.declared_watermark.as_ref())
+        .expect("declared-watermark vector must expose its signed declaration");
+    assert_eq!(
+        declaration.action_labels,
+        ["c2pa.watermarked.bound"],
+        "declared-watermark action"
+    );
+    assert_eq!(
+        declaration.algorithms,
+        ["com.example.provenance-lens.test-watermark"],
+        "declared-watermark algorithm"
+    );
+    let watermark_finding = declaration_report
+        .findings
+        .iter()
+        .find(|(layer, _)| layer == "watermark")
+        .expect("watermark layer ran");
+    assert!(
+        matches!(
+            watermark_finding.1,
+            provenance_core::LayerFinding::NoSignal
+                | provenance_core::LayerFinding::NotEvaluated { .. }
+        ),
+        "clean pixels must not become a watermark hit: {:?}",
+        watermark_finding.1
+    );
 
     let mut tsv = String::from("file\texpected_verdict\tnotes\n");
     for (name, bytes, expected, note) in &rows {
@@ -185,9 +259,18 @@ fn media_type_of(name: &str) -> &'static str {
 }
 
 fn sign(signer: &EphemeralSigner, media_type: &str, source: &[u8]) -> Vec<u8> {
+    sign_with_definition(signer, media_type, source, MANIFEST_DEF)
+}
+
+fn sign_with_definition(
+    signer: &EphemeralSigner,
+    media_type: &str,
+    source: &[u8],
+    definition: &str,
+) -> Vec<u8> {
     let mut signed = Cursor::new(Vec::new());
     Builder::from_context(Context::new())
-        .with_definition(MANIFEST_DEF)
+        .with_definition(definition)
         .expect("manifest definition")
         .sign(signer, media_type, &mut Cursor::new(source), &mut signed)
         .unwrap_or_else(|err| panic!("sign {media_type}: {err}"));

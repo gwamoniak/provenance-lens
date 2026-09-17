@@ -8,6 +8,8 @@ N2 page scanning requires both an explicit site choice in `storage.local.scanEna
 
 Run `node scripts/scan_support_test.mjs` and `node scripts/background_test.mjs` for bounds, abort, consent, sender, and copied-storage regressions. `node scripts/scan_browser_test.mjs <wasm-pkg>` exercises the actual content script in Chromium and Firefox with a controlled message transport and real WASM verification. The manual lifecycle page is `http://localhost:8917/lifecycle` after `node scripts/serve_testpage.mjs`. Use test anchors only in an isolated test copy; keep the production bundle unchanged. The human trust-boundary review remains in `docs/reviews/N1_N2_REVIEW.md`.
 
+The popup's **Inspect or compare local files** link opens `inspect/inspect.html`. It uses native file selection/drop, the shared `lib/engine.js` loader, Web Crypto digests, and native Blob downloads; no new permissions or network service. It compares at most two files and previews unsigned receipts. Test with `node scripts/inspect_test.mjs` and, using the existing Playwright setup, `node scripts/inspect_browser_test.mjs <wasm-pkg>`. The latter exercises the real inspector/WASM offline in Chromium and Firefox; see `docs/reviews/N3_N4_REVIEW.md` and `docs/CLAUDE_MARKS.md` for evidence and limits.
+
 Build the engine into `pkg/` (gitignored, never committed) — full steps and wasm-opt flags in `.claude/skills/wasm-packaging/SKILL.md`:
 
     wasm-pack build crates/provenance-wasm --target web --out-dir ../../extension/pkg

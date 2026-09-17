@@ -35,9 +35,9 @@ const api = {
 let bytes = 1, fetches = 0, hold = false, aborted = 0, failFetch = false;
 const source = readFileSync(new URL("../extension/background.js", import.meta.url), "utf8");
 assert.ok(source.includes('import("./lib/scan_support.js")'));
-assert.ok(source.includes('import("./pkg/provenance_wasm.js")'));
+assert.ok(source.includes('import("./lib/engine.js")'));
 vm.runInNewContext(source.replace('import("./lib/scan_support.js")', "loadLib()")
-  .replace('import("./pkg/provenance_wasm.js")', "loadEngine()"), {
+  .replace('import("./lib/engine.js")', "loadEngine()"), {
   chrome: api, URL, AbortController, console,
   loadLib: async () => ({ ...lib, fetchBytes: (url, options) => lib.fetchBytes(url, { ...options,
     fetchImpl: async (_url, { signal }) => {
@@ -49,9 +49,9 @@ vm.runInNewContext(source.replace('import("./lib/scan_support.js")', "loadLib()"
       await new Promise((resolve) => setTimeout(resolve, 5));
       return new Response(new Uint8Array([bytes]));
     } }) }),
-  loadEngine: async () => ({ default: async () => {}, verify_bytes: (input) => JSON.stringify({
+  loadEngine: async () => ({ loadVerifier: async () => ({ verify: (input) => ({
     verdict: input[0] === 1 ? "verified" : "inconclusive", phrase: "computed test phrase", findings: [],
-  }) }),
+  }) }) }),
   fetch: async () => new Response("-----BEGIN CERTIFICATE-----"),
 });
 const sender = { id: api.runtime.id, tab: { ...tab }, frameId: 0, documentId: "doc-1", url: tab.url };

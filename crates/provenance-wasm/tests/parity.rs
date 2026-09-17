@@ -77,6 +77,49 @@ fn wrapper_matches_native_pipeline_on_every_vector() {
                     Some(summary.issuer.as_str()),
                     "credentials issuer parity for {file}"
                 );
+                assert_eq!(
+                    parsed["credentials"]["declared_watermark"].is_object(),
+                    summary.declared_watermark.is_some(),
+                    "declared watermark presence parity for {file}"
+                );
+                if let Some(watermark) = &summary.declared_watermark {
+                    let action_labels = parsed["credentials"]["declared_watermark"]
+                        ["action_labels"]
+                        .as_array()
+                        .expect("action labels array")
+                        .iter()
+                        .map(|value| value.as_str().expect("action label string"))
+                        .collect::<Vec<_>>();
+                    assert_eq!(
+                        action_labels,
+                        watermark
+                            .action_labels
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>(),
+                        "declared watermark actions for {file}"
+                    );
+                    let algorithms = parsed["credentials"]["declared_watermark"]["algorithms"]
+                        .as_array()
+                        .expect("algorithms array")
+                        .iter()
+                        .map(|value| value.as_str().expect("algorithm string"))
+                        .collect::<Vec<_>>();
+                    assert_eq!(
+                        algorithms,
+                        watermark
+                            .algorithms
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>(),
+                        "declared watermark algorithms for {file}"
+                    );
+                    assert_eq!(
+                        parsed["credentials"]["declared_watermark"]["note"].as_str(),
+                        Some(watermark.note),
+                        "declared watermark note for {file}"
+                    );
+                }
             }
 
             let json_findings = parsed["findings"].as_array().expect("findings array");

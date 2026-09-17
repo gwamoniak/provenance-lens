@@ -6,6 +6,7 @@
 
 // Firefox's chrome.* is callback-style; promise-style APIs live on
 // browser.*. Chrome defines only chrome.* (promise-capable in MV3).
+import { credentialLines, appendLines } from "../lib/report_view.js";
 const api = typeof browser !== "undefined" ? browser : chrome;
 
 const TIER_CLASSES = ["verified", "indicated", "inconclusive", "tampered"];
@@ -46,23 +47,9 @@ function render(entry) {
     const credentials = document.getElementById("report-credentials");
     credentials.textContent = "";
     credentials.hidden = true;
-    if (entry.report.credentials) {
-      const c = entry.report.credentials;
-      const lines = [
-        ["credential claims", ""],
-        ["claim generator", c.claim_generator],
-        ["signed at", c.signing_time],
-        ["declared source type", c.digital_source_type],
-        ["note", c.source_type_note],
-      ];
-      for (const [label, value] of lines) {
-        if (value === undefined || value === null) continue;
-        const item = document.createElement("li");
-        item.textContent = value === "" ? `${label}:` : `${label}: ${value}`;
-        credentials.appendChild(item);
-      }
-      credentials.hidden = false;
-    }
+    const lines = credentialLines(entry.report);
+    appendLines(credentials, lines);
+    credentials.hidden = lines.length === 0;
     document.getElementById("report-anchors").textContent = entry.anchorsLoaded
       ? "Trust anchors: loaded from trust/anchors.pem."
       : "Trust anchors: none configured — no signature chain can validate as trusted.";

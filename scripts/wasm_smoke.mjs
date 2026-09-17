@@ -36,6 +36,19 @@ for (const row of rows) {
   const report = JSON.parse(verify_bytes(bytes, mediaType, caPem));
   slowestMs = Math.max(slowestMs, performance.now() - started);
   const ok = report.verdict === expected;
+  const declaration = report.credentials?.declared_watermark;
+  if (file === "manifest_declares_watermark.jpg") {
+    assert.deepEqual(declaration?.action_labels, ["c2pa.watermarked.bound"]);
+    assert.deepEqual(declaration?.algorithms, ["com.example.provenance-lens.test-watermark"]);
+    assert.equal(declaration?.note, "the verified credential records an invisible watermark; the watermark was not independently detected");
+    assert.equal(JSON.parse(verify_bytes(bytes, mediaType)).credentials, undefined, "untrusted declaration is not displayed");
+    const edited = bytes.slice(); edited[edited.length - 8] ^= 1;
+    const invalid = JSON.parse(verify_bytes(edited, mediaType, caPem));
+    assert.equal(invalid.verdict, "tampered");
+    assert.equal(invalid.credentials, undefined, "invalid declaration is not displayed");
+  } else assert.equal(declaration, undefined, `${file} must not acquire a declaration`);
+  assert.equal(report.findings.find((f) => f.layer === "watermark").status, "not_evaluated");
+  if (expected !== "verified") assert.equal(report.credentials, undefined);
   if (!ok) failures++;
   console.log(`${ok ? "PASS" : "FAIL"} ${file}: ${report.verdict} (expected ${expected})`);
 }

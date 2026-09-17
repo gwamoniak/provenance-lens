@@ -10,11 +10,8 @@ let syncQueue = Promise.resolve();
 
 let enginePromise;
 function engine() {
-  if (!enginePromise) enginePromise = (async () => {
-    const mod = await import("./pkg/provenance_wasm.js");
-    await mod.default({ module_or_path: api.runtime.getURL("pkg/provenance_wasm_bg.wasm") });
-    return mod;
-  })().catch((err) => { enginePromise = null; throw err; });
+  if (!enginePromise) enginePromise = import("./lib/engine.js").then((mod) => mod.loadVerifier())
+    .catch((err) => { enginePromise = null; throw err; });
   return enginePromise;
 }
 let servicePromise;
@@ -24,12 +21,6 @@ function scanService() {
   }));
   return servicePromise;
 }
-async function loadAnchors() {
-  const response = await fetch(api.runtime.getURL("trust/anchors.pem"));
-  if (!response.ok) throw new Error("could not load trust anchors; not examined");
-  const pem = await response.text();
-  return pem.includes("BEGIN CERTIFICATE") ? pem : undefined;
-}
 async function examineUrl(srcUrl, signal) {
   const entry = { srcUrl, at: new Date().toISOString(), evidenceScope: "fetched-file" };
   try {
@@ -37,8 +28,7 @@ async function examineUrl(srcUrl, signal) {
     if (!lib.sitePattern(srcUrl)) throw new Error("only HTTP(S) image URLs can be fetched; not examined");
     let mod;
     try { mod = await engine(); }
-    catch { throw new Error("verification engine is not bundled or could not start; not examined"); }
-    const anchors = await loadAnchors();
+    catch (err) { throw new Error(`verification engine or trust bundle could not start: ${err?.message || err}; not examined`); }
     let fetched;
     try { fetched = await lib.fetchBytes(srcUrl, { signal }); }
     catch (err) {
@@ -51,8 +41,8 @@ async function examineUrl(srcUrl, signal) {
     }
     if (signal?.aborted) throw signal.reason;
     entry.retrievedAt = fetched.retrievedAt;
-    entry.anchorsLoaded = Boolean(anchors);
-    entry.report = JSON.parse(mod.verify_bytes(fetched.bytes, fetched.mediaType, anchors));
+    entry.anchorsLoaded = true;
+    entry.report = mod.verify(fetched.bytes, fetched.mediaType);
   } catch (err) { entry.error = String(err?.message || err); }
   return entry;
 }

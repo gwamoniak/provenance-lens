@@ -1,0 +1,24 @@
+import assert from "node:assert/strict";
+import { inspectFile, fileHint, compareReports } from "../extension/inspect/evidence.js";
+import { credentialLines } from "../extension/lib/report_view.js";
+const report = { verdict: "inconclusive", findings: [{ layer: "c2pa", status: "no_signal" }] };
+const verifier = { verify: () => report, identity: { wasm_sha256: "test-only" }, anchors: { sha256: "test-only" }, checks: { pixel_watermarks: "not_compiled" } };
+const receipt = await inspectFile(new File(["abc"], "C:\\private\\sample.SVG"), verifier);
+assert.equal(receipt.asset.sha256, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+assert.equal(receipt.asset.name, "sample.SVG");
+assert.deepEqual(receipt.asset.mime_hint, { value: "image/svg+xml", source: "filename-extension" });
+assert.equal(receipt.asset.byte_length, 3);
+assert.ok(!JSON.stringify(receipt).includes("private"));
+assert.equal(receipt.format_version, 1);
+assert.match(receipt.notice, /Unsigned/);
+assert.deepEqual(fileHint({ name: "unknown", type: "" }), { value: null, source: "none" });
+assert.equal(fileHint({ name: "text.txt", type: "text/plain" }).value, "text/plain");
+await assert.rejects(inspectFile({ size: 25 * 1024 * 1024 + 1, slice() { assert.fail("oversize must not read"); } }, verifier), /25 MiB/);
+const trusted = { verdict: "verified", findings: [{ layer: "c2pa", status: "proof" }], credentials: {
+  declared_watermark: { action_labels: ["c2pa.watermarked"], algorithms: ['<img src=x onerror="alert(1)">'], note: "not independently detected" } } };
+assert.ok(compareReports(trusted, report).some((s) => s.includes("present in A, absent in B")));
+assert.ok(compareReports(trusted, report).some((s) => s.includes("does not prove")));
+assert.ok(compareReports(null, report)[0].includes("unavailable"));
+assert.equal(credentialLines({ ...trusted, verdict: "tampered" }).length, 0);
+assert.ok(credentialLines(trusted).some(([label]) => label.includes("not necessarily the watermark")));
+console.log("local evidence tests: bounded reads, exact digest, MIME source, privacy, comparison, signed context passed");

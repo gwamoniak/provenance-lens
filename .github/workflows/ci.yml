@@ -44,6 +44,7 @@ jobs:
         run: |
           node scripts/scan_support_test.mjs
           node scripts/background_test.mjs
+          node scripts/inspect_test.mjs
       - name: wasm32 type-check (extension engine surface)
         run: cargo check -p provenance-wasm --target wasm32-unknown-unknown --locked
       - name: Install wasm-pack 0.15.0
@@ -58,6 +59,7 @@ jobs:
           npm install --prefix target/browser-tests --no-save playwright@1.62.1
           node target/browser-tests/node_modules/playwright/cli.js install --with-deps chromium firefox
           NODE_PATH="$PWD/target/browser-tests/node_modules" node scripts/scan_browser_test.mjs target/ci-wasm
+          NODE_PATH="$PWD/target/browser-tests/node_modules" node scripts/inspect_browser_test.mjs target/ci-wasm
 
   model-test:
     if: github.event_name == 'workflow_dispatch' && inputs.bzh_model_url != ''

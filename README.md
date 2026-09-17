@@ -21,7 +21,7 @@ One asset flows through four layers, ordered by evidentiary strength; findings c
               4. Heuristics        statistical signals                 → can indicate   [optional]
                                                           ──▶ Verified / Indicated / Inconclusive / Tampered
 
-The watermark layer decodes openly specified schemes only — today the Stable Diffusion invisible watermark (exact payload match, never a similarity score; CLI and native builds, not yet in the extension engine). A hard caveat: **SynthID is not third-party-detectable.** Google publishes no spec, decoder weights, or public API for it, so only Google's own infrastructure can verify a SynthID watermark — no independent tool can, this one included, and no lookalike classifier will ever stand in for it here.
+The watermark layer decodes supported, calibrated schemes only — including the Stable Diffusion invisible watermark (exact payload match; CLI and native builds, not in the extension engine). This project has no implemented SynthID decoder. Vendor access was last researched in August 2026; that dated research is not a claim about today's external availability. A signed watermark declaration is descriptive context, not an independent pixel detection, and a generic classifier cannot substitute for a vendor watermark decoder.
 
 Everything is one Rust workspace: `provenance-core` (the pipeline, sans-IO), `provenance-cli` (the `lens` binary), `provenance-wasm` (the WASM wrapper the extension and the npm package embed). Blockchain appears only as optional anchoring for the registry's transparency log — never as a dependency. Privacy first: image bytes never leave your device; verification is local, and future registry lookups send perceptual hashes only, with consent.
 
@@ -39,6 +39,8 @@ N1/N2 development changes: incomplete watermark checks now remain `not_evaluated
 
 ## Status
 
+N3/N4 development candidate: Verified credentials can expose signed watermark declarations, explicitly distinguished from detection. Open **Inspect or compare local files** in the extension popup to examine one or two files offline and preview/download unsigned JSON evidence receipts. No upload, preview execution, extra permissions, or receipt-import trust is introduced. See the [Claude capability matrix](docs/CLAUDE_MARKS.md), [manual](docs/MANUAL.md), and [review evidence](docs/reviews/N3_N4_REVIEW.md). The candidate corpus has twelve coherent JPEG/PNG/SVG vectors; main and published packages have not been updated.
+
 The Layer-1 wedge shipped and has since been hardened and extended: real C2PA validation against the official conformance trust list (shipped as an updatable data file, refreshed by a monthly review PR), an eleven-vector self-verifying test corpus (JPEG + PNG + SVG) exercised natively and through the WASM boundary, cert-policy pinning tests, SVG-aware fuzzing, and CI on every push. The approved C2PA 0.90.13 and generic SVG work is merged into local main. A credential that fails validation can produce Tampered; a credential stripped completely leaves no C2PA signal and is Inconclusive. Comparing a known original with a re-saved copy can show that loss. The watermark layer became real on 2026-07-31 (roadmap W1): the Stable Diffusion invisible-watermark decoder, transcribed from the open reference implementation and tested against vectors that implementation generated. Detectors without a public spec, and the registry layer, stay gated; where a layer cannot run it honestly reports itself as not evaluated. The development sequence lives in `PROVENANCE_LENS_NEXT_EXECPLAN.md`, with detailed Claude, SynthID, registry, and historical wedge decisions in their respective ExecPlans.
 
 Ecosystem context: the EU AI Act's Article 50 transparency obligations apply from 2 August 2026 (machine-readable marking for generative systems already on the market is deferred to 2 December 2026). The Act obliges *generators* to mark AI content; it asks nothing of verifiers. Provenance Lens is the independent verification side of that ecosystem — as marked content becomes the norm, checking those marks locally is exactly what this tool does.
@@ -53,6 +55,7 @@ Requires Rust 1.97.1 (pinned with the wasm32 target in `rust-toolchain.toml`), t
     cargo test -p provenance-core --no-default-features --locked
     node scripts/scan_support_test.mjs
     node scripts/background_test.mjs
+    node scripts/inspect_test.mjs
     cargo check -p provenance-wasm --target wasm32-unknown-unknown --locked
     cargo run -p provenance-cli -- tiers
     cargo run -p provenance-cli -- verify photo.jpg     # exit: 0 verified / 10 indicated / 20 inconclusive / 30 tampered

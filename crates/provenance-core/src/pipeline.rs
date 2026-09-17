@@ -6,6 +6,16 @@ use crate::verdict::Verdict;
 /// Shared native/WASM input budget, checked before any parser runs.
 pub const MAX_ASSET_BYTES: usize = 25 * 1024 * 1024;
 
+/// Signed descriptive context only, never an independent watermark hit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclaredWatermark {
+    pub action_labels: Vec<String>,
+    /// Signed soft-binding identifiers. Association with the watermark is
+    /// not established: these may describe a separate perceptual fingerprint.
+    pub algorithms: Vec<String>,
+    pub note: &'static str,
+}
+
 /// An asset under examination. Bytes only — the core never does I/O; callers
 /// (CLI, WASM wrapper) read files or fetch URLs and hand the bytes in.
 pub struct Asset<'a> {
@@ -62,6 +72,7 @@ pub struct CredentialSummary {
     /// surface (CLI, JSON, popup) prints the identical sentence from one
     /// definition here in core.
     pub source_type_note: Option<&'static str>,
+    pub declared_watermark: Option<DeclaredWatermark>,
 }
 
 /// The full result: per-layer findings plus the combined verdict.

@@ -24,11 +24,20 @@
 use std::io::Cursor;
 
 use c2pa::{
-    assertions::Actions, settings::Settings, Context, DigitalSourceType, Error as C2paError,
-    Reader, ValidationState,
+    assertions::{Actions, SoftBinding},
+    settings::Settings,
+    Context, DigitalSourceType, Error as C2paError, ManifestAssertion, Reader, ValidationState,
 };
 
-use crate::pipeline::{Asset, CredentialSummary, Layer, LayerFinding};
+use crate::pipeline::{Asset, CredentialSummary, DeclaredWatermark, Layer, LayerFinding};
+
+const DECLARED_WATERMARK_NOTE: &str =
+    "the verified credential records an invisible watermark; the watermark was not independently detected";
+const WATERMARK_ACTIONS: [&str; 3] = [
+    "c2pa.watermarked.bound",
+    "c2pa.watermarked.unbound",
+    "c2pa.watermarked",
+];
 
 #[derive(Clone)]
 pub struct C2paLayer {
@@ -100,17 +109,66 @@ impl C2paLayer {
                         .iter()
                         .find_map(|action| action.source_type().cloned())
                 });
+            let declared_watermark = declared_watermark(manifest.assertions());
             Some(CredentialSummary {
                 issuer,
                 claim_generator,
                 signing_time,
                 digital_source_type: source_type.as_ref().map(|t| t.to_string()),
                 source_type_note: source_type.as_ref().and_then(source_type_note),
+                declared_watermark,
             })
         }))
         .ok()
         .flatten()
     }
+}
+
+/// Extract an explicit signed watermark declaration from a Verified active
+/// manifest. A soft binding by itself is not enough: it may be a perceptual
+/// fingerprint, so a recognized watermark action is mandatory.
+fn declared_watermark(assertions: &[ManifestAssertion]) -> Option<DeclaredWatermark> {
+    let mut action_labels = Vec::new();
+    for assertion in assertions
+        .iter()
+        .filter(|assertion| matches!(assertion.label(), "c2pa.actions" | "c2pa.actions.v2"))
+    {
+        let Ok(actions) = assertion.to_assertion::<Actions>() else {
+            continue;
+        };
+        for action in actions.actions() {
+            let label = action.action();
+            if WATERMARK_ACTIONS.contains(&label) && !action_labels.iter().any(|item| item == label)
+            {
+                action_labels.push(label.to_string());
+            }
+        }
+    }
+    if action_labels.is_empty() {
+        return None;
+    }
+
+    let mut algorithms = Vec::new();
+    for assertion in assertions
+        .iter()
+        .filter(|assertion| assertion.label() == SoftBinding::LABEL)
+    {
+        let Ok(binding) = assertion.to_assertion::<SoftBinding>() else {
+            continue;
+        };
+        let Some(algorithm) = binding.alg else {
+            continue;
+        };
+        if !algorithm.trim().is_empty() && !algorithms.contains(&algorithm) {
+            algorithms.push(algorithm);
+        }
+    }
+
+    Some(DeclaredWatermark {
+        action_labels,
+        algorithms,
+        note: DECLARED_WATERMARK_NOTE,
+    })
 }
 
 /// Fixed descriptive phrases for the generative-AI digitalSourceType values
@@ -293,6 +351,41 @@ pub(crate) fn sniff_media_type(bytes: &[u8]) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn watermark_context_rejects_lookalikes_and_malformed_assertions() {
+        use c2pa::assertions::Action;
+        let action = ManifestAssertion::from_assertion(
+            &Actions::new().add_action(Action::new("c2pa.watermarked.bound")),
+        )
+        .unwrap();
+        let mut binding = SoftBinding::default();
+        binding.alg = Some("fingerprint-\"<script>\\\n".into());
+        let binding = ManifestAssertion::from_assertion(&binding).unwrap();
+        let mixed = declared_watermark(&[action.clone(), binding.clone()]).unwrap();
+        assert_eq!(mixed.algorithms, ["fingerprint-\"<script>\\\n"]);
+        assert_eq!(mixed.note, DECLARED_WATERMARK_NOTE);
+        for label in ["c2pa.actions.fake", "c2pa.actions.v20", "c2pa.actions-evil"] {
+            let fake = ManifestAssertion::new(label.into(), action.value().unwrap().clone());
+            assert!(declared_watermark(&[fake, binding.clone()]).is_none());
+        }
+        let fake_binding = ManifestAssertion::new(
+            "c2pa.soft-binding.fake".into(),
+            binding.value().unwrap().clone(),
+        );
+        let malformed = ManifestAssertion::new("c2pa.soft-binding".into(), "invalid".into());
+        assert!(declared_watermark(&[action, fake_binding, malformed])
+            .unwrap()
+            .algorithms
+            .is_empty());
+        let malformed_actions = ManifestAssertion::new("c2pa.actions".into(), "invalid".into());
+        assert!(declared_watermark(&[malformed_actions, binding]).is_none());
+        let unrelated = ManifestAssertion::from_assertion(
+            &Actions::new().add_action(Action::new("c2pa.watermarked.fake")),
+        )
+        .unwrap();
+        assert!(declared_watermark(&[unrelated]).is_none());
+    }
 
     #[test]
     fn sniffs_common_formats() {

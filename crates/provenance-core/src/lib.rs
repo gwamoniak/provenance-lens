@@ -23,5 +23,5 @@ pub mod pipeline;
 pub mod verdict;
 
 pub use json::render_json;
-pub use pipeline::{Asset, Layer, LayerFinding, Pipeline, Report};
+pub use pipeline::{Asset, DeclaredWatermark, Layer, LayerFinding, Pipeline, Report};
 pub use verdict::Verdict;

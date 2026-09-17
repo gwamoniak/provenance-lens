@@ -41,6 +41,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - [ ] N0 dependency-manifest review: maintainer sign-off must be recorded in this Decision Log before merging the candidate. The candidate branch also awaits online CI after an authorized push.
 - [x] (2026-09-16) N1/N2 implemented locally on `codex/n1-n2-evidence-reliability`, carrying N0: honest detector errors/model identity, bounded examination, fresh browser evidence, explicit scan consent, cancellable work, source generations, and accessible buttons. Native, reduced-feature, model, Node, real-WASM, and Chromium/Firefox DOM tests pass. Packet: `docs/reviews/N1_N2_REVIEW.md`.
 - [ ] N1/N2 pre-merge review: the new shared 25 MiB guard changes whether C2PA execution occurs and requires maintainer cryptography sign-off. Online CI and installed-extension permission-dialog smoke remain separately recorded in the packet.
+- [x] (2026-09-17) User-requested N1/N2 push completed at `976aa35`; GitHub CI `35261458076` passed. N3/N4 implemented on `codex/n3-n4-local-evidence`, carrying prerequisites without changing main: reconciled signed declarations, twelve-vector corpus, C4 capability matrix, and offline file inspection/unsigned receipts/two-file comparison. Local native/WASM/Chromium/Firefox checks pass.
+- [ ] N3/N4 human review before merge: reconciled C2PA summary extraction and shared engine/anchor initialization remain pending approval. Packet: `docs/reviews/N3_N4_REVIEW.md`. No C1 approval is reused.
 - [ ] Post-wedge (each gated, see Milestones): M5 watermark layer (two detectors delivered via roadmap W1–W2, calibration published; evidence-reporting follow-ups in successor N1/N6), M6 registry layer (G0 accepted and G1 complete; G2a prototype exists, deployment/client not verified), M7 heuristics layer (gated indefinitely; registry-before-heuristics ordering recorded 2026-07-31).
 
 ## Surprises & Discoveries
@@ -69,6 +71,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
   Consequence: CI fuzzing is enforcing again, but the layer-level panic guard remains as defense in depth. Because this changes the signature-validation dependency, the branch could not merge before maintainer cryptography sign-off; that sign-off was recorded on 2026-09-04 below.
 
 ## Decision Log
+
+- Decision (2026-09-17): implement the explicitly requested N3/N4 scope and push only the named N1/N2 branch. Reconcile W3-M source rather than old binaries, require exact action/binding assertion labels, and label coexisting algorithms as signed soft-binding identifiers with no assumed watermark association. Share the existing bundled verifier/anchor loader and text-only claim renderer for the new local inspector. Missing bundled anchors fail explicitly; unsigned receipts never become proof. No SDK/dependency/production-anchor/manifest-permission change. Rationale: evidence context and a local interface do not authorize a new detector or trust policy. Cryptography merge sign-off remains pending.
 
 - Decision: Project lives at `sandbox/rust/provenance-lens`, its own git repository, not inside an existing repo.
   Rationale: the sandbox is organized by language (`cpp/`, `llm/`); this is the first Rust project. Independent history, independent GitHub remote later.
@@ -182,6 +186,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
   Date/Author: 2026-09-16 / implementation author; maintainer sign-off pending.
 
 ## Outcomes & Retrospective
+
+N3/N4 (2026-09-17): the requested local candidate and review packet are complete; 66 workspace tests and 43 reduced-feature tests, twelve real-WASM vectors, Node checks, and real Chromium/Firefox offline/lifecycle checks pass. N1/N2 remote CI is green after its authorized push. Main, the original W3 worktree, and production anchors are unchanged. Human merge review and N3/N4 remote/release checks remain separate.
 
 N1/N2 candidate (2026-09-16): failed or unavailable detector probes no longer become negative findings, and a changed image or revoked scan choice cannot retain its old page badge in the tested lifecycle cases. The requested implementation is complete locally; evidence and limits are in the successor plan and review packet. This does not merge the candidate or supply its human trust-boundary approval.
 
@@ -421,3 +427,5 @@ Revision note (2026-09-16): linked the consolidated development successor and re
 Revision note (2026-09-16, N0): recorded the reviewed-version dependency pin as a pending cryptography-review surface and linked its concrete packet. Local test evidence is in the successor plan; no maintainer sign-off, merge, or publication has been claimed.
 
 Revision note (2026-09-16, N1/N2): recorded the implemented local candidate and review packet. The SDK/anchors remain unchanged; oversized assets now bypass verification with an explicit not-evaluated result, so human review of that execution boundary remains a pre-merge requirement.
+
+Revision note (2026-09-17, N3/N4): recorded authorized implementation, coherent fixture regeneration, offline local evidence tools, and the successful N1/N2 push/CI. Human merge review and vendor/release gates remain open; details are in the successor plan and N3/N4 review packet.

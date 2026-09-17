@@ -16,13 +16,15 @@ After the implementable part of this plan, a human can verify the behavior with 
 
 - [x] (2026-08-06) W3 successor plan authored for Sol from the repository's current code, planning rules, watermark and wording rules, and current official Google and C2PA documentation.
 - [x] (2026-08-06) Current vendor surface classified: no local SynthID image decoder; no documented public programmatic SynthID-verification endpoint; Google's AI Content Detection API is private preview and generic/probabilistic, so it does not open the Layer-2 gate.
-- [ ] W3-M0 — Maintainer approves the manifest-context mechanism and its exact user-facing sentence before production code begins, satisfying the roadmap's “each mechanism needs its own approval” gate.
-- [ ] W3-M1 — Add a self-verifying C2PA vector that declares watermarking while its pixels contain no supported local watermark, then add the credential-summary extraction and negative tests.
-- [ ] W3-M2 — Render the declaration in CLI, JSON, and popup; update the manual and dated research note; run native, WASM, and JavaScript validation.
+- [x] W3-M0 — Maintainer authorized W3-M implementation and, on 2026-09-17, its N3 reconciliation. This authorizes descriptive context and its fixed sentence, not actual SynthID detection or cryptography merge sign-off.
+- [x] (2026-09-17) W3-M1 — Original implementation `bc2cc42` reconciled with C1/N1/N2 on `codex/n3-n4-local-evidence`. Twelve coherent JPEG/PNG/SVG vectors, strict label/malformed/mixed-binding tests, and unsigned/untrusted/invalid absence checks pass. Original W3 worktree untouched.
+- [x] (2026-09-17) W3-M2 — CLI/JSON/popup and local inspector render the exact note plus explicitly non-associated soft-binding identifiers. Native, reduced-feature, real-WASM, and browser tests pass; documentation and evidence in `docs/CLAUDE_MARKS.md` and `docs/reviews/N3_N4_REVIEW.md`.
 - [ ] W3-M3 — Prepare the cryptography-review packet and obtain the maintainer's dated sign-off before merge because `crates/provenance-core/src/layers/c2pa.rs` is touched.
 - [ ] W3-D — Implement actual SynthID detection only after the vendor-detector gate in this plan opens. This item is intentionally blocked today and is not satisfied by W3-M1 through W3-M3.
 
 ## Surprises & Discoveries
+
+- Observation (2026-09-17): a soft-binding algorithm alongside a watermark action may still be a separate fingerprint. The SDK assertion helper also matches label prefixes. N3 uses exact known labels and describes algorithms without claiming watermark association; tiny fixtures may now be NotEvaluated for pixels under N1 rather than completed negatives.
 
 - Observation: Google's AI Content Detection API does not expose a documented SynthID presence result. Its official documentation says it uploads JPEG, PNG, or WebP bytes and produces a probabilistic estimate from pixel-level artifacts, noise patterns, and spectral anomalies. It is in Private Preview and explicitly admits false positives and false negatives.
   Evidence: Google Cloud, “Detect AI-generated images,” last updated 2026-07-21, `https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/ai-content-detection`.
@@ -41,6 +43,8 @@ After the implementable part of this plan, a human can verify the behavior with 
   Consequence: these changes belong to the user. Sol must not overwrite, stage, reformat, move, or include them in a W3 commit. Before creating or switching branches, re-check status and have the maintainer finish or relocate that work if necessary.
 
 ## Decision Log
+
+- Decision (2026-09-17): reuse W3-M under the user's N3 implementation request, keeping the fixed note while refining algorithm wording to “signed soft-binding algorithm (not necessarily the watermark)”. Preserve the earlier W3 branch, regenerate the C1 corpus coherently, and leave cryptography approval pending. Rationale: typed declarations remain useful without inventing scheme association or independent detection. This supersedes the earlier wording assumption that an accompanying algorithm establishes scheme detail.
 
 - Decision: Split W3 into W3-M, manifest-declared watermark context, and W3-D, actual vendor detection.
   Rationale: W3-M is implementable from signed, standardized evidence already parsed by the project. W3-D has no public detector contract today. Calling both “detection” would erase the most important distinction.
@@ -69,7 +73,7 @@ After the implementable part of this plan, a human can verify the behavior with 
 
 ## Outcomes & Retrospective
 
-No implementation outcome yet. At W3-M1, record whether the pinned C2PA crate parsed all three action forms and multiple soft-binding assertions as expected. At W3-M3, compare the observed CLI/JSON/popup behavior against the purpose above and state plainly that actual SynthID pixel detection remains gated unless W3-D has separately opened.
+N3 reconciliation is implemented and locally validated as of 2026-09-17. All three action forms and deduplicated identifiers are covered, with the exact declaration-versus-detection note shared across surfaces. The feature remains unmerged pending fresh human review in `docs/reviews/N3_N4_REVIEW.md`. W3-D remains gated; no current external vendor availability claim was refreshed by this implementation.
 
 ## Context and Orientation
 
@@ -285,3 +289,5 @@ No W3-D transport interface is specified yet because there is no qualifying vend
 ---
 
 Revision note (2026-08-06): initial standalone W3 implementation plan for Sol. It replaces the roadmap's single gated paragraph with an executable manifest-context milestone and an explicit detector gate. The split is necessary because the newly documented Google AI Content Detection API is generic probabilistic analysis, not a documented SynthID watermark detector, while C2PA already offers a signed and standards-based declaration path that can be implemented without overclaiming.
+
+Revision note (2026-09-17, N3/N4): recorded authorized implementation, coherent fixture regeneration, offline local evidence tools, and the successful N1/N2 push/CI. Human merge review and vendor/release gates remain open; details are in the successor plan and N3/N4 review packet.

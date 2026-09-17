@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local evidence — Provenance Lens</title><link rel="stylesheet" href="inspect.css"></head>
+<body><main>
+  <h1>Local evidence</h1>
+  <p>Inspect one file or compare two. Files stay on this device. No uploads, accounts, or image previews.</p>
+  <p>C2PA credentials are checked locally. Pixel watermarks, Claude text marks, registry lookup, and heuristics are unavailable in this browser build.</p>
+  <div id="drop-zone">
+    <label for="files">Choose one or two files (25 MiB maximum each), or drop them here</label>
+    <input id="files" type="file" multiple>
+    <button id="clear" type="button">Clear files and results</button>
+  </div>
+  <p id="status" role="status" aria-live="polite">Loading the bundled verifier…</p>
+  <section id="comparison" hidden aria-labelledby="comparison-heading"><h2 id="comparison-heading">Evidence changes</h2><ul id="changes"></ul></section>
+  <div id="results"></div>
+  <p>Verified describes a signed provenance chain, not truthful content or human authorship. An unavailable check is not a negative result.</p>
+</main><script type="module" src="inspect.js"></script></body></html>

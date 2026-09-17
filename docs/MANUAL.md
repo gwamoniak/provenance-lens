@@ -6,7 +6,7 @@ This manual covers the `lens` command-line tool, the browser extension (includin
 
 Provenance Lens validates **C2PA Content Credentials** — cryptographically signed provenance manifests that some cameras, editors, and AI generators embed in media files — and decodes **openly specified invisible watermarks** (today: the Stable Diffusion scheme). When credentials are present and valid, that is provable; when a known watermark payload decodes exactly, that is an indication. When neither is found, **nothing is provable in either direction**, and the tool says so. It never guesses: no pixel-statistics "AI likelihood" scoring, and it never calls anything authentic.
 
-Two related honesty notes. First, invisible watermarks with NO public decoder — Google's SynthID above all — cannot be checked by this or any third-party tool: only the vendor's own infrastructure can verify them, and no local detector will pretend otherwise here. Second, ecosystem context: the EU AI Act's Article 50 transparency obligations (in force from 2 August 2026) require *generators* to mark AI content in machine-readable form; nothing is required of verifiers or their users. Provenance Lens sits on the independent verification side of that ecosystem, checking such marks locally where a runnable, spec-known verifier exists — today that means C2PA and the Stable Diffusion watermark.
+Two related honesty notes. First, this project has no implemented SynthID or Claude text-watermark decoder. Vendor-access research dated August 2026 is not a current availability guarantee; no general classifier substitutes for an actual watermark detector. Second, checking a mark is not a legal compliance attestation. Provenance Lens reports the specific cryptographic or statistical evidence its implemented checks can support.
 
 ## The four verdicts
 
@@ -18,6 +18,16 @@ Two related honesty notes. First, invisible watermarks with NO public decoder �
   The common case for genuine and generated images alike — most images on the web carry no credentials, often because platforms strip them on upload.
 - **Tampered**: provenance data is present but fails validation. Treat this asset with suspicion.
   Includes: content modified after signing (hash mismatch), broken manifests, expired signing credentials — and also cryptographically valid signatures whose certificate does not chain to any of your trust anchors (unverifiable provenance is treated conservatively, not charitably).
+
+## Local-file inspection, receipts, and comparison
+
+On the N3/N4 development candidate, build the bundled engine and load/reload the unpacked extension as described in the README. Open the toolbar popup and choose **Inspect or compare local files**. Use the labeled file picker or drop one or two files onto the drop area; each file is limited to 25 MiB. No site grant is needed. The same bundled C2PA verifier and production anchor bundle run locally, including when offline. File bytes are never uploaded, and SVG/HTML is not displayed or executed as a preview.
+
+One file shows its exact byte length, SHA-256, per-layer findings, and any verified credential claims. Two files show independent reports and explain evidence differences. A signed test JPEG verifies only with its test CA in an isolated development test; the production bundle correctly does not trust that CA. The three labeled flower SVGs contain no C2PA credentials. Neither an unsigned result nor a difference between files proves authenticity, authorship, or that B was derived from A.
+
+Each successful examination offers an expanded **Preview the complete receipt before saving**, followed by **Save unsigned JSON receipt**. The receipt is a versioned wrapper around the report with exact asset, engine, and anchor digests; examination time; byte length; MIME-hint source; package/SDK/profile identifiers; and enabled checks/model absence. It contains the basename, not a local absolute path, and no source URL or copied document text. Signed claim text is visible in the preview—review it before sharing. The receipt is unsigned, editable, and not a Content Credential, certified audit, or legal compliance attestation. There is deliberately no receipt-import verification; select the original file to recompute.
+
+Pixel watermark and Claude text detectors, registry lookup, and heuristics are not available in the standalone browser engine. These limitations remain NotEvaluated. Oversized/unreadable files show errors without a report receipt. **Clear files and results** clears the page state and prevents pending reads from bringing results back; previously downloaded receipts remain your files. File inputs, buttons, and receipt disclosure controls are keyboard-accessible.
 
 ## The CLI: `lens`
 
@@ -64,9 +74,15 @@ Only Verified reports carry this section, because only a validated manifest is w
 
 ### Claude file exports
 
+The cross-surface evidence matrix is in [CLAUDE_MARKS.md](CLAUDE_MARKS.md). Generic signed JPEG/PNG/SVG fixtures pass; a genuine Anthropic-signed positive fixture has not been demonstrated. The labeled flower SVGs remain unsigned negative controls.
+
+Verified credential summaries may include `declared_watermark` with `action_labels`, `algorithms`, and the note “the verified credential records an invisible watermark; the watermark was not independently detected”. The algorithms are signed soft-binding identifiers, not necessarily watermark schemes: a fingerprint may coexist with a watermark action. A soft binding alone is insufficient. This context never contributes a Layer-2 hit or changes a verdict, and is absent from unsigned, invalid, and untrusted reports.
+
 Claude file outputs use the same vendor-neutral C2PA path as every other asset. A valid credential can prove which trusted signer processed the file and what that credential declares; it does not prove Claude authored every element. Marking availability varies by model, surface, feature, and export route. A Claude file with no manifest is therefore Inconclusive, not evidence that the file is human-made or that Claude was uninvolved. Provenance Lens does not currently detect Claude's separate embedded text watermark.
 
 ### JSON output
+
+Local browser receipts wrap this existing report rather than changing its contract. The CLI does not import/export receipts and its exit codes are unchanged.
 
 `lens verify --json` emits, per file, the same flat shape the WASM engine returns (one renderer in `provenance-core` serves both — they cannot drift):
 
