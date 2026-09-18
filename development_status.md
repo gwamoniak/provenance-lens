@@ -4,6 +4,8 @@ Snapshot: **2026-09-18**, N5 hardening/N6 preparation on `codex/n5-n6-registry-r
 
 ## Current position
 
+**Approval update, 2026-09-18:** maintainer explicitly approved the existing N0/N1/N3–N4/N5 trust-related candidate `2953dc4` for local integration once CI passes. Approval is recorded in the original ExecPlan. CI `35364243397` is still running at this checkpoint; no merge or push yet. Remaining certificate/data/G3/release gates are unchanged. Historical pending-approval statements below are superseded only for this reviewed scope.
+
 **Latest:** N5 prototype hardening and N6 calibration/package preparation are implemented locally; see [N5 review](docs/reviews/N5_REGISTRY_REVIEW.md) and [N6 review](docs/reviews/N6_RELEASE_REVIEW.md). N3/N4 is pushed and CI `35362161502` passed. Main is unchanged. Both development archives pass extracted-engine checks; the extension passes Chromium/Firefox tests. Full N5/N6 acceptance still needs G3 approval, human reviews, candidate Ubuntu checks, independent holdout expansion and installed-extension smoke. Upstream trust now has 30 certificates versus the reviewed bundled 28; no anchors were changed. Older paragraphs below are historical snapshots.
 
 **2026-09-18 update:** N3/N4 `77ff1e7` is pushed. N5 prototype hardening is on `codex/n5-n6-registry-release`; see `docs/reviews/N5_REGISTRY_REVIEW.md`. Product registry remains disabled pending explicit G3 sequencing approval and review. N6 preparation is in progress; no new release or main change. Older snapshot paragraphs below retain their dated context.

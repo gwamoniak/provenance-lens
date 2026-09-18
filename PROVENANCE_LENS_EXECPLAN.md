@@ -14,6 +14,9 @@ The strategic bet (the "wedge"): shipping a small tool that checks cryptographic
 
 ## Progress
 
+- [x] (2026-09-18) Maintainer approved the explained N0/N1/N3–N4/N5 trust-related scope at candidate `2953dc4` for a local-only N0–N6 merge once CI passes: "I approve this changes". The dated sign-off is recorded below; no new anchor, G3 client, release or push approval is implied.
+- [ ] Approved local merge waiting for candidate CI `35364243397`; runtime code remains unchanged while recording approval.
+
 - [x] (2026-09-18) User-authorized N3/N4 push completed at `77ff1e7`; remote CI `35362161502` passed. N5 registry prototype hardening and N6 calibration/package preparation implemented on `codex/n5-n6-registry-release`, with temporary-pilot, independent crypto, native/WASM/browser and actual archive checks. Version 0.3.0 remains unreleased; full scope/evidence in the successor plan and `docs/reviews/N5_REGISTRY_REVIEW.md` / `N6_RELEASE_REVIEW.md`.
 - [ ] N5/N6 remaining: G3 local-first approval, human trust reviews, independent corpus expansion, candidate Ubuntu checks, changed upstream-anchor review and installed-extension release smoke. No main merge/push, deployment or package publication.
 
@@ -41,11 +44,11 @@ Granular state; every stopping point must be recorded here, splitting partially-
 - [x] (2026-09-04) C1 generic SVG implementation and C2PA 0.90.13 validation-surface change approved for merge by the maintainer on `codex/claude-c1-svg-support` at `8a0e689` (implementation prepared 2026-08-13). SVG is admitted only through an explicit MIME/filename hint; the eleven-vector JPEG/PNG/SVG corpus, native/WASM parity, hostile-input coverage, unchanged trust boundary, and six honest negative Claude SVG results form the review evidence. The separate positive Claude-interoperability claim remains open until a genuine Anthropic-signed specimen is obtained.
 - [x] (2026-09-16) Current-state/code review and successor plan authored: `PROVENANCE_LENS_NEXT_EXECPLAN.md`. Confirmed C1 in local main, W3-M on its separate review-pending branch, and a real G2a log prototype alongside a still-stubbed product registry layer. Fresh workspace/reduced-feature/WASM/Node checks pass; existing format/lint failures and model-test skip are explicitly recorded. Documentation only; no runtime implementation or publication.
 - [x] (2026-09-16) N0 reproducible-baseline candidate prepared on `codex/n0-reproducible-baseline`: tracked unchanged dependency lockfile, exact requirement for reviewed c2pa 0.90.13, pinned Rust 1.97.1 and wasm-pack 0.15.0, green local formatter/linter/native/reduced-feature/real-WASM checks. A fresh clone retains the original lockfile hash and passes the offline locked workspace tests; `.gitattributes` prevents Windows newline conversion. The model test is now explicitly ignored until its optional model is supplied. Reviewer packet: `docs/reviews/N0_CRYPTO_REVIEW.md`.
-- [ ] N0 dependency-manifest review: maintainer sign-off must be recorded in this Decision Log before merging the candidate. The candidate branch also awaits online CI after an authorized push.
+- [x] (2026-09-18) N0 dependency-manifest approval recorded in this Decision Log; final combined-candidate CI is the remaining local-merge condition.
 - [x] (2026-09-16) N1/N2 implemented locally on `codex/n1-n2-evidence-reliability`, carrying N0: honest detector errors/model identity, bounded examination, fresh browser evidence, explicit scan consent, cancellable work, source generations, and accessible buttons. Native, reduced-feature, model, Node, real-WASM, and Chromium/Firefox DOM tests pass. Packet: `docs/reviews/N1_N2_REVIEW.md`.
-- [ ] N1/N2 pre-merge review: the new shared 25 MiB guard changes whether C2PA execution occurs and requires maintainer cryptography sign-off. Online CI and installed-extension permission-dialog smoke remain separately recorded in the packet.
+- [x] (2026-09-18) N1/N2 bounded C2PA execution-entry scope approved by the maintainer. Installed-extension permission-dialog smoke remains a release check, not completed by this approval.
 - [x] (2026-09-17) User-requested N1/N2 push completed at `976aa35`; GitHub CI `35261458076` passed. N3/N4 implemented on `codex/n3-n4-local-evidence`, carrying prerequisites without changing main: reconciled signed declarations, twelve-vector corpus, C4 capability matrix, and offline file inspection/unsigned receipts/two-file comparison. Local native/WASM/Chromium/Firefox checks pass.
-- [ ] N3/N4 human review before merge: reconciled C2PA summary extraction and shared engine/anchor initialization remain pending approval. Packet: `docs/reviews/N3_N4_REVIEW.md`. No C1 approval is reused.
+- [x] (2026-09-18) N3/N4 reconciled C2PA context and shared engine/anchor loading explicitly approved by the maintainer. This is new sign-off, not reused C1 approval; installed-extension release smoke remains outstanding.
 - [ ] Post-wedge (each gated, see Milestones): M5 watermark layer (two detectors delivered via roadmap W1–W2, calibration published; evidence-reporting follow-ups in successor N1/N6), M6 registry layer (G0 accepted and G1 complete; G2a prototype exists, deployment/client not verified), M7 heuristics layer (gated indefinitely; registry-before-heuristics ordering recorded 2026-07-31).
 
 ## Surprises & Discoveries
@@ -74,6 +77,10 @@ Granular state; every stopping point must be recorded here, splitting partially-
   Consequence: CI fuzzing is enforcing again, but the layer-level panic guard remains as defense in depth. Because this changes the signature-validation dependency, the branch could not merge before maintainer cryptography sign-off; that sign-off was recorded on 2026-09-04 below.
 
 ## Decision Log
+
+- Decision: **Maintainer cryptography sign-off for the combined N0–N6 local merge.** After the scope and limitations were explained, maintainer gwamoniak replied "I approve this changes" to the request to approve the trust-related changes for a local merge once CI passes. Approved implementation candidate: `2953dc4bb4d88e05c237eb5fb7226eba9cae1cda` on `codex/n5-n6-registry-release`. Scope: N0 exact reviewed C2PA dependency pin/lock; N1 bounded examination entry with explicit not-evaluated handling; N3/N4 signed-declaration context and shared bundled engine/anchor initialization; N5 registry entry/signature/checkpoint/prefix validation and safe prototype publication. Review evidence: `docs/reviews/N0_CRYPTO_REVIEW.md`, `N1_N2_REVIEW.md`, `N3_N4_REVIEW.md`, `N5_REGISTRY_REVIEW.md`, and `N6_RELEASE_REVIEW.md`. This satisfies the human merge gate for that existing scope, not a claim of an independent external audit. Only documentation recording approval may be added before merging that candidate. Local merge is contingent on successful CI `35364243397`; no main push or package publication is authorized. Updated production certificates, a later SDK, G3 local-first sequencing/client integration, registry deployment, expanded calibration claims and final release acceptance remain separate.
+  Rationale: preserve explicit human responsibility for trust decisions without confusing local integration with publication or approving unimplemented work.
+  Date/Author: 2026-09-18 / maintainer gwamoniak; approval recorded by the implementation assistant.
 
 - Decision (2026-09-18, N5/N6): preserve signature/trust merge gates while implementing the user's requested prototype-hardening and release-preparation stages. No new dependency or anchor change; 0.3.0 is candidate-only. Product G3 and expanded calibration claims remain gated. Packager outputs are preparation, not approval or publication.
 
@@ -191,6 +198,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
   Date/Author: 2026-09-16 / implementation author; maintainer sign-off pending.
 
 ## Outcomes & Retrospective
+
+2026-09-18 approval checkpoint: the maintainer's human sign-off now covers the explained existing trust-related candidate. The approval does not assert full N5/N6 acceptance or authorize release/trust updates. Local integration waits for the candidate CI result.
 
 N5/N6 preparation (2026-09-18): local hardening, source-group audit, corrected statistics and checked development archives are implemented. Remaining human/data/Ubuntu/release gates are explicit in the successor plan. Upstream trust differs (30 certificates versus bundled 28); production trust remains unchanged.
 
@@ -436,3 +445,5 @@ Revision note (2026-09-16, N0): recorded the reviewed-version dependency pin as 
 Revision note (2026-09-16, N1/N2): recorded the implemented local candidate and review packet. The SDK/anchors remain unchanged; oversized assets now bypass verification with an explicit not-evaluated result, so human review of that execution boundary remains a pre-merge requirement.
 
 Revision note (2026-09-17, N3/N4): recorded authorized implementation, coherent fixture regeneration, offline local evidence tools, and the successful N1/N2 push/CI. Human merge review and vendor/release gates remain open; details are in the successor plan and N3/N4 review packet.
+
+Revision note (2026-09-18, approval): recorded the maintainer's explicit sign-off for the explained existing trust-related candidate and local-only merge condition; preserved independent release, trust-update, calibration and G3 gates.

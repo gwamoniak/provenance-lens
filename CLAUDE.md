@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build
 
+**Approval update (2026-09-18):** maintainer explicitly approved the explained N0/N1/N3–N4/N5 trust-related candidate `2953dc4` for local merge once CI `35364243397` passes. See the original ExecPlan Decision Log for scope and exclusions. No main push, new anchors, G3 integration/deployment or release is authorized; historical pending-approval notes below are superseded only for this candidate.
+
 **N6 candidate (2026-09-18):** version 0.3.0 is unreleased. N3/N4 push CI `35362161502` passed; N5 hardening is committed locally. N6 adds source-group/confidence auditing and isolated archive gates with both licenses; see `docs/reviews/N6_RELEASE_REVIEW.md`. Use `node scripts/package.mjs extension|npm --development` for review artifacts. Upstream anchors differ (30 versus 28), requiring separate review. No G3 integration, release or publication approval is implied.
 
 **N5 candidate (2026-09-18):** N3/N4 `77ff1e7` is pushed. `codex/n5-n6-registry-release` hardens the existing log prototype and tests local checkpoint recovery; see `docs/reviews/N5_REGISTRY_REVIEW.md`. Product registry integration remains gated; main and production anchors are unchanged. N6 preparation follows, not publication.
