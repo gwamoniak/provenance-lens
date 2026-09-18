@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build
 
-**Approval update (2026-09-18):** maintainer explicitly approved the explained N0/N1/N3–N4/N5 trust-related candidate `2953dc4` for local merge once CI `35364243397` passes. See the original ExecPlan Decision Log for scope and exclusions. No main push, new anchors, G3 integration/deployment or release is authorized; historical pending-approval notes below are superseded only for this candidate.
+**Local integration (2026-09-18):** maintainer explicitly approved the explained N0/N1/N3–N4/N5 trust-related candidate `2953dc4`; approval is committed as `3ad82a0`. CI `35364243397` passed, then local main fast-forwarded to the approved branch. See the original ExecPlan Decision Log for scope/exclusions. Version 0.3.0 remains unreleased. No main push, new anchors, G3 integration/deployment or release is authorized; historical pending-approval/unmerged notes below are superseded only for this candidate. The original W3 worktree remains untouched.
 
 **N6 candidate (2026-09-18):** version 0.3.0 is unreleased. N3/N4 push CI `35362161502` passed; N5 hardening is committed locally. N6 adds source-group/confidence auditing and isolated archive gates with both licenses; see `docs/reviews/N6_RELEASE_REVIEW.md`. Use `node scripts/package.mjs extension|npm --development` for review artifacts. Upstream anchors differ (30 versus 28), requiring separate review. No G3 integration, release or publication approval is implied.
 

@@ -15,7 +15,7 @@ The strongest next investment is not another detector. It is repairing the relea
 ## Progress
 
 - [x] (2026-09-18) Maintainer explicitly approved the existing N0/N1/N3–N4/N5 trust-related candidate at `2953dc4` for local-only integration once CI passes. Authoritative sign-off is in `PROVENANCE_LENS_EXECPLAN.md`; no main push, release, new certificates, or G3 client approval.
-- [ ] Complete the approved local merge after candidate CI `35364243397` passes, then rerun workspace tests.
+- [x] (2026-09-18) Candidate CI `35364243397` passed; approved local main fast-forward completed at `3ad82a0`. Post-merge `cargo test --workspace --locked --offline` passed: 69 tests, one explicitly ignored optional model test. No push, release or production trust change.
 
 
 - [x] (2026-09-16) Reviewed the latest Claude plan, the main/upgrades/roadmap/registry/SynthID records, and current implementation paths across core, CLI, WASM, extension, packaging, and log prototype.
@@ -319,7 +319,7 @@ Registry operator experiments use newly created, explicitly named test directori
 
 ## Outcomes & Retrospective
 
-2026-09-18 approval checkpoint: the explained candidate now has explicit human merge approval. CI remains the local-merge condition; separate data, deployment, trust-update and release gates remain open.
+2026-09-18 local merge: candidate CI `35364243397` passed and the approved implementation plus documentation-only approval record fast-forwarded into local main at `3ad82a0`. Separate data, deployment, trust-update and release gates remain open; no main push or publication occurred.
 
 N6 preparation (2026-09-18): corrected measurement claims, source-group audit and archive gates are working; both development archives pass extracted WASM smoke and the extension passes Chromium/Firefox offline/lifecycle checks. N3/N4 remote CI `35362161502` passed after its authorized push. Human approvals, current-anchor review, candidate Ubuntu evidence, expanded independent data and final release remain outstanding. No claim of full N5/N6 acceptance is made.
 
@@ -371,3 +371,5 @@ Revision note (2026-09-18, N5): recorded the authorized N3/N4 push and N5 protot
 Revision note (2026-09-18, N6): recorded implemented calibration/packaging preparation, real-archive checks, upstream trust differences and explicit remaining data/review/release gates.
 
 Revision note (2026-09-18, approval): recorded the maintainer's explicit sign-off for the explained existing trust-related candidate and local-only merge condition; preserved independent release, trust-update, calibration and G3 gates.
+
+Revision note (2026-09-18, local merge): recorded successful candidate CI, the approved fast-forward into local main and 69 passing post-merge tests with one optional model test ignored. Remote main and production anchors remain unchanged.

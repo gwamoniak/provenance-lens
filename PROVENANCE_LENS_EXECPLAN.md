@@ -15,7 +15,7 @@ The strategic bet (the "wedge"): shipping a small tool that checks cryptographic
 ## Progress
 
 - [x] (2026-09-18) Maintainer approved the explained N0/N1/N3–N4/N5 trust-related scope at candidate `2953dc4` for a local-only N0–N6 merge once CI passes: "I approve this changes". The dated sign-off is recorded below; no new anchor, G3 client, release or push approval is implied.
-- [ ] Approved local merge waiting for candidate CI `35364243397`; runtime code remains unchanged while recording approval.
+- [x] (2026-09-18) Candidate CI `35364243397` passed for `2953dc4`; local main fast-forwarded from `5f1dcb6` to `3ad82a0`, including the documentation-only approval record. No push or release occurred. Model/audit/fuzz CI jobs were skipped on this push, not newly validated by the green run.
 
 - [x] (2026-09-18) User-authorized N3/N4 push completed at `77ff1e7`; remote CI `35362161502` passed. N5 registry prototype hardening and N6 calibration/package preparation implemented on `codex/n5-n6-registry-release`, with temporary-pilot, independent crypto, native/WASM/browser and actual archive checks. Version 0.3.0 remains unreleased; full scope/evidence in the successor plan and `docs/reviews/N5_REGISTRY_REVIEW.md` / `N6_RELEASE_REVIEW.md`.
 - [ ] N5/N6 remaining: G3 local-first approval, human trust reviews, independent corpus expansion, candidate Ubuntu checks, changed upstream-anchor review and installed-extension release smoke. No main merge/push, deployment or package publication.
@@ -199,7 +199,7 @@ Granular state; every stopping point must be recorded here, splitting partially-
 
 ## Outcomes & Retrospective
 
-2026-09-18 approval checkpoint: the maintainer's human sign-off now covers the explained existing trust-related candidate. The approval does not assert full N5/N6 acceptance or authorize release/trust updates. Local integration waits for the candidate CI result.
+2026-09-18 local integration: maintainer sign-off was committed as `3ad82a0`; after candidate CI `35364243397` passed, local main fast-forwarded from `5f1dcb6` to that commit. Only approval documentation was added after the CI-tested candidate. This does not assert full N5/N6 acceptance or authorize release, trust updates or a main push. The original W3 worktree is untouched.
 
 N5/N6 preparation (2026-09-18): local hardening, source-group audit, corrected statistics and checked development archives are implemented. Remaining human/data/Ubuntu/release gates are explicit in the successor plan. Upstream trust differs (30 certificates versus bundled 28); production trust remains unchanged.
 
@@ -447,3 +447,5 @@ Revision note (2026-09-16, N1/N2): recorded the implemented local candidate and 
 Revision note (2026-09-17, N3/N4): recorded authorized implementation, coherent fixture regeneration, offline local evidence tools, and the successful N1/N2 push/CI. Human merge review and vendor/release gates remain open; details are in the successor plan and N3/N4 review packet.
 
 Revision note (2026-09-18, approval): recorded the maintainer's explicit sign-off for the explained existing trust-related candidate and local-only merge condition; preserved independent release, trust-update, calibration and G3 gates.
+
+Revision note (2026-09-18, local merge): CI `35364243397` passed for implementation candidate `2953dc4`; local main fast-forwarded to approval commit `3ad82a0`. Post-merge workspace tests passed (69 tests, one optional model test ignored). Status-record edits are documentation-only; no push, release, trust-list update or G3 integration occurred.
