@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build
 
+**N5 candidate (2026-09-18):** N3/N4 `77ff1e7` is pushed. `codex/n5-n6-registry-release` hardens the existing log prototype and tests local checkpoint recovery; see `docs/reviews/N5_REGISTRY_REVIEW.md`. Product registry integration remains gated; main and production anchors are unchanged. N6 preparation follows, not publication.
+
 **Latest candidate (2026-09-17):** N1/N2 `976aa35` was pushed by explicit request; GitHub CI `35261458076` passed. `codex/n3-n4-local-evidence` carries those prerequisites and implements reconciled W3-M declarations, useful C4 documentation, and the local inspector/unsigned receipts/two-file comparison. Workspace 66 passed/one ignored, reduced core 43, strict lint, Node, twelve real-WASM vectors, and Chromium/Firefox offline/lifecycle tests pass. See `docs/reviews/N3_N4_REVIEW.md`. Main and the original W3 worktree remain unchanged; N3/N4 is not pushed or merged. Human review of N0/N1/N3 trust surfaces remains open. N5 and release/publication are not implicitly authorized.
 
     cargo fmt --all

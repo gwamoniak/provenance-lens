@@ -10,6 +10,14 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 provenance-core = { path = "../crates/provenance-core" }
+provenance-log = { path = "../crates/provenance-log" }
+
+[[bin]]
+name = "registry_parsing"
+path = "fuzz_targets/registry_parsing.rs"
+test = false
+doc = false
+bench = false
 
 [[bin]]
 name = "manifest_parsing"

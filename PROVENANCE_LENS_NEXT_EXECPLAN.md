@@ -31,7 +31,9 @@ The strongest next investment is not another detector. It is repairing the relea
 - [x] (2026-09-17) N3 implementation reconciled from W3-M on `codex/n3-n4-local-evidence`, created from local main and fast-forwarded to N1/N2 before edits. Twelve vectors regenerated with one test CA and matching fuzz seeds; strict assertion labels, descriptive soft-binding wording, CLI/JSON/popup rendering, and native/real-WASM declaration assertions pass. `docs/CLAUDE_MARKS.md` completes useful C4 documentation, not conditional text/vendor acceptance.
 - [x] (2026-09-17) N4 implemented all three requested increments: local inspector, previewed unsigned receipts with exact byte/configuration identities, and two-file comparison. Shared loader/rendering, native controls, no permissions/dependencies added. Offline Chromium/Firefox tests cover production and isolated-test trust, flowers, receipt downloads, keyboard, unsafe text, bounds, drop, clear-during-read, and missing-engine retry.
 - [ ] N3/N4 acceptance remaining: human cryptography review of reconciled C2PA context and shared engine/anchor loading before merge; remote CI for this local candidate and installed-extension release smoke. Packet: `docs/reviews/N3_N4_REVIEW.md`.
-- [ ] N5 — Harden the existing registry prototype before an approved pilot/client integration.
+- [x] (2026-09-18) N3/N4 commit `77ff1e7` pushed by user request; main unchanged. N5/N6 started on `codex/n5-n6-registry-release`, created from main and carrying prerequisites.
+- [x] (2026-09-18) N5 prototype hardening and temporary local operator pilot implemented; parser bounds, fallible encoding, immutable history/index snapshots, atomic latest publication, independently supplied operator-key option, malformed/recovery tests, and registry fuzz target. Packet: `docs/reviews/N5_REGISTRY_REVIEW.md`.
+- [ ] N5 remaining: human cryptography review, candidate Ubuntu fuzz execution, explicit local-first G3 sequencing approval, calibrated quality controls and product client acceptance; deployment remains maintainer-owned.
 - [ ] N6 — Strengthen calibration and release the smallest independently useful slice.
 - [ ] Vendor track — Reopen Claude C0-positive/C2/C3 or W3-D only when the specific evidence/privacy gates are satisfied.
 
@@ -267,6 +269,8 @@ Registry operator experiments use newly created, explicitly named test directori
 
 ## Surprises & Discoveries
 
+- Observation (N5, 2026-09-18): replacing the mutable index before the latest note can expose mixed snapshots. Immutable size-specific indexes plus an atomic latest-note commit point preserve the prior readable prefix across interrupted publication. The operator regression exercises interruption and retry.
+
 - Observation (N3, 2026-09-17): the SDK's generic assertion lookup uses prefix matching; N3 explicitly accepts only known action labels and the exact soft-binding label. Existing W3 wording could imply a fingerprint algorithm identifies a watermark, so it now says signed soft-binding algorithm, not necessarily the watermark. Tiny fixtures are correctly NotEvaluated for pixels under N1.
 - Observation (N3, 2026-09-17): Windows checkout conversion changed the generator's unsigned SVG input to CRLF. The generator now normalizes only that project-owned source fixture before signing, then preserves signed bytes and regenerates every vector together. User specimens and production anchors remain byte-identical.
 - Observation (N4, 2026-09-17): the offline flow requires no extension API or new permission. Native browser file/digest/download primitives plus the existing verifier suffice. Actual production-anchor tests reject the synthetic test CA; an isolated resource response enables the positive comparison without changing production files.
@@ -283,6 +287,8 @@ Registry operator experiments use newly created, explicitly named test directori
 - Observation (N0, 2026-09-16): the original lockfile's SHA-256 stayed `30ae9b4dbf53f1da9fc0a659076f735c40147ae76bd3593ca229707f73d752ff` after exact-pinning c2pa and running the checks; `cargo tree` still selects 0.90.13. The only new source of a vendor-model result is the explicitly ignored test when run with a supplied model. Consequence: N0 makes the existing resolution reproducible without slipping in an SDK update or a vacuous green model test.
 
 ## Decision Log
+
+- Decision (N5, 2026-09-18): implement the user's next-two-stages request as prototype hardening plus N6 preparation, preserving the explicit G3 ordering gate. Reuse the current decoder, tree and prefix verifier; no new dependency. Entry encoding becomes fallible. Add bounded canonical parsing and serialized, no-overwrite history publication with an atomic latest-note commit point. Human review is pending; this is not trust-policy or deployment approval.
 
 - Decision (N3/N4, 2026-09-17): implement the user's two requested milestones on a new branch created from main and carrying unmerged N0–N2 prerequisites. Do not merge those prerequisites merely to start N3. Preserve the original W3 worktree; reuse reviewed source hunks, not its obsolete signed corpus. Rationale: main approval remains separate from implementation authorization.
 - Decision (N3, 2026-09-17): keep the W3 `algorithms` JSON field for descriptive soft-binding identifiers, with explicit non-association wording in every UI; exact known assertion labels only. Regenerate twelve current-container vectors and fuzz seeds together under one test root. No SDK, anchor, detector, or dependency update. Rationale: avoid both lookalike labels and treating a coexisting fingerprint as watermark detection.
@@ -301,6 +307,8 @@ Registry operator experiments use newly created, explicitly named test directori
 - Decision (N0): commit the previously local lockfile unchanged, change the C2PA requirement from a compatible range to exactly the reviewed 0.90.13, and pin the installed Rust/wasm-pack versions. Keep the model inference test explicitly ignored by default and offer a manually triggered, SHA-256-checked CI job for a separately supplied model. Rationale: preserve the reviewed verification resolution while making both the default and opt-in validation outcomes observable. Date/author: 2026-09-16 / implementation author; dependency-manifest review before merge is pending.
 
 ## Outcomes & Retrospective
+
+N5 prototype (2026-09-18): hardening and local recovery/prefix checks are implemented without activating product Layer 3. N3/N4 is now pushed; main remains untouched. G3 sequencing, quality calibration, independent operator trust, human review and deployment remain separate decisions.
 
 N3/N4 local implementation (2026-09-17): all requested increments are available on the candidate branch. Workspace 66 passed/one model ignored, reduced core 43 passed, format/strict lint, Node helpers/background/receipt checks, twelve real-WASM vectors plus declaration/hostile-input checks, and Chromium/Firefox lifecycle and offline-inspector checks pass. Raw/gzip WASM is 6,968,175/2,341,807 bytes. The review packet records identities and remaining gates. N1/N2 was pushed and its CI is green; N3/N4 remains local. No main merge/push, new vendor detection, or product release is implied.
 
@@ -342,3 +350,5 @@ Revision note (2026-09-16, N0): recorded the implemented reproducibility baselin
 Revision note (2026-09-16, N1/N2): recorded both authorized local implementations, model identity recovery, bounds/consent decisions, full regression evidence, and remaining pre-merge checks. Historical planning findings remain as dated evidence; N3 and later work is unchanged.
 
 Revision note (2026-09-17, N3/N4): recorded the requested N1/N2 push and successful remote CI, reconciled W3-M with twelve current-format fixtures, delivered useful C4 documentation and all three local evidence increments, and retained human/release/vendor gates. Historical planning findings above are snapshots, not claims that implemented defects remain unfixed.
+
+Revision note (2026-09-18, N5): recorded the authorized N3/N4 push and N5 prototype hardening, publication/recovery design and remaining G3 gates.

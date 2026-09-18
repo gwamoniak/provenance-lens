@@ -52,6 +52,31 @@ use sha2::{Digest, Sha256};
 pub const ENTRY_MAGIC: &[u8; 4] = b"PLE1";
 pub const NOTE_ORIGIN: &str = "provenance-lens-log/pilot";
 pub const NOTE_KEY_NAME: &str = "provenance-lens-log";
+pub const MAX_ENTRY_BYTES: usize = 4 + 32 + 3 + 3 * 255 + 64;
+pub const MAX_NOTE_BYTES: usize = 512;
+pub const MAX_PROOF_HASHES: usize = 64;
+
+pub fn validate_registrant(id: &str) -> Result<(), String> {
+    if id.is_empty()
+        || id.len() > 64
+        || !id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(
+            "registrant must be 1..=64 ASCII letters, digits, hyphens or underscores".into(),
+        );
+    }
+    Ok(())
+}
+
+fn validate_timestamp(value: &str) -> Result<(), String> {
+    chrono::DateTime::parse_from_rfc3339(value).map_err(|_| "invalid RFC 3339 timestamp")?;
+    if value.bytes().any(|b| b.is_ascii_control()) {
+        return Err("control character in timestamp".into());
+    }
+    Ok(())
+}
 
 // ---------- entries ----------
 
@@ -72,6 +97,11 @@ impl Entry {
         source_type: &str,
         created_at: &str,
     ) -> Result<Vec<u8>, String> {
+        validate_registrant(registrant)?;
+        validate_timestamp(created_at)?;
+        if source_type.chars().any(char::is_control) {
+            return Err("control character in source type".into());
+        }
         let mut body = Vec::with_capacity(4 + 32 + 3 + 96);
         body.extend_from_slice(ENTRY_MAGIC);
         body.extend_from_slice(pdq_hash);
@@ -103,19 +133,21 @@ impl Entry {
         })
     }
 
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Result<Vec<u8>, String> {
         let mut bytes = Self::signed_body(
             &self.pdq_hash,
             &self.registrant,
             &self.source_type,
             &self.created_at,
-        )
-        .expect("encoded entries have valid field lengths");
+        )?;
         bytes.extend_from_slice(&self.signature);
-        bytes
+        Ok(bytes)
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Entry, String> {
+        if bytes.len() > MAX_ENTRY_BYTES {
+            return Err("entry exceeds size limit".into());
+        }
         let take = |offset: &mut usize, n: usize| -> Result<Vec<u8>, String> {
             let end = offset
                 .checked_add(n)
@@ -141,6 +173,7 @@ impl Entry {
         if offset != bytes.len() {
             return Err("trailing bytes after entry".to_string());
         }
+        Self::signed_body(&pdq_hash, &registrant, &source_type, &created_at)?;
         Ok(Entry {
             pdq_hash,
             registrant,
@@ -167,6 +200,11 @@ impl Entry {
 
 // ---------- RFC 6962 Merkle tree ----------
 
+// Largest power of two strictly below n (n >= 2), without rounding overflow.
+fn tree_split(n: usize) -> usize {
+    1usize << (usize::BITS - 1 - (n - 1).leading_zeros())
+}
+
 pub fn leaf_hash(entry_bytes: &[u8]) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update([0x00]);
@@ -189,8 +227,7 @@ pub fn root(leaves: &[[u8; 32]]) -> [u8; 32] {
         0 => Sha256::digest([]).into(),
         1 => leaves[0],
         n => {
-            let split = n.next_power_of_two() / 2;
-            let split = if split == n { n / 2 } else { split };
+            let split = tree_split(n);
             node_hash(&root(&leaves[..split]), &root(&leaves[split..]))
         }
     }
@@ -205,14 +242,7 @@ pub fn inclusion_proof(leaves: &[[u8; 32]], index: usize) -> Vec<[u8; 32]> {
         if n <= 1 {
             return;
         }
-        let split = {
-            let s = n.next_power_of_two() / 2;
-            if s == n {
-                n / 2
-            } else {
-                s
-            }
-        };
+        let split = tree_split(n);
         if index < split {
             path(&leaves[..split], index, proof);
             proof.push(root(&leaves[split..]));
@@ -222,6 +252,9 @@ pub fn inclusion_proof(leaves: &[[u8; 32]], index: usize) -> Vec<[u8; 32]> {
         }
     }
     let mut proof = Vec::new();
+    if index >= leaves.len() {
+        return proof;
+    }
     path(leaves, index, &mut proof);
     proof
 }
@@ -239,14 +272,7 @@ pub fn verify_inclusion(
         if size == 1 {
             return proof.is_empty().then_some(*leaf);
         }
-        let split = {
-            let s = size.next_power_of_two() / 2;
-            if s == size {
-                size / 2
-            } else {
-                s
-            }
-        };
+        let split = tree_split(size);
         let (rest, sibling) = proof.split_at(proof.len().checked_sub(1)?);
         if index < split {
             Some(node_hash(&climb(leaf, index, split, rest)?, &sibling[0]))
@@ -257,7 +283,9 @@ pub fn verify_inclusion(
             ))
         }
     }
-    index < tree_size && climb(leaf, index, tree_size, proof).is_some_and(|r| r == *expected_root)
+    proof.len() <= MAX_PROOF_HASHES
+        && index < tree_size
+        && climb(leaf, index, tree_size, proof).is_some_and(|r| r == *expected_root)
 }
 
 // ---------- checkpoint notes ----------
@@ -287,6 +315,9 @@ impl Checkpoint {
     /// Parse and verify a signed note. The signature must verify against
     /// the log's public key before any field is trusted.
     pub fn from_note(note: &str, key: &VerifyingKey) -> Result<Checkpoint, String> {
+        if note.len() > MAX_NOTE_BYTES {
+            return Err("note exceeds size limit".into());
+        }
         let mut lines = note.lines();
         let origin = lines.next().ok_or("empty note")?;
         if origin != NOTE_ORIGIN {
@@ -302,6 +333,7 @@ impl Checkpoint {
             return Err("root hash is not 64 hex chars".to_string());
         }
         let timestamp = lines.next().ok_or("missing timestamp")?.to_string();
+        validate_timestamp(&timestamp)?;
         if lines.next() != Some("") {
             return Err("missing blank separator line".to_string());
         }
@@ -319,6 +351,11 @@ impl Checkpoint {
             root_hex,
             timestamp,
         };
+        if lines.next().is_some()
+            || note != format!("{}\n— {NOTE_KEY_NAME} {sig_b64}\n", checkpoint.body())
+        {
+            return Err("noncanonical or trailing note data".into());
+        }
         key.verify(
             checkpoint.body().as_bytes(),
             &Signature::from_bytes(&sig_bytes),
@@ -335,8 +372,8 @@ pub fn hex_encode(bytes: &[u8]) -> String {
 }
 
 pub fn hex_decode(hex: &str) -> Result<Vec<u8>, String> {
-    if !hex.len().is_multiple_of(2) {
-        return Err("odd hex length".to_string());
+    if !hex.len().is_multiple_of(2) || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err("invalid hex".to_string());
     }
     (0..hex.len())
         .step_by(2)
@@ -345,6 +382,9 @@ pub fn hex_decode(hex: &str) -> Result<Vec<u8>, String> {
 }
 
 pub fn signing_key_from_hex(hex: &str) -> Result<SigningKey, String> {
+    if hex.trim().len() != 64 {
+        return Err("signing key must be 64 hex characters".into());
+    }
     let seed: [u8; 32] = hex_decode(hex.trim())?
         .try_into()
         .map_err(|_| "signing key must be 32 hex-encoded bytes")?;
@@ -352,6 +392,9 @@ pub fn signing_key_from_hex(hex: &str) -> Result<SigningKey, String> {
 }
 
 pub fn verifying_key_from_hex(hex: &str) -> Result<VerifyingKey, String> {
+    if hex.trim().len() != 64 {
+        return Err("verifying key must be 64 hex characters".into());
+    }
     let bytes: [u8; 32] = hex_decode(hex.trim())?
         .try_into()
         .map_err(|_| "verifying key must be 32 hex-encoded bytes")?;
@@ -366,6 +409,65 @@ mod tests {
         SigningKey::from_bytes(&[7u8; 32])
     }
 
+    #[test]
+    fn malformed_boundaries_are_errors() {
+        for value in ["€x", "é", "0z", "a"] {
+            assert!(hex_decode(value).is_err());
+        }
+        assert!(!verify_inclusion(&[0; 32], 0, usize::MAX, &[], &[0; 32]));
+        assert!(!verify_inclusion(&[0; 32], 0, 2, &[[0; 32]; 65], &[0; 32]));
+        let mut e = Entry::decode(&entry(1)).unwrap();
+        for id in ["", "../key", "a.b", "é", "a/b", "a\\b"] {
+            e.registrant = id.into();
+            assert!(e.encode().is_err());
+        }
+        let mut bytes = entry(1);
+        bytes[36] = 0;
+        assert!(Entry::decode(&bytes).is_err());
+        assert!(Entry::decode(&vec![0; MAX_ENTRY_BYTES + 1]).is_err());
+        let key = test_key();
+        let mut c = Checkpoint {
+            tree_size: 1,
+            root_hex: hex_encode(&[1; 32]),
+            timestamp: "2026-09-18T00:00:00Z".into(),
+        };
+        let note = c.to_note(&key);
+        for bad in [
+            format!("{note}extra\n"),
+            note.replace('\n', "\r\n"),
+            note.replace("\n1\n", "\n01\n"),
+            "x".repeat(MAX_NOTE_BYTES + 1),
+        ] {
+            assert!(Checkpoint::from_note(&bad, &key.verifying_key()).is_err());
+        }
+        c.timestamp = "2026-02-30T00:00:00Z".into();
+        assert!(Checkpoint::from_note(&c.to_note(&key), &key.verifying_key()).is_err());
+        assert!(
+            Checkpoint::from_note(&note, &SigningKey::from_bytes(&[8; 32]).verifying_key())
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn independent_rfc8032_signature_known_answer() {
+        // RFC 8032 section 7.1 TEST 1; expected bytes are published, not generated by this crate.
+        let key = verifying_key_from_hex(
+            "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+        )
+        .unwrap();
+        let sig: [u8; 64] = hex_decode(concat!(
+            "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e06522490155",
+            "5fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
+        ))
+        .unwrap()
+        .try_into()
+        .unwrap();
+        key.verify(b"", &Signature::from_bytes(&sig)).unwrap();
+        assert!(key
+            .verify(b"changed", &Signature::from_bytes(&sig))
+            .is_err());
+    }
+
     fn entry(n: u8) -> Vec<u8> {
         Entry::sign(
             [n; 32],
@@ -376,6 +478,7 @@ mod tests {
         )
         .unwrap()
         .encode()
+        .unwrap()
     }
 
     #[test]
@@ -394,6 +497,15 @@ mod tests {
 
     #[test]
     fn rfc6962_empty_and_singleton_roots() {
+        // Published transparency-dev/merkle rfc6962/rfc6962_test.go (Google, Apache-2.0).
+        assert_eq!(
+            hex_encode(&leaf_hash(b"")),
+            "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+        );
+        assert_eq!(
+            hex_encode(&leaf_hash(b"L123456")),
+            "395aa064aa4c29f7010acfe3f25db9485bbd4b91897b6ad7ad547639252b4d56"
+        );
         // Empty tree root = SHA-256("") — the RFC 6962 constant.
         assert_eq!(
             hex_encode(&root(&[])),

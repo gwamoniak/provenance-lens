@@ -4,6 +4,8 @@ Snapshot: **2026-09-17**, updated for N3/N4 on `codex/n3-n4-local-evidence`, car
 
 ## Current position
 
+**2026-09-18 update:** N3/N4 `77ff1e7` is pushed. N5 prototype hardening is on `codex/n5-n6-registry-release`; see `docs/reviews/N5_REGISTRY_REVIEW.md`. Product registry remains disabled pending explicit G3 sequencing approval and review. N6 preparation is in progress; no new release or main change. Older snapshot paragraphs below retain their dated context.
+
 **Latest:** N1/N2 `976aa35` was pushed at the user's request and [GitHub CI passed](https://github.com/gwamoniak/provenance-lens/actions/runs/35261458076). N3/N4 is implemented locally: signed watermark declarations (not detection), Claude capability documentation, local-file inspection, previewed unsigned receipts, and two-file comparison. See [N3/N4 review evidence](docs/reviews/N3_N4_REVIEW.md). Main and production trust anchors are unchanged. Human review remains required before merge; N3/N4 has not been pushed.
 
 C1's generic SVG/C2PA 0.90.13 implementation is approved and already merged into **local main**. A read-only remote check on this date confirmed remote main at `4445872`; local main is seven commits ahead. No push, merge, release, or runtime-code change was performed during the September planning review. The new plan is on `codex/development-roadmap-refresh`, created from local main in the real project folder.

@@ -1,0 +1,19 @@
+# N5 registry prototype review — 2026-09-18
+
+Candidate branch: `codex/n5-n6-registry-release`, created from local main and fast-forwarded to N3/N4 prerequisites. No product Layer-3 integration, network lookup, deployment, operator trust selection, or merge is authorized by this packet. Human cryptography sign-off remains pending.
+
+## Changes and checks
+
+`provenance-log` rejects non-ASCII hex, inconsistent entry fields, unsafe registrant IDs, invalid dates, noncanonical/trailing checkpoint text, excessive notes/entries/proofs, and overflowing proof sizes. `Entry::encode` now returns a Result rather than panicking on invalid public fields; all callers are updated. Independent published RFC 8032 signature and transparency-dev/merkle leaf constants complement the existing tree/proof tests. `registry_parsing` adds coverage-guided entry/note/key/proof exercise to Ubuntu's scheduled fuzz job; no candidate fuzz result is claimed yet.
+
+The operator uses bounded reads and the existing bounded image decoder. Create-new staging and no-replace hard-link publication protect keys, entries, and checkpoint history. One create-new writer lock serializes local mutations. Index drafts are replaceable, but published snapshots use immutable `checkpoints/NNNNNNNN.hashes` and `.note`; atomic replacement of `latest.note` is the final commit point. A retry reuses valid staged history, never rewrites its timestamp. Readers check the published prefix and separately report pending appended entries. Missing committed entries, conflicting history/index, changed prefixes, wrong keys and signatures fail. Legacy snapshots without a versioned index retain the old `index/hashes.bin` verification path.
+
+`plog verify DIR --log-key independently-acquired.pub --previous-note saved.note` authenticates the operator signature against the supplied key and verifies prefix continuity. Omitting `--log-key` explicitly checks only directory self-consistency. A key copied from the same untrusted directory is not an independent pin; directory-supplied registrant keys still do not establish real-world identity or a production enrollment policy. Timestamps are signed claims, not witnessed creation times. Key rotation and first-checkpoint trust remain unresolved product decisions.
+
+`cargo test -p provenance-log --locked --offline` exercises malformed boundaries, proofs, signatures, and a temporary-directory pilot: deterministic index, signed checkpoint, no key/entry overwrite, retry, interruption immediately before latest publication, append after publication, external wrong key, bad index, shrinkage and rewrite rejection. Keys are temporary test-only data outside the checkout; test cleanup removes only its freshly created directory. `cargo clippy --workspace --all-targets --locked --offline -- -D warnings` passes.
+
+## Recovery and limits
+
+After a process crash, inspect `.plog.lock` and `*.pending` files, ensure no writer is running, and preserve them for diagnosis before manually removing only the stale files. Never regenerate over existing operator keys. Local hard links and atomic rename on one filesystem are required; unsupported filesystems fail closed. This protects against process interruption, not a guaranteed power-loss-durable transaction on every filesystem. No defense against a malicious local actor modifying immutable files in place is promised: verification detects mismatches. The pilot is capped at 100,000 entries and rebuilds the full tree; this is not a scalable hosted service.
+
+N5 remains partially gated: the proposed local-first G3 contract needs explicit sequencing approval before client implementation; PDQ quality calibration, AI-declaration filtering and end-to-end matching acceptance belong to that client slice. Existing product reports still say registry NotEvaluated.
