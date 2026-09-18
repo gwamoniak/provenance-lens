@@ -34,7 +34,8 @@ The strongest next investment is not another detector. It is repairing the relea
 - [x] (2026-09-18) N3/N4 commit `77ff1e7` pushed by user request; main unchanged. N5/N6 started on `codex/n5-n6-registry-release`, created from main and carrying prerequisites.
 - [x] (2026-09-18) N5 prototype hardening and temporary local operator pilot implemented; parser bounds, fallible encoding, immutable history/index snapshots, atomic latest publication, independently supplied operator-key option, malformed/recovery tests, and registry fuzz target. Packet: `docs/reviews/N5_REGISTRY_REVIEW.md`.
 - [ ] N5 remaining: human cryptography review, candidate Ubuntu fuzz execution, explicit local-first G3 sequencing approval, calibrated quality controls and product client acceptance; deployment remains maintainer-owned.
-- [ ] N6 — Strengthen calibration and release the smallest independently useful slice.
+- [x] (2026-09-18) N6 preparation implemented: corrected calibration claims with exact confidence bounds/source-group audit checks, aligned unreleased 0.3.0 versions, added full dual-license texts and one isolated cross-platform packager. Development extension/npm archives pass extracted-engine smoke; package checks enforce raw/gzip budgets, exact reviewed anchor content, required files and source/artifact identity. Packet: `docs/reviews/N6_RELEASE_REVIEW.md`.
+- [ ] N6 remaining: 3,000 reviewed independent unseen negatives and genuine bzh positives; candidate Ubuntu audit/fuzz/CI, human trust reviews and installed-extension smoke. Upstream certificates differ (30 versus 28 bundled); review separately before release. No release or publication authorized/performed.
 - [ ] Vendor track — Reopen Claude C0-positive/C2/C3 or W3-D only when the specific evidence/privacy gates are satisfied.
 
 ## Context and Orientation
@@ -269,6 +270,8 @@ Registry operator experiments use newly created, explicitly named test directori
 
 ## Surprises & Discoveries
 
+- Observation (N6, 2026-09-18): verifying the extracted npm archive exposed wasm-pack's omission of `provenance_wasm_bg.wasm.d.ts`; the file list now explicitly includes it. The release-profile engine already fits hard raw/gzip budgets without a separate optimizer. Upstream trust contents now differ (30 certificates versus bundled 28); the read-only check did not alter trust.
+
 - Observation (N5, 2026-09-18): replacing the mutable index before the latest note can expose mixed snapshots. Immutable size-specific indexes plus an atomic latest-note commit point preserve the prior readable prefix across interrupted publication. The operator regression exercises interruption and retry.
 
 - Observation (N3, 2026-09-17): the SDK's generic assertion lookup uses prefix matching; N3 explicitly accepts only known action labels and the exact soft-binding label. Existing W3 wording could imply a fingerprint algorithm identifies a watermark, so it now says signed soft-binding algorithm, not necessarily the watermark. Tiny fixtures are correctly NotEvaluated for pixels under N1.
@@ -287,6 +290,8 @@ Registry operator experiments use newly created, explicitly named test directori
 - Observation (N0, 2026-09-16): the original lockfile's SHA-256 stayed `30ae9b4dbf53f1da9fc0a659076f735c40147ae76bd3593ca229707f73d752ff` after exact-pinning c2pa and running the checks; `cargo tree` still selects 0.90.13. The only new source of a vendor-model result is the explicitly ignored test when run with a supplied model. Consequence: N0 makes the existing resolution reproducible without slipping in an SDK update or a vacuous green model test.
 
 ## Decision Log
+
+- Decision (N6, 2026-09-18): prepare development-only 0.3.0 artifacts carrying current work, rather than publish an unapproved slice. Reuse Node stdlib and wasm-pack for one isolated packaging flow; keep shell entry points, enforce existing size limits and a certificate-content allowlist, and record exact archive contents. No new dependency. Do not update anchors or label existing HR/LR siblings as independent; expanded calibration and release remain incomplete. Ubuntu audit retains advisory policy and becomes manually dispatchable for a later authorized candidate run.
 
 - Decision (N5, 2026-09-18): implement the user's next-two-stages request as prototype hardening plus N6 preparation, preserving the explicit G3 ordering gate. Reuse the current decoder, tree and prefix verifier; no new dependency. Entry encoding becomes fallible. Add bounded canonical parsing and serialized, no-overwrite history publication with an atomic latest-note commit point. Human review is pending; this is not trust-policy or deployment approval.
 
@@ -307,6 +312,8 @@ Registry operator experiments use newly created, explicitly named test directori
 - Decision (N0): commit the previously local lockfile unchanged, change the C2PA requirement from a compatible range to exactly the reviewed 0.90.13, and pin the installed Rust/wasm-pack versions. Keep the model inference test explicitly ignored by default and offer a manually triggered, SHA-256-checked CI job for a separately supplied model. Rationale: preserve the reviewed verification resolution while making both the default and opt-in validation outcomes observable. Date/author: 2026-09-16 / implementation author; dependency-manifest review before merge is pending.
 
 ## Outcomes & Retrospective
+
+N6 preparation (2026-09-18): corrected measurement claims, source-group audit and archive gates are working; both development archives pass extracted WASM smoke and the extension passes Chromium/Firefox offline/lifecycle checks. N3/N4 remote CI `35362161502` passed after its authorized push. Human approvals, current-anchor review, candidate Ubuntu evidence, expanded independent data and final release remain outstanding. No claim of full N5/N6 acceptance is made.
 
 N5 prototype (2026-09-18): hardening and local recovery/prefix checks are implemented without activating product Layer 3. N3/N4 is now pushed; main remains untouched. G3 sequencing, quality calibration, independent operator trust, human review and deployment remain separate decisions.
 
@@ -352,3 +359,5 @@ Revision note (2026-09-16, N1/N2): recorded both authorized local implementation
 Revision note (2026-09-17, N3/N4): recorded the requested N1/N2 push and successful remote CI, reconciled W3-M with twelve current-format fixtures, delivered useful C4 documentation and all three local evidence increments, and retained human/release/vendor gates. Historical planning findings above are snapshots, not claims that implemented defects remain unfixed.
 
 Revision note (2026-09-18, N5): recorded the authorized N3/N4 push and N5 prototype hardening, publication/recovery design and remaining G3 gates.
+
+Revision note (2026-09-18, N6): recorded implemented calibration/packaging preparation, real-archive checks, upstream trust differences and explicit remaining data/review/release gates.

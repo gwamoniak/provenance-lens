@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { checkAnchors,checkSize } from "./package_checks.mjs";
+const prod=readFileSync("extension/trust/anchors.pem","utf8"), test=readFileSync("crates/provenance-core/tests/vectors/test_ca.pem","utf8");
+assert.equal(checkAnchors(prod).reviewed_content,true);
+assert.throws(()=>checkAnchors("# conformance-public\n"+test));
+assert.equal(checkAnchors(test,true).reviewed_content,false);
+assert.throws(()=>checkAnchors("",true)); assert.throws(()=>checkSize(Buffer.alloc(7_000_001)));
+assert.throws(()=>checkSize(randomBytes(2_500_001))); assert.equal(checkSize(Buffer.alloc(8)).raw,8);
+console.log("Package gates: exact reviewed certificates, explicit development exception, raw and gzip budgets pass.");

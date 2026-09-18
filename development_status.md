@@ -1,8 +1,10 @@
 # Development status — Provenance Lens
 
-Snapshot: **2026-09-17**, updated for N3/N4 on `codex/n3-n4-local-evidence`, carrying N0–N2; local main remains `5f1dcb6`. This is not a new release. The consolidated next-step plan is [PROVENANCE_LENS_NEXT_EXECPLAN.md](PROVENANCE_LENS_NEXT_EXECPLAN.md). Historical approvals and trust rules remain in [PROVENANCE_LENS_EXECPLAN.md](PROVENANCE_LENS_EXECPLAN.md); this dashboard is a derived view.
+Snapshot: **2026-09-18**, N5 hardening/N6 preparation on `codex/n5-n6-registry-release`, carrying N0–N4; local main remains `5f1dcb6`. Version 0.3.0 is an unreleased candidate. The consolidated plan is [PROVENANCE_LENS_NEXT_EXECPLAN.md](PROVENANCE_LENS_NEXT_EXECPLAN.md); historical approvals remain in the original plans.
 
 ## Current position
+
+**Latest:** N5 prototype hardening and N6 calibration/package preparation are implemented locally; see [N5 review](docs/reviews/N5_REGISTRY_REVIEW.md) and [N6 review](docs/reviews/N6_RELEASE_REVIEW.md). N3/N4 is pushed and CI `35362161502` passed. Main is unchanged. Both development archives pass extracted-engine checks; the extension passes Chromium/Firefox tests. Full N5/N6 acceptance still needs G3 approval, human reviews, candidate Ubuntu checks, independent holdout expansion and installed-extension smoke. Upstream trust now has 30 certificates versus the reviewed bundled 28; no anchors were changed. Older paragraphs below are historical snapshots.
 
 **2026-09-18 update:** N3/N4 `77ff1e7` is pushed. N5 prototype hardening is on `codex/n5-n6-registry-release`; see `docs/reviews/N5_REGISTRY_REVIEW.md`. Product registry remains disabled pending explicit G3 sequencing approval and review. N6 preparation is in progress; no new release or main change. Older snapshot paragraphs below retain their dated context.
 

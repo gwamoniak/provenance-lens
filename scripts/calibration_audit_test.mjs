@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { audit,upper95 } from "./calibration_audit.mjs";
+assert.ok(upper95(0,2861)>0.001); assert.ok(upper95(0,2800)>0.001); assert.ok(upper95(0,3000)<0.001);
+assert.ok(Math.abs(upper95(1,10)-0.3941633024)<1e-9); assert.equal(upper95(10,10),1);
+assert.throws(()=>upper95(0,0));
+const sample={path:"a",sha256:createHash("sha256").update("a").digest("hex"),source_id:"one",split:"holdout",source:"recorded origin",license:"permission record",clean_basis:"camera original"};
+const run=samples=>audit({samples},".",()=>Buffer.from("a"));
+assert.equal(run([sample]).holdout_source_groups,1);
+assert.throws(()=>run([sample,{...sample,path:"b",split:"calibration"}]));
+assert.throws(()=>run([sample,{...sample,path:"b",source_id:"two"}]));
+assert.throws(()=>run([{...sample,sha256:"0".repeat(64)}]));
+assert.equal(run([sample,{...sample,path:"b"}]).holdout_source_groups,1);
+const report=audit({samples:[sample],results:[{detector:"dwt",source_id:"one",outcome:"unavailable"}]},".",()=>Buffer.from("a"));
+assert.equal(report.detectors[0].completed,0); assert.equal(report.detectors[0].upper_one_sided_95,null);
+assert.throws(()=>audit({samples:[sample],results:[{detector:"dwt",source_id:"one",outcome:"negative"},{detector:"dwt",source_id:"one",outcome:"negative"}]},".",()=>Buffer.from("a")));
+console.log("Calibration audit: grouping, split leakage, digests, missing/unavailable and exact confidence bounds pass.");

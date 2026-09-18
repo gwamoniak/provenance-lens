@@ -2097,14 +2097,14 @@ dependencies = [
 
 [[package]]
 name = "provenance-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "provenance-core",
 ]
 
 [[package]]
 name = "provenance-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64",
  "c2pa",
@@ -2121,7 +2121,7 @@ dependencies = [
 
 [[package]]
 name = "provenance-log"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64",
  "chrono",
@@ -2134,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "provenance-wasm"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "provenance-core",
  "serde_json",

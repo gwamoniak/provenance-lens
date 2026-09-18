@@ -10,6 +10,8 @@ Layers 1–2 die together under one common attack: strip the metadata, re-encode
 
 ## Progress
 
+- [x] (2026-09-18) User authorized the N5 prototype hardening slice in the successor plan. Bounds/canonical parsing, fallible entry encoding, no-overwrite history/key publication, atomic latest-note publication, supplied operator-key verification, temporary pilot/recovery tests, independent Node crypto check and fuzz target implemented on `codex/n5-n6-registry-release`. See `docs/reviews/N5_REGISTRY_REVIEW.md`; this is not G2 deployment or G3 approval.
+
 - [x] (2026-08-02) Plan authored (roadmap W4): hash choice, log design, lookup privacy, client split, deployment options, and the milestone gates below. Delivered for maintainer review.
 - [x] (2026-08-02) G0 — Maintainer (gwamoniak) accepted this plan and chose **G2a, the git-backed pilot** ("approved, start G1 with the git-backed pilot"). The wedge plan's M6 gate is now open per its own wording; G2a is the committed deployment shape (G2b remains the recorded growth path).
 - [x] (2026-08-02) G1 done — PDQ-256 in core, calibrated. `layers/pdq.rs` (feature `registry-pdq`, default-on — see Decision Log): a faithful transcription of the reference (REC 601 luma → two-pass Jarosz box filter, window `dim.div_ceil(128)` per axis → center-point decimation to 64² with the exact-64² copy shortcut → integer-truncation quality metric → 16×64 DCT with the `(i+1)` AC-only rows, f32 ascending accumulation → torben's 128th-smallest median → bits in CANONICAL packing, position 255−k). KATs (`tests/pdq.rs`, expectations from `scripts/gen_pdq_kats.py` via the compiled reference `pdqhash`): bit-for-bit hash AND exact quality on 5 committed PNG vectors incl. a non-square crop; plus the load-bearing property demonstrated from committed vectors (watermark twin at distance ≤ a few bits, different content ~half the bits). Calibration measured and published in `docs/CALIBRATION.md` (`--example pdq_calibrate`, 100 DIV2K crops × battery + 316,800 cross-content pairs): same content ≤ 20 under every survivable transform (JPEG ≤ 4; resizes/screenshot ≤ 20; 100% multi-index word-nomination recall), different content never nearer than 98, **threshold chosen ≤ 31 inside a 78-bit measured margin**; crop80 honestly dead (86–168, published as a limit). 13 workspace suites green, clippy clean.
@@ -19,12 +21,16 @@ Layers 1–2 die together under one common attack: strip the metadata, re-encode
 
 ## Surprises & Discoveries
 
+- Observation (2026-09-18): mutable index/latest-note updates could expose mixed snapshots. Immutable size-specific indexes plus latest-note replacement as the commit point preserve the published prefix; unpublished entries are reported separately.
+
 - Observation: The `pdqhash` Python wrapper (compiled from the same reference C++) returns its 256-bit vector in the exact REVERSE of DCT order `k = i·16 + j` — first KAT run agreed on precisely 128/256 bits (chance level), and a reordering sweep found `flat-reversed` at 256/256. The reference `Hash256.setBit(k)` fills from the least-significant end of the canonical hex, so canonical packing is position `255 − k`. The Rust module adopted the canonical order (G2's log format inherits it, and our hex now matches every other PDQ tool's), rather than keeping a private convention.
   Evidence: debug sweep 2026-08-02 (identity 128/256, transpose 150, flat-reversed 256/256); KATs bit-for-bit green after the one-line packing change.
 - Observation: The measured PDQ margins are enormous on photographic content: same-content distances cap at 20 under every transform the hash survives, while 316,800 different-content pairs never came within 98 — a 78-bit empty band around the chosen threshold of 31. And the multi-index nomination (any exact 16-bit word) achieved 100% recall on every surviving transform, so the G2 static-bucket lookup design costs no recall at these operating points. The crop failure (86–168) is equally unambiguous — no threshold tuning could rescue crops without destroying the false-match rate, which settles that question with data.
   Evidence: docs/CALIBRATION.md PDQ tables, 2026-08-02.
 
 ## Decision Log
+
+- Decision (2026-09-18, N5): retain the G2-live gate for G3 pending explicit local-first sequencing approval. Harden only the existing prototype, using one local writer lock and staged immutable files. Supplied operator-key verification authenticates a signature, not real-world registrant identity; enrollment/rotation remain undecided. Human sign-off is pending.
 
 - Decision: Perceptual hash is **PDQ** (Meta's open 256-bit standard from the ThreatExchange release; public spec and reference implementation), not pHash. Match = Hamming distance between 256-bit vectors at a threshold MEASURED on our corpora before any verdict influence; the conventional PDQ operating point (distance ≤ 31) is the starting candidate, not a commitment — `docs/CALIBRATION.md` gets a PDQ section with false-match rates at several thresholds over the DIV2K corpus and the W2 transformation battery, and the shipped threshold is chosen from that table.
   Rationale: PDQ is the industry lingua franca for exactly this job (274 lines of public spec, fixed preprocessing, designed for Hamming indexing at scale); an open spec satisfies the same revised-M5 instinct that governed the watermark layer — no black boxes in evidence paths. The threshold-is-the-FPR rule comes from the provenance-registry skill and is non-negotiable.
@@ -56,7 +62,7 @@ Layers 1–2 die together under one common attack: strip the metadata, re-encode
 
 ## Outcomes & Retrospective
 
-(To be written as milestones complete.)
+N5 prototype hardening (2026-09-18) passes local parser/operator/recovery checks and an independent Node three-leaf/signature verifier. Layer 3 remains stubbed, no deployment occurred, and human trust review/local-first G3 approval remain open.
 
 ## Context and Orientation
 

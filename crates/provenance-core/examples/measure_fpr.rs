@@ -1,5 +1,5 @@
 //! False-positive-rate measurement for the watermark detectors (roadmap
-//! plan, W1 gate: measured FPR ≤ 0.1% on ≥ 2,000 clean images before W2).
+//! plan, W1 historical observation gate; N6 requires source-grouped holdout evidence).
 //!
 //! Point it at a directory of images KNOWN to carry no Stable Diffusion
 //! watermark (personal photos, a stock-photo dump, …); it runs the exact
@@ -124,13 +124,8 @@ fn main() {
             );
         }
         println!(", {} unavailable", unavailable_per[idx]);
-        if completed < 2000 {
-            println!("note: this detector has fewer than 2000 completed clean-image checks");
-        }
     }
-    if examined < 2000 {
-        println!("note: the gate wants >= 2000 clean images; this corpus has fewer.");
-    }
+    println!("These are file observations, not verified independent sources. Use the N6 source-group audit and confidence bounds before any population-rate claim.");
 }
 
 fn load_rgb(path: &Path) -> Option<DecodedImage> {

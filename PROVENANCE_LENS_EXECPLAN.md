@@ -14,6 +14,9 @@ The strategic bet (the "wedge"): shipping a small tool that checks cryptographic
 
 ## Progress
 
+- [x] (2026-09-18) User-authorized N3/N4 push completed at `77ff1e7`; remote CI `35362161502` passed. N5 registry prototype hardening and N6 calibration/package preparation implemented on `codex/n5-n6-registry-release`, with temporary-pilot, independent crypto, native/WASM/browser and actual archive checks. Version 0.3.0 remains unreleased; full scope/evidence in the successor plan and `docs/reviews/N5_REGISTRY_REVIEW.md` / `N6_RELEASE_REVIEW.md`.
+- [ ] N5/N6 remaining: G3 local-first approval, human trust reviews, independent corpus expansion, candidate Ubuntu checks, changed upstream-anchor review and installed-extension release smoke. No main merge/push, deployment or package publication.
+
 Granular state; every stopping point must be recorded here, splitting partially-done items into done/remaining.
 
 - [x] (2026-07-10) M0 scaffold: Cargo workspace (`provenance-core`, `provenance-cli`, `provenance-wasm`), four stub layers returning honest `NotEvaluated`, verdict tiers with approved phrases, combination rule with unit tests, std-only CLI (`lens verify`, `lens tiers`), wasm-bindgen wrapper with hand-rolled JSON, MV3 extension skeleton, 8 project agents, 2 skills, CLAUDE.md, README, git repo initialized.
@@ -71,6 +74,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
   Consequence: CI fuzzing is enforcing again, but the layer-level panic guard remains as defense in depth. Because this changes the signature-validation dependency, the branch could not merge before maintainer cryptography sign-off; that sign-off was recorded on 2026-09-04 below.
 
 ## Decision Log
+
+- Decision (2026-09-18, N5/N6): preserve signature/trust merge gates while implementing the user's requested prototype-hardening and release-preparation stages. No new dependency or anchor change; 0.3.0 is candidate-only. Product G3 and expanded calibration claims remain gated. Packager outputs are preparation, not approval or publication.
 
 - Decision (2026-09-17): implement the explicitly requested N3/N4 scope and push only the named N1/N2 branch. Reconcile W3-M source rather than old binaries, require exact action/binding assertion labels, and label coexisting algorithms as signed soft-binding identifiers with no assumed watermark association. Share the existing bundled verifier/anchor loader and text-only claim renderer for the new local inspector. Missing bundled anchors fail explicitly; unsigned receipts never become proof. No SDK/dependency/production-anchor/manifest-permission change. Rationale: evidence context and a local interface do not authorize a new detector or trust policy. Cryptography merge sign-off remains pending.
 
@@ -186,6 +191,8 @@ Granular state; every stopping point must be recorded here, splitting partially-
   Date/Author: 2026-09-16 / implementation author; maintainer sign-off pending.
 
 ## Outcomes & Retrospective
+
+N5/N6 preparation (2026-09-18): local hardening, source-group audit, corrected statistics and checked development archives are implemented. Remaining human/data/Ubuntu/release gates are explicit in the successor plan. Upstream trust differs (30 certificates versus bundled 28); production trust remains unchanged.
 
 N3/N4 (2026-09-17): the requested local candidate and review packet are complete; 66 workspace tests and 43 reduced-feature tests, twelve real-WASM vectors, Node checks, and real Chromium/Firefox offline/lifecycle checks pass. N1/N2 remote CI is green after its authorized push. Main, the original W3 worktree, and production anchors are unchanged. Human merge review and N3/N4 remote/release checks remain separate.
 

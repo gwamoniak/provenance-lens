@@ -91,13 +91,21 @@ and the other scheme's set every hit would be a false positive.
 
 ## Large-corpus clean FPR
 
+N6 interpretation correction (2026-09-18): historical counts below are preserved, not a new calibration run. For zero hits in n **independent** Bernoulli trials, the exact one-sided 95% upper bound is `1 - 0.05^(1/n)`: 0/2,861 gives about **0.10465%**, 0/2,800 about **0.10693%**, and 0/3,000 about **0.09981%**. Thus even the optimistic independent-trial interpretation of the old counts does not establish FPR below 0.1% at 95% confidence. DIV2K HR/LR and transformed siblings are correlated; these numerical bounds must not be presented as justified confidence intervals for the existing corpus. The 316,800 PDQ pair comparisons also reuse sources and are not independent trials.
+
+For the next run, record each file's SHA-256, source ID shared by every HR/LR/crop/re-encoded sibling, provenance URL or acquisition record, permission/license, negative-label basis, and calibration/holdout assignment. Assign splits by source before threshold tuning. Select one prespecified held-out original per independent source for the primary false-positive calculation; transformation performance is a separate paired analysis. Existing calibration photographs cannot be reclassified as unseen holdout data. Deduplicate exact bytes, review near-duplicates and acquisition lineage, and retain detector outcomes (hit/negative/unavailable) with exact model/code identities. Software checks cannot establish independence or truthful labels.
+
+`node scripts/calibration_audit.mjs manifest.json` checks the JSON format documented at the top of that script, exact byte hashes, shared-source splits and deduplication; optional source-level results produce exact one-sided bounds even when hits occur. It refuses repeated source outcomes, never counts unavailable checks as negatives, and reports missing outcomes. `node scripts/calibration_audit_test.mjs` is the runnable regression. Results must be transcribed from retained production `measure_fpr`/`calibrate` evidence; the audit does not itself run detectors or authenticate a supplied result. Do not choose a favorable sibling after seeing its score.
+
+The target of at least 3,000 reviewed independent held-out clean sources and genuine bzh-generated positives is **not yet met**. No new corpus was downloaded or claimed. The existing bzh positives remain VAE-roundtripped photograph proxies. The exact supported export remains ONNX opset 17, f32 NCHW `[1,3,512,512]` to `[1,2]`, RGB Catmull-Rom bicubic resize, `(x/255 - 0.5)/0.5`, decision `logits[0] < 0`, with the pinned weights/export digests above. Exporter/runtime versions affect bytes; a different export needs new review, not a digest bypass.
+
 `measure_fpr` over the flat clean corpora (no transformations):
 
 - `stable-diffusion-invisible-watermark`: **0 / 2,861** (2,800 DIV2K
   images — train+valid HR plus the official bicubic LR packs — and the
   maintainer's 61-photo local library). 0.0000%.
 - `imatag-stable-signature-bzh`: **0 / 2,800** (the same DIV2K corpus;
-  the vendor's card states ~1/1000 — we measured better than that here).
+  the vendor's card states ~1/1000; this observation does not establish a lower population rate).
 
 Combined with the transformed `clean` sets above (800 variants each,
 0 hits), no false positive has been observed from either detector on any
@@ -153,20 +161,20 @@ for any reason — yields no finding at all, never a hint of authenticity.
   detection to 0%. That is the scheme's property (the SD community's own
   experience says the same), not a detector bug: the exact-payload rule
   reads only unmutilated survivors. What the detector buys, per these
-  tables, is certainty in the positive direction: not one invented
-  detection across every clean corpus and transform measured.
+  tables, is a narrow measured indication, not certainty: no false positive
+  was observed in these particular samples; false positives remain possible.
 - **The bzh classifier is the sturdier detector** (30–85% TPR across the
   battery, still 0 measured false positives). Two honest caveats. First,
   our watermarked set is VAE-roundtripped *photographs* — a proxy; real
   bzh deployments watermark SDXL *generations*, where the vendor's own
-  numbers are presumably higher. Second, the curious crop80 result (85%,
+  performance has not been measured here. Second, the curious crop80 result (85%,
   above orig's 51%) is consistent with the 512×512 model input: cropping
   768→614 means less downscaling into the model than 768→512, so more
   watermark energy survives preprocessing — detection strength depends on
   how far the input is from the model's native scale.
-- With zero observed false positives at these sample sizes, a hit from
-  either detector is strong (though still non-cryptographic) evidence —
-  hence `Indicated`, never `Verified`. A miss means **nothing**: a
+- Zero observed false positives do not determine the probability that a
+  particular hit is correct; that also depends on prevalence and domain shift.
+  A hit is `Indicated`, never `Verified`. A miss cannot establish authorship: a
   watermark that fails to survive a transformation yields `Inconclusive`,
   never "authentic". That founding rule is what makes shipping
   fragile-but-honest detectors acceptable.

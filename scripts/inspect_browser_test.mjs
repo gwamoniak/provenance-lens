@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { resolve, extname, sep } from "node:path";
 const { chromium, firefox } = createRequire(import.meta.url)("playwright");
-const extension = resolve("extension"), pkg = resolve(process.argv[2] || "target/n3-n4-wasm");
+const extension = resolve(process.argv[3] || "extension"), pkg = resolve(process.argv[2] || "target/n3-n4-wasm");
 const vectors = resolve("crates/provenance-core/tests/vectors");
 const fixture = (name) => ({ name, mimeType: name.endsWith(".svg") ? "image/svg+xml" : "image/jpeg", buffer: readFileSync(resolve(vectors, name)) });
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");

@@ -47,6 +47,8 @@ Ecosystem context: the EU AI Act's Article 50 transparency obligations apply fro
 
 ## Build and run
 
+N6 development packaging: `node scripts/package.mjs extension --development` or `node scripts/package.mjs npm --development`. Each writes a fresh archive plus build/content evidence under `dist/development-*`, verifies extracted contents and runs the actual packaged engine. It does not overwrite an installed `extension/pkg` or publish anything. Without `--development`, a clean committed tree and the exact reviewed anchors are required. Version 0.3.0 is an **unreleased candidate**; trust-list freshness, human reviews and release checks remain open in [the N6 packet](docs/reviews/N6_RELEASE_REVIEW.md). Licenses are MIT OR Apache-2.0; both full texts are at the repository root and included in final packages.
+
 Requires Rust 1.97.1 (pinned with the wasm32 target in `rust-toolchain.toml`), the committed `Cargo.lock`, Node.js 24.18.0 for JavaScript checks, and wasm-pack 0.15.0 for the extension engine. An offline build still needs these tools and the locked crate dependencies installed locally.
 
     cargo fmt --all -- --check

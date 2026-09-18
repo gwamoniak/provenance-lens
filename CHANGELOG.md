@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 — unreleased candidate
+
+- Bounded examinations and explicit unavailable detector states; calibrated model identity checks.
+- Fresh image-bound browser results with explicit scan consent and accessible controls.
+- Signed watermark declarations distinguished from detection; offline file inspection, unsigned receipts and comparison.
+- Registry prototype parser/publication hardening (product lookup remains gated).
+- Corrected calibration uncertainty and source-group audit tooling; isolated, size/anchor/content-checked packaging with build evidence and both declared licenses.
+
+Human trust-boundary reviews, independent holdout expansion, current trust-list review and installed-extension release checks are still required. No store/npm release has occurred.
+
 ## 0.2.0 — 2026-07-18 (the post-wedge upgrades, U1–U7)
 
 All changes below are CI-green and browser-smoked where they touch the
