@@ -14,6 +14,8 @@ The operator uses bounded reads and the existing bounded image decoder. Create-n
 
 ## Recovery and limits
 
+Additional independent check: `cargo build -p provenance-log --bin plog --locked --offline` then `node scripts/registry_test.mjs` passed. Node's built-in crypto verifies three image-derived entry signatures, their unbalanced RFC 6962 tree root and the operator checkpoint signature without using the Rust verifier. All keys are temporary. The new fuzz target also passed a nightly compile check, but its Ubuntu runtime fuzz result remains pending.
+
 After a process crash, inspect `.plog.lock` and `*.pending` files, ensure no writer is running, and preserve them for diagnosis before manually removing only the stale files. Never regenerate over existing operator keys. Local hard links and atomic rename on one filesystem are required; unsupported filesystems fail closed. This protects against process interruption, not a guaranteed power-loss-durable transaction on every filesystem. No defense against a malicious local actor modifying immutable files in place is promised: verification detects mismatches. The pilot is capped at 100,000 entries and rebuilds the full tree; this is not a scalable hosted service.
 
 N5 remains partially gated: the proposed local-first G3 contract needs explicit sequencing approval before client implementation; PDQ quality calibration, AI-declaration filtering and end-to-end matching acceptance belong to that client slice. Existing product reports still say registry NotEvaluated.

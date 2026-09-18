@@ -38,3 +38,12 @@ N3/N4 `77ff1e7` remote CI `35362161502` succeeded. Latest scheduled audit/fuzz i
 Read-only upstream trust check at **2026-09-18T15:29:03Z** found **30 upstream certificates versus 28 bundled**, with differing content. Anchors and their fetched date were not modified. New certificates and later SDK branches require separate review; release readiness is not established.
 
 Remaining: human N0/N1/N3/N5 trust reviews, changed-anchor review, candidate Ubuntu CI/audit/fuzz, installed-extension smoke, at least 3,000 provenance-reviewed independent unseen clean sources and genuine bzh positives. G3 still needs explicit local-first sequencing approval, operator trust and measured quality controls. This packet does not grant approvals or authorize publication/deployment.
+
+## Final clean-source artifacts
+
+Both development archives were rebuilt from clean source commit `7003a9b69e2fb593839a74920c44bd196e2ccdf3` (`source_dirty: false`) and passed extracted-WASM smoke. Evidence files are next to each archive; outputs are ignored build artifacts, not committed binaries.
+
+- `dist/development-extension-0.3.0-7003a9b6-5Kb6tS/provenance-lens-0.3.0.zip`: 2,223,398 bytes; SHA-256 `7adde88ff1058d9f98e41760f1c6d7627299a8b0cb497f52c56ce339fb930dcd`. Extracted at `target/package-Ro1qfy/extracted` for browser checks.
+- `dist/development-npm-0.3.0-7003a9b6-Z8zihK/provenance-lens-verify-wasm-0.3.0.tgz`: 2,347,300 bytes; SHA-256 `e1617f34922df70d6167b86f3018941e7b8443a7b725c3715bebca0d97aa3a16`.
+
+`cargo +nightly check --manifest-path fuzz/Cargo.toml --bin registry_parsing --offline` passed. This compile check used the fuzz workspace's separate locally resolved lockfile; it is not a fuzz run or evidence for the root production lockfile. Ubuntu runtime fuzzing remains pending. Remote readback confirms N3/N4 at `77ff1e7`, remote main unchanged at `4445872`, local main unchanged at `5f1dcb6`. N5/N6 remain local.
