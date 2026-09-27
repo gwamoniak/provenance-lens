@@ -34,12 +34,15 @@ const api = {
 };
 let bytes = 1, fetches = 0, hold = false, aborted = 0, failFetch = false;
 const source = readFileSync(new URL("../extension/background.js", import.meta.url), "utf8");
-assert.ok(source.includes('import("./lib/scan_support.js")'));
-assert.ok(source.includes('import("./lib/engine.js")'));
-vm.runInNewContext(source.replace('import("./lib/scan_support.js")', "loadLib()")
-  .replace('import("./lib/engine.js")', "loadEngine()"), {
+// Only this isolated policy test substitutes dependencies. The installed-worker
+// regression exercises the unmodified module graph and real browser APIs.
+const imports = ['import * as scanSupport from "./lib/scan_support.js";',
+  'import { loadVerifier } from "./lib/engine.js";'];
+for (const line of imports) assert.ok(source.includes(line));
+assert.doesNotMatch(source, /\bimport\s*\(/);
+vm.runInNewContext(imports.reduce((code, line) => code.replace(line, ""), source), {
   chrome: api, URL, AbortController, console,
-  loadLib: async () => ({ ...lib, fetchBytes: (url, options) => lib.fetchBytes(url, { ...options,
+  scanSupport: { ...lib, fetchBytes: (url, options) => lib.fetchBytes(url, { ...options,
     fetchImpl: async (_url, { signal }) => {
       fetches++;
       if (failFetch) throw new TypeError("Failed to fetch");
@@ -48,10 +51,10 @@ vm.runInNewContext(source.replace('import("./lib/scan_support.js")', "loadLib()"
       }, { once: true }));
       await new Promise((resolve) => setTimeout(resolve, 5));
       return new Response(new Uint8Array([bytes]));
-    } }) }),
-  loadEngine: async () => ({ loadVerifier: async () => ({ verify: (input) => ({
+    } }) },
+  loadVerifier: async () => ({ verify: (input) => ({
     verdict: input[0] === 1 ? "verified" : "inconclusive", phrase: "computed test phrase", findings: [],
-  }) }) }),
+  }) }),
   fetch: async () => new Response("-----BEGIN CERTIFICATE-----"),
 });
 const sender = { id: api.runtime.id, tab: { ...tab }, frameId: 0, documentId: "doc-1", url: tab.url };

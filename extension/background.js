@@ -1,4 +1,7 @@
 // Chrome MV3 worker / Firefox event page: listeners register synchronously.
+import { loadVerifier } from "./lib/engine.js";
+import * as scanSupport from "./lib/scan_support.js";
+
 const api = typeof browser !== "undefined" ? browser : chrome;
 const MENU_ID = "provenance-lens-verify";
 const SCAN_SCRIPT_ID = "provenance-lens-scan";
@@ -8,26 +11,14 @@ let policyRevision = 0;
 let policyChanging = false;
 let syncQueue = Promise.resolve();
 
-let enginePromise;
-function engine() {
-  if (!enginePromise) enginePromise = import("./lib/engine.js").then((mod) => mod.loadVerifier())
-    .catch((err) => { enginePromise = null; throw err; });
-  return enginePromise;
-}
-let servicePromise;
-function scanService() {
-  if (!servicePromise) servicePromise = import("./lib/scan_support.js").then((lib) => ({
-    lib, limit: lib.makeLimiter(2, 50), pending: lib.makeInFlight(),
-  }));
-  return servicePromise;
-}
+const service = { lib: scanSupport, limit: scanSupport.makeLimiter(2, 50), pending: scanSupport.makeInFlight() };
 async function examineUrl(srcUrl, signal) {
   const entry = { srcUrl, at: new Date().toISOString(), evidenceScope: "fetched-file" };
   try {
-    const { lib } = await scanService();
+    const { lib } = service;
     if (!lib.sitePattern(srcUrl)) throw new Error("only HTTP(S) image URLs can be fetched; not examined");
     let mod;
-    try { mod = await engine(); }
+    try { mod = await loadVerifier(); }
     catch (err) { throw new Error(`verification engine or trust bundle could not start: ${err?.message || err}; not examined`); }
     let fetched;
     try { fetched = await lib.fetchBytes(srcUrl, { signal }); }
@@ -48,8 +39,7 @@ async function examineUrl(srcUrl, signal) {
 }
 async function showEntry(entry, signal) {
   if (signal?.aborted) return;
-  const { lib } = await scanService();
-  if (signal?.aborted) return;
+  const { lib } = service;
   await api.storage.session.set({ lastResult: entry });
   if (signal?.aborted) {
     const { lastResult } = await api.storage.session.get("lastResult");
@@ -62,7 +52,7 @@ async function showEntry(entry, signal) {
   try { await api.action.openPopup(); } catch { /* toolbar click is the fallback */ }
 }
 async function verifyImage(url) {
-  const { limit } = await scanService();
+  const { limit } = service;
   const entry = await limit(() => examineUrl(url)).catch((err) => ({ srcUrl: url, error: err.message }));
   await showEntry(entry);
   return entry;
@@ -72,7 +62,7 @@ function stopDocument(tabId) {
   documents.delete(tabId);
 }
 async function enabledFor(url) {
-  const { lib } = await scanService();
+  const { lib } = service;
   const pattern = lib.sitePattern(url);
   if (!pattern || policyChanging) return false;
   const { [SCAN_SITES]: sites = [] } = await api.storage.local.get(SCAN_SITES);
@@ -95,7 +85,7 @@ function invalidatePolicy() {
 function syncScanRegistration() {
   const revision = invalidatePolicy();
   syncQueue = syncQueue.catch(() => {}).then(async () => {
-    const { lib } = await scanService();
+    const { lib } = service;
     const tabs = await api.tabs.query({});
     await Promise.all(tabs.map((tab) => api.tabs.sendMessage(tab.id, { type: "pl-scan-control", enabled: false }).catch(() => {})));
     const { lastResult } = await api.storage.session.get("lastResult");
@@ -154,7 +144,7 @@ async function currentDocument(sender, token, start = false) {
 }
 async function scanRequest(message, sender) {
   const doc = await currentDocument(sender, message.token, !documents.has(sender.tab?.id));
-  const { lib, limit, pending } = await scanService();
+  const { lib, limit, pending } = service;
   if (!Number.isSafeInteger(message.generation) || message.generation < 0)
     throw new Error("invalid image request");
   if (typeof message.url !== "string" || message.url.length > 8192 || !lib.sitePattern(message.url)) {
@@ -189,7 +179,7 @@ function permissionsRemoved() {
   return consentQueue;
 }
 async function handleMessage(message, sender) {
-  const { lib } = await scanService();
+  const { lib } = service;
   if (isPopup(sender)) {
     if (message.type === "pl-set-scan") {
       const site = message.site;

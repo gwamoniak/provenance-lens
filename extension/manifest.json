@@ -9,7 +9,7 @@
   },
   "background": {
     "service_worker": "background.js",
-    "scripts": ["background.js"],
+    "page": "background.html",
     "type": "module"
   },
   "permissions": ["contextMenus", "activeTab", "storage", "scripting"],

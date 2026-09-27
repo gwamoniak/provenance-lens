@@ -1,4 +1,8 @@
 // One bundled verifier and anchor loader for fetched and local files.
+// MV3 service workers prohibit dynamic import, including transitive imports.
+// Loading the JS statically does not initialize WASM or fetch the trust bundle.
+import init, { verify_bytes } from "../pkg/provenance_wasm.js";
+
 export const sha256 = async (bytes) => Array.from(new Uint8Array(
   await crypto.subtle.digest("SHA-256", bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -10,15 +14,15 @@ export function loadVerifier() {
       if (!response.ok) throw new Error(`Bundled ${path} could not be loaded; not examined`);
       return new Uint8Array(await response.arrayBuffer());
     };
-    const [wasm, anchorBytes, manifestBytes, mod] = await Promise.all([
+    const [wasm, anchorBytes, manifestBytes] = await Promise.all([
       localBytes("../pkg/provenance_wasm_bg.wasm"), localBytes("../trust/anchors.pem"),
-      localBytes("../manifest.json"), import("../pkg/provenance_wasm.js"),
+      localBytes("../manifest.json"),
     ]);
-    await mod.default({ module_or_path: wasm });
+    await init({ module_or_path: wasm });
     const pem = new TextDecoder().decode(anchorBytes);
     if (!pem.includes("BEGIN CERTIFICATE")) throw new Error("Bundled trust anchors are missing; not examined");
     return {
-      verify: (bytes, mime) => JSON.parse(mod.verify_bytes(bytes, mime, pem)),
+      verify: (bytes, mime) => JSON.parse(verify_bytes(bytes, mime, pem)),
       identity: { package_version: JSON.parse(new TextDecoder().decode(manifestBytes)).version,
         wasm_sha256: await sha256(wasm), profile: "standalone-wasm", c2pa_version: "0.90.13" },
       anchors: { sha256: await sha256(anchorBytes), fetched_date: pem.match(/^# Fetched: (\d{4}-\d{2}-\d{2})/m)?.[1] ?? null },

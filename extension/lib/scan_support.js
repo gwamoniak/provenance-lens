@@ -1,7 +1,5 @@
-// Pure helpers for the U7 scan service. This is an ES module the background
-// pulls in via dynamic import (the background file itself must stay free of
-// static imports — Firefox event-page requirement), which also makes the
-// logic directly testable in Node: scripts/scan_support_test.mjs.
+// Pure helpers shared by the module worker and Firefox's module background
+// page; also directly testable in Node: scripts/scan_support_test.mjs.
 
 /// Tier presentation, single-sourced: the action badge (background) and the
 /// page pills (content script, via the pl-verify response) both render from
