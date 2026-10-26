@@ -29,7 +29,7 @@ registry-pdq = []
 stable-signature = ["watermark-dwt", "dep:tract-onnx"]
 
 [dependencies]
-c2pa = { version = "0.89.2", default-features = false, features = ["rust_native_crypto"] }
+c2pa = { version = "0.91.6", default-features = false, features = ["rust_native_crypto"] }
 # W1 dependency (roadmap plan Decision Log): pixel decoding for the watermark
 # layer only — JPEG + PNG codecs, nothing else. Optional: absent from wasm
 # and from any build without the watermark-dwt feature.
